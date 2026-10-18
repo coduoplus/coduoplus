@@ -1,15 +1,6 @@
 # CoDUO+ — Changelog
 
-## Unreleased
-
-### Netcode
-- **Lag compensation** on CoDUO+ servers (Windows and Linux): a shot is traced
-  against where the other players were on the shooter's screen, up to
-  `g_antilagMaxMs` (300) back. Server cvar `g_antilag` (on by default, in
-  serverinfo; `2` logs every compensated shot). Nothing changes on clients. Pose
-  (stance/lean) is not rewound yet. [docs/NETCODE.md](docs/NETCODE.md#lag-compensation).
-
-## v0.2.0 (2026-10-17) — upstream 1.6.9, without PunkBuster
+## v0.2.0 (2026-10-18) — upstream 1.6.9, lag compensation, Linux servers
 
 Everything new in COD1.6X `release/1.6.8`..`release/1.6.9` except the
 PunkBuster ruleset, ported onto 0.1.0. Upstream's 1.6.8/1.6.9 line starts from
@@ -34,8 +25,13 @@ PunkBuster ruleset, ported onto 0.1.0. Upstream's 1.6.8/1.6.9 line starts from
   or clamp the named cvars while connected. Until now nothing on a UO server
   published it, so clients never actually ran `snaps 40` / `cl_maxpackets 125`.
 - An over-cap `cl_maxpackets` resets to 125 instead of vanilla's 100.
+- **Lag compensation** on CoDUO+ servers (Windows and Linux): a shot is traced
+  against where the other players were on the shooter's screen, up to
+  `g_antilagMaxMs` (300) back. Server cvar `g_antilag` (on by default, in
+  serverinfo; `2` logs every compensated shot). Nothing changes on clients, so
+  vanilla players benefit too. Pose (stance/lean) is not rewound yet.
 - [docs/NETCODE.md](docs/NETCODE.md): how a shot is registered, server/client
-  setup, why `sv_fps 40`, and what lag compensation would add.
+  setup, why `sv_fps 40`, and how lag compensation works.
 
 ### Linux servers
 - **`coduoplus_sv.so`** (LD_PRELOAD) for the CoD:UO 1.51b Linux dedicated server:
@@ -54,6 +50,16 @@ PunkBuster ruleset, ported onto 0.1.0. Upstream's 1.6.8/1.6.9 line starts from
 - A `r_fullscreen 1` in `uoconfig_mp.cfg` is the player's choice and is never
   rewritten to 0; a minimized window is never restyled.
 
+### Settings menu (Ctrl+M)
+- Branded **CoDUO+** (it still said "1.6X / COD1 RELOADED"); the version shown
+  comes from the build.
+- The cursor moves with raw mouse input off (it was frozen: the engine re-centres
+  the cursor before Windows reports the move).
+- Files tab lists UO's own demos (`*.dm_22`, not CoD1's `Main` demos) and the
+  configs in `uo/` as well as `uo/configs/`.
+- `zz_coduoplus_ui.pk3` (the main-menu button) is optional and attached to the
+  release separately; Ctrl+M opens the settings without it.
+
 ### Imposed settings (ini lock)
 - `fullscreen`, `refresh_rate`, `frame_limiter_enable`, `force_1ms_timer`,
   `gpu_sync`, `input_late_sampling`, `smoothness_cpu_cores` are rewritten to
@@ -66,11 +72,18 @@ PunkBuster ruleset, ported onto 0.1.0. Upstream's 1.6.8/1.6.9 line starts from
 - One `session` line a minute and at exit: fps, late wakes, long frames, GPU
   wait, display mode, com_maxfps, raw input.
 
+### CI and releases
+- GitHub-hosted runners only: no self-hosted runner is needed for pull requests,
+  `main` or releases. The tests against the real game run locally
+  ([docs/CI.md](docs/CI.md)).
+
 ### Tests
+- `antilag`: the lag-compensation core on a fake entity array (portable).
 - `frame_limiter`: the real wait in a copy of the patched `Com_Frame` loop.
 - `ini_lock`: the rewrite over the shipped `coduoplus.ini`.
 - `site_check`: 264 checks (11 new for the limiter's clock, mouse and
-  dedicated-server path).
+  dedicated-server path), plus 12 for lag compensation per `uo_game` build;
+  `site_check_linux` anchors every Linux address and struct field.
 
 ## v0.1.0 (2026-10-17) — first CoD:UO 1.51 build
 
