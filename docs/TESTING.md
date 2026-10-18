@@ -195,3 +195,6 @@ Run on the test install after `.\deploy.ps1` and
 10. **Map change.** `/map mp_arnhem` from the devmap: the log shows the cgame
    reload being re-patched (`uo_cgame_mp_x86.dll reloaded`), FOV still unlocked.
 11. **Alt-tab** in and out a few times; no freeze, gamma restored on the desktop.
+12. **Session line.** After a minute, and when quitting, the log has a line like
+    `session 60 s: 250.0 fps (15000 frames, 0 late wakes, 0 long, max 4.3 ms) | GPU 0.50 ms …`.
+    Paste it with any "it stutters" report.
