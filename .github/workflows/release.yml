@@ -8,8 +8,8 @@ name: Release
 #   publish   only if both passed: player zip in the game folder layout, manifest.json
 #             for the updater, release notes from CHANGELOG.md
 #
-# Hosted runners only: a release never waits for the self-hosted game machine. The
-# tests against the real game (game.yml) are run by hand before tagging. The UI pk3
+# Hosted runners only (no self-hosted runner). The tests against the real game run
+# locally before tagging (docs/CI.md). The UI pk3
 # is generated from the player's own pakuo03.pk3 (ui_pk3/build_pk3.py), so it can't
 # be built here; attach it afterwards with `gh release upload` (see docs/CI.md).
 #
