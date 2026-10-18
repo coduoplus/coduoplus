@@ -74,7 +74,6 @@ possible fixes) the impossible combinations before the renderer starts.
 | --- | --- | --- |
 | `updater_enable`, `updater_auto_download`, `updater_show_dialog` | `on` | The auto-updater. Idle while `updater_manifest_url` is empty. |
 | `updater_manifest_url` | *(empty)* | A CoDUO+ release manifest (`{"version","download_url","notes"}`). **Never** point it at `cod1plus/client`: that feed ships the CoD1 DLL. |
-| `ruleset_fetch_enable`, `ruleset_url` | `on`, cod1plus/rulesets | The PunkBuster-style cvar ruleset a server can ask for (`sv_competitive_ruleset`). Only enforced while connected to a server that publishes one; vanilla UO servers don't. A built-in copy is the offline fallback, cached in `rulesets\`. |
 | `pam_download_enable`, `pam_manifest_url` | `off`, *(empty)* | The INSTALL / UPDATE PAM button. Upstream's manifest is CoD1's rPAM, so it's off; point it at a UO mod manifest in the same format to use it. |
 | `discord_rpc_enable`, `discord_rpc_client_id`, … | `on`, *(empty)* | Discord Rich Presence. Does nothing without an application id. |
 | `demo_upload_*` | `off` | Upstream proof of concept: upload new demos from `uo\demos`. |
@@ -95,5 +94,4 @@ possible fixes) the impossible combinations before the renderer starts.
 | `uo\uoconfig_mp.cfg` | read by the display probe; `r_fullscreen` / `r_displayRefresh` may be rewritten to match the ini |
 | `uo\coduoplus_autoexec.cfg` | only with `force_resolution = on` |
 | `uo\zz_coduoplus_ui.pk3` | main-menu entry (generated, see `ui_pk3/build_pk3.py`) |
-| `rulesets\` | ruleset cache |
 | `mss32_original.dll` | the real Miles DLL every audio call is forwarded to |

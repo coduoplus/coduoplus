@@ -78,7 +78,7 @@ process. Work that needs the engine running or a module loaded happens here:
 
 | Tick | What it does |
 | --- | --- |
-| once the cvar system is up (`cvar count > 0`) | register the mod's cvars (userinfo `coduoplus` / `cod1x_build`, `m_rinput`, `cod1x_*` menu cvars); enforce a server's competitive spec / ruleset; follow `m_rinput`; follow the master-list toggle |
+| once the cvar system is up (`cvar count > 0`) | register the mod's cvars (userinfo `coduoplus` / `cod1x_build`, `m_rinput`, `cod1x_*` menu cvars); enforce a server's competitive spec; follow `m_rinput`; follow the master-list toggle |
 | `swing_server_tick` | if `uo_game` is loaded (we are a server): keep the swing mirror applied, publish `sv_coduoplus_swing` |
 | `version_gate_tick` | if `uo_game` is loaded: keep the ClientConnect gate installed |
 | `swing_client_tick` | if `uo_cgame` is loaded: swing on/off according to the current server's systeminfo |
@@ -167,15 +167,15 @@ The client reads the **live configstring** (`cl.gameState`, see
 `CL_SystemInfoChanged` only sets cvars that are *present*, so a cvar would keep
 the previous server's "1" after moving to a vanilla server.
 
-The same channel carries upstream's competitive spec (`sv_competitive*`) and
-ruleset id, which a UO server running CoDUO+ could publish in the same way.
+The same channel carries upstream's competitive spec (`sv_competitive*`),
+which a UO server running CoDUO+ could publish in the same way.
 
 ## Source layout
 
 | Folder | Contents |
 | --- | --- |
 | `src/core/` | `main.cpp` (DllMain, watcher), `game.*` (build identity, names, `port::` switches), `patches.cpp` (ini loading), logger, IAT hook helper, single-instance guard, toasts |
-| `src/netcode/` | protocol/master, competitive caps + server spec, PB-style ruleset (parse/fetch/eval), cheat scan, version patch, server version gate, antilag (off) |
+| `src/netcode/` | protocol/master, competitive caps + server spec, version patch, server version gate, antilag (off) |
 | `src/gameplay/` | swing (client + server), stance, lean (off), viewheight (off), anim clamp (reverted upstream) |
 | `src/video/` | Hor+/stretch FOV, borderless window, fullscreen default, display probe, mode guard, gamma |
 | `src/performance/` | frame limiter, 1 ms timer, CPU affinity, priority, working set, FSO |

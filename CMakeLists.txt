@@ -42,12 +42,7 @@ set(COD1RELOADED_SOURCES
     src/netcode/version_patch.cpp
     src/netcode/protocol_patch.cpp
     src/netcode/competitive.cpp
-    src/netcode/cheat_scan.cpp
-    src/netcode/ruleset_eval.cpp
-    src/netcode/ruleset_parse.cpp
-    src/netcode/ruleset_fetch.cpp
     src/features/pam_install.cpp
-    src/netcode/ruleset.cpp
     src/netcode/version_gate.cpp
     src/video/window_patch.cpp
     src/video/fullscreen_patch.cpp

@@ -57,8 +57,8 @@ constexpr uintptr_t CODMP_CVAR_COUNT_VA = 0x04927ea0; // cvar count (>0 once cva
 // CoDMP.exe itself: the engine registers `snaps` and `rate` (both userinfo cvars)
 // with `push 3` = ARCHIVE|USERINFO, and `cl_maxpackets` (archive only) with `push 1`.
 // With the old 0x01 value every cvar we published as "userinfo" was really archive-
-// only, so it NEVER reached the server: that is why cod1x_ac always logged
-// "no cod1x_ac report (old client?)" even for an up-to-date client, and why the
+// only, so it NEVER reached the server: that is why upstream's server always logged
+// "no report (old client?)" even for an up-to-date client, and why the
 // server-side version gate never saw a build number.
 constexpr int       CVAR_ARCHIVE        = 0x01;
 constexpr int       CVAR_USERINFO       = 0x02;

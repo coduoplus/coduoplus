@@ -8,8 +8,8 @@ Offensive 1.51. How and why: [docs/PORTING.md](docs/PORTING.md).
 ### Ported
 - Every `CoDUOMP.exe` patch, re-found and checked against the 1.51 binaries:
   version string, protocol/master/browser sites (left at UO's own values),
-  snaps 40 / cl_maxpackets 125 caps, server-pushed competitive spec and
-  fair-play ruleset, r_displayRefresh 1000 Hz cap, r_fullscreen default,
+  snaps 40 / cl_maxpackets 125 caps, server-pushed competitive spec,
+  r_displayRefresh 1000 Hz cap, r_fullscreen default,
   raw mouse input, live systeminfo lookup.
 - cgame: cg_fov unlock (80–95), Hor+ / stretched FOV, swing fix, stance blend
   hold (off, as upstream).
@@ -34,6 +34,11 @@ Offensive 1.51. How and why: [docs/PORTING.md](docs/PORTING.md).
   CoD1 menus are shipped. Upstream's 1.6/1.5 server-list buttons are dropped.
 - **Updater / PAM** have no default feed (upstream's ship CoD1 files).
 - `fullscreen = on` by default (as upstream's own 1.6.10 ini).
+
+### Removed
+- All PunkBuster code: the PB-format cvar ruleset (parser, fetcher, embedded
+  CoDBase PunkBuster list, `ruleset_*` ini keys, userinfo `cod1x_rs`) and the
+  cheat-cvar scan (`cod1x_ac`).
 
 ### Not ported
 - Lean fix and controller smoothing, antilag, viewheight lerp speed, the
