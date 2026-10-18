@@ -44,12 +44,12 @@ bool ensure_hidden_window() {
         wc.cbSize        = sizeof(wc);
         wc.lpfnWndProc   = toast_wnd_proc;
         wc.hInstance     = inst;
-        wc.lpszClassName = "cod1reloaded_toast";
+        wc.lpszClassName = "coduoplus_toast";
         g_class_atom = RegisterClassExA(&wc);
         if (!g_class_atom) return false;
     }
 
-    g_hidden_hwnd = CreateWindowExA(0, "cod1reloaded_toast", "", 0,
+    g_hidden_hwnd = CreateWindowExA(0, "coduoplus_toast", "", 0,
                                     0, 0, 0, 0,
                                     HWND_MESSAGE, NULL, inst, NULL);
     return g_hidden_hwnd != NULL;
@@ -79,8 +79,8 @@ void toast_show(const char* title, const char* body, ToastType type) {
     nid.uFlags           = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_INFO;
     nid.uCallbackMessage = WM_TOAST_TRAY;
     nid.hIcon            = LoadIconA(NULL, IDI_APPLICATION);
-    strncpy(nid.szTip, "cod1reloaded", sizeof(nid.szTip) - 1);
-    strncpy(nid.szInfoTitle, title ? title : "cod1reloaded", sizeof(nid.szInfoTitle) - 1);
+    strncpy(nid.szTip, "coduoplus", sizeof(nid.szTip) - 1);
+    strncpy(nid.szInfoTitle, title ? title : "coduoplus", sizeof(nid.szInfoTitle) - 1);
     strncpy(nid.szInfo, body ? body : "", sizeof(nid.szInfo) - 1);
 
     switch (type) {

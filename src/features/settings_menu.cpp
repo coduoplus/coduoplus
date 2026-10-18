@@ -5,12 +5,13 @@
 // This module makes those bindings do something: registers the cod1x_* cvars (seeded from the
 // .ini), unlocks cg_fov so it isn't cheat-locked to 80, opens the menu on a hotkey (runtime
 // `loadmenu`+`open`, so it works regardless of pk3 load order / PAM), and mirrors changes
-// back into cod1reloaded.ini (the persistent home).
+// back into coduoplus.ini (the persistent home).
 //
 // FOV needs no new render hook: the widescreen Hor+ hook already reads cg_fov every frame,
 // so once the clamp/cheat lock is gone the chosen FOV flows straight through it.
 
 #include "features/settings_menu.h"
+#include "core/game.h"
 #include "video/widescreen_fix.h"     // g_widescreen_config, AspectMode
 #include "video/window_patch.h"       // get_game_window()
 #include "video/display_probe.h"      // resolution_for_r_mode()
@@ -47,7 +48,7 @@ const Cbuf_ExecuteText_t Cbuf_ExecuteText = (Cbuf_ExecuteText_t)CODMP_CBUF_EXECT
 
 bool engine_ready() {
     // cvar system up + we really are inside CoDMP.exe (same gate protocol_patch/competitive use)
-    return (uintptr_t)GetModuleHandleA(NULL) == 0x400000 &&
+    return game_exe_ok() &&
            *(volatile int*)CODMP_CVAR_COUNT_VA > 0;
 }
 
@@ -290,7 +291,7 @@ void do_save_config() {
     Cbuf_ExecuteText(EXEC_APPEND, cmd);
 }
 
-// cod1reloaded.ini sits next to CoDMP.exe / mss32.dll (same dir load_config reads from).
+// coduoplus.ini sits next to CoDMP.exe / mss32.dll (same dir load_config reads from).
 void ini_writeback(const char* key, const char* value) {
     char path[MAX_PATH];
     DWORD len = GetModuleFileNameA(NULL, path, MAX_PATH);
@@ -298,9 +299,9 @@ void ini_writeback(const char* key, const char* value) {
     char* slash = strrchr(path, '\\');
     if (!slash) return;
     slash[1] = '\0';
-    if (strlen(path) + strlen("cod1reloaded.ini") >= MAX_PATH) return;
-    strcat(path, "cod1reloaded.ini");
-    WritePrivateProfileStringA("cod1reloaded", key, value, path);
+    if (strlen(path) + strlen("coduoplus.ini") >= MAX_PATH) return;
+    strcat(path, "coduoplus.ini");
+    WritePrivateProfileStringA("coduoplus", key, value, path);
 }
 
 bool poke_dword(uintptr_t va, uint32_t expect, uint32_t val) {
@@ -355,7 +356,7 @@ void settings_menu_start() {
 // most resolutions -> BADMODE -> the fallback path. A 2003 limit on 2026 panels (enzo,
 // 320 Hz, 2026-09-17). The imm32 of that push is the whole cap: lift it to 1000.
 void settings_menu_patch_refresh_cap() {
-    if ((uintptr_t)GetModuleHandleA(NULL) != 0x400000) return;
+    if (!game_exe_ok()) return;
     const bool ok = poke_dword(CODMP_REFRESH_CAP_IMM_VA, 0x43480000u /* 200.0f */, 0x447a0000u /* 1000.0f */);
     logger::logf("settings_menu: r_displayRefresh engine cap 200 -> 1000 @0x%08x %s",
                  (unsigned)CODMP_REFRESH_CAP_IMM_VA, ok ? "patched" : "SKIPPED (bytes differ)");

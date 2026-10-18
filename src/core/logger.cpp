@@ -22,7 +22,7 @@ void resolve_log_path(HMODULE self_module) {
     if (!slash) return;
     *(slash + 1) = '\0';
 
-    snprintf(g_log_path, sizeof(g_log_path), "%scod1reloaded.log", dll_path);
+    snprintf(g_log_path, sizeof(g_log_path), "%scoduoplus.log", dll_path);
 }
 
 }  // namespace
@@ -50,7 +50,7 @@ void init(HMODULE self_module) {
     if (f) {
         SYSTEMTIME st;
         GetLocalTime(&st);
-        fprintf(f, "=== cod1reloaded log opened %04d-%02d-%02d %02d:%02d:%02d ===\n",
+        fprintf(f, "=== coduoplus log opened %04d-%02d-%02d %02d:%02d:%02d ===\n",
                 st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
         fclose(f);
     }

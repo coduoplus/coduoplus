@@ -15,9 +15,12 @@
 
 namespace patches {
 
+// CoD:UO port: OFF by default. The upstream manifest installs rPAM for CoD1
+// (__rPAMv115b5, CoD1 maps); none of it loads in UO. Point pam_manifest_url at
+// a UO mod manifest in the same format and turn pam_download_enable on to use it.
 PamInstallConfig g_pam_install_config = {
-    /* enable       */ true,
-    /* manifest_url */ "https://raw.githubusercontent.com/cod1plus/cod1pluspam/main/pam.manifest",
+    /* enable       */ false,
+    /* manifest_url */ "",
 };
 
 namespace {
@@ -178,7 +181,7 @@ bool file_sha256(const char* path, unsigned long long* size, std::string& hex) {
 
 // ---------------------------------------------------------------- HTTP
 HINTERNET open_inet() {
-    HINTERNET hi = InternetOpenA("cod1reloaded pam", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+    HINTERNET hi = InternetOpenA("coduoplus pam", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
     if (hi) { DWORD tmo = 10000; InternetSetOptionA(hi, INTERNET_OPTION_CONNECT_TIMEOUT, &tmo, sizeof(tmo)); }
     return hi;
 }
@@ -374,7 +377,7 @@ out:
 void pam_install_start() {
     cs_init();
     if (!g_pam_install_config.enable || !g_pam_install_config.manifest_url[0]) {
-        set_status(PAM_ERROR, "PAM download disabled in cod1reloaded.ini");
+        set_status(PAM_ERROR, "PAM download disabled in coduoplus.ini");
         return;
     }
     EnterCriticalSection(&g_cs);

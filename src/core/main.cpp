@@ -1,10 +1,12 @@
-// gamex86.dll / cgame_mp_x86.dll load lazily, so patch via watcher thread, not DllMain.
+// uo_game_mp_x86.dll / uo_cgame_mp_x86.dll load lazily, so patch via watcher thread, not DllMain.
 // mss32 proxy not implemented yet; inject manually.
 
 #include <windows.h>
 #include <cstring>
 
 #include "core/patches.h"
+#include "core/game.h"
+#include "core/game.h"
 #include "core/single_instance.h"
 #include "features/pam_install.h"
 #include "netcode/cheat_scan.h"
@@ -46,9 +48,13 @@ HMODULE g_cgame_applied   = nullptr;  // cgame base we last successfully patched
 
 void try_patch_gamex86() {
     if (g_gamex86_patched) return;
-    HMODULE game = GetModuleHandleA("gamex86.dll");
+    // CoD:UO port: upstream waits for "gamex86.dll" - the SINGLE-PLAYER module,
+    // which CoDMP.exe never loads, so this fix has never run in CoD1 MP (its RVA
+    // 0x9a1b0 holds 180.0f only in SP gamex86.dll). See docs/PORTING.md.
+    if (!patches::port::GAME_VIEWHEIGHT) return;
+    HMODULE game = GetModuleHandleA(patches::GAME_GAME_DLL);
     if (!game) return;
-    logger::logf("gamex86.dll detected (base=0x%08x), applying patches...",
+    logger::logf("uo_game_mp_x86.dll detected (base=0x%08x), applying patches...",
                  (unsigned)(uintptr_t)game);
     if (patches::apply_viewheight_fix(game)) {
         g_gamex86_patched = true;
@@ -61,18 +67,18 @@ void try_patch_gamex86() {
 
 bool apply_cgame_patches(HMODULE cgame, bool fresh) {
     if (fresh) {
-        logger::logf("cgame_mp_x86.dll detected (base=0x%08x)", (unsigned)(uintptr_t)cgame);
+        logger::logf("uo_cgame_mp_x86.dll detected (base=0x%08x)", (unsigned)(uintptr_t)cgame);
         if (patches::g_lean_fix_config.enable)
             logger::logf("  applying lean fix (diag_fix=%d ctrl_smooth=%d in_stand=%d)...",
                          patches::g_lean_fix_config.move_diag_fix,
                          patches::g_lean_fix_config.ctrl_smooth_enable,
                          patches::g_lean_fix_config.apply_in_stand);
     } else {
-        logger::logf("cgame_mp_x86.dll reloaded (map change) -> re-applying patches");
+        logger::logf("uo_cgame_mp_x86.dll reloaded (map change) -> re-applying patches");
     }
 
     // CG_Draw2D hook = discord in-match heartbeat (engine_2d_last_hud_tick)
-    if (patches::g_discord_rpc_config.enable &&
+    if (patches::port::CGAME_DRAW2D && patches::g_discord_rpc_config.enable &&
         patches::g_discord_rpc_config.client_id[0] != '\0') {
         patches::engine_2d_install_hook(cgame);
     }
@@ -88,7 +94,7 @@ bool apply_cgame_patches(HMODULE cgame, bool fresh) {
 // reloads cgame_mp_x86.dll, reverting our hooks). Only latches the base on success
 // so a mid-load detection retries.
 void monitor_cgame() {
-    HMODULE cgame = GetModuleHandleA("cgame_mp_x86.dll");
+    HMODULE cgame = GetModuleHandleA(patches::GAME_CGAME_DLL);
     if (!cgame) { g_cgame_applied = nullptr; return; }
     const bool fresh = (cgame != g_cgame_applied);
     if (fresh || patches::cgame_needs_reapply(cgame)) {
@@ -104,7 +110,8 @@ DWORD WINAPI patch_watcher_thread(LPVOID) {
     for (;;) {
         if (!g_gamex86_patched) try_patch_gamex86();
         // register the version userinfo cvar as soon as the engine cvar system is up
-        if (*(volatile int*)patches::CODMP_CVAR_COUNT_VA > 0) {
+        // game_exe_ok() first: the cvar-count address is only valid for UO 1.51.
+        if (patches::game_exe_ok() && *(volatile int*)patches::CODMP_CVAR_COUNT_VA > 0) {
             patches::register_client_version_cvar();
             patches::competitive_force_cvars();  // force/lock snaps+cl_maxpackets+rate for 40-tick
             patches::settings_menu_tick();       // register/poll cod1x_* cvars + cg_fov unlock + hotkey
@@ -136,7 +143,7 @@ extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
             // apply pending update (rename .new -> .dll) before file gets locked
             patches::updater_apply_pending();
             logger::init(hModule);
-            logger::logf("cod1reloaded DLL_PROCESS_ATTACH (loaded as 0x%08x, version %s)",
+            logger::logf("coduoplus DLL_PROCESS_ATTACH (loaded as 0x%08x, version %s)",
                          (unsigned)(uintptr_t)hModule, patches::COD1RELOADED_VERSION);
             patches::load_config(hModule);
 

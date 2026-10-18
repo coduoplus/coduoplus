@@ -4,6 +4,7 @@
 
 #include "performance/frame_limiter.h"
 #include "core/logger.h"
+#include "core/game.h"
 #include "netcode/version_patch.h" // CODMP_PREFERRED_BASE
 
 #include <cstdio>
@@ -116,6 +117,10 @@ extern "C" int __cdecl frame_wait_replacement() {
 
 bool apply_frame_limiter_patch() {
     if (g_applied) return true;
+    if (!game_exe_ok()) {
+        logger::logf("frame_limiter: not CoDUOMP.exe 1.51 - skipped");
+        return false;
+    }
     if (!g_frame_limiter_config.enable) {
         logger::logf("frame_limiter: disabled in config, skipping");
         return true;

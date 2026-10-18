@@ -1,6 +1,7 @@
 // ruleset.cpp - embedded PunkBuster-style ruleset enforcement. See ruleset.h.
 
 #include "netcode/ruleset.h"
+#include "core/game.h"
 #include "netcode/ruleset_eval.h"
 #include "netcode/ruleset_table.h"
 #include "netcode/ruleset_parse.h"
@@ -123,7 +124,7 @@ bool        ruleset_active() { return g_active; }
 const char* ruleset_id()     { return RULESET_ID; }
 
 void ruleset_tick() {
-    if ((uintptr_t)GetModuleHandleA(NULL) != 0x400000) return;
+    if (!game_exe_ok()) return;
     if (*(volatile int*)CODMP_CVAR_COUNT_VA <= 0) return;
 
     if (!g_registered) {

@@ -8,7 +8,7 @@ namespace patches {
 
 // In-game "1.6X SETTINGS" menu bridge: registers cvars the ui_mp/cod1x_settings.menu
 // binds to (FOV + screen ratio), unlocks cg_fov, and
-// mirrors live changes back into cod1reloaded.ini.
+// mirrors live changes back into coduoplus.ini.
 struct SettingsMenuConfig {
     bool enable       = true;
     bool fov_unlock   = true;   // patch cgame so cg_fov isn't cheat-locked/clamped to 80

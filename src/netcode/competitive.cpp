@@ -1,4 +1,5 @@
 #include "netcode/competitive.h"
+#include "core/game.h"
 #include "netcode/ruleset_eval.h"    // rule_ok / rule_fix: the one place value semantics live
 #include "netcode/protocol_patch.h"   // CODMP_CVAR_GET_VA
 #include "core/logger.h"
@@ -26,7 +27,7 @@ constexpr int       CODMP_MAX_GAMESTATE_CHARS  = 16000;
 bool systeminfo_value(const char* key, char* out, int outsz) {
     if (outsz <= 0) return false;
     out[0] = 0;
-    if ((uintptr_t)GetModuleHandleA(NULL) != 0x400000) return false;
+    if (!game_exe_ok()) return false;
     const int off = *(volatile int*)CODMP_GS_SYSTEMINFO_OFF_VA;
     if (off <= 0 || off >= CODMP_MAX_GAMESTATE_CHARS) return false;
     const char* s   = (const char*)CODMP_GS_STRINGDATA_VA + off;
@@ -86,8 +87,8 @@ bool poke_verify(uintptr_t va, uint8_t expect, uint8_t val, const char* tag) {
 }  // namespace
 
 bool apply_competitive_caps() {
-    if ((uintptr_t)GetModuleHandleA(NULL) != 0x400000) {
-        logger::logf("  competitive: CoDMP.exe base != 0x400000, abort caps");
+    if (!game_exe_ok()) {
+        logger::logf("  competitive: not CoDUOMP.exe 1.51, abort caps");
         return false;
     }
 
@@ -249,7 +250,7 @@ void note_spec_name(const char* name) {
 }  // namespace
 
 void competitive_force_cvars() {
-    if ((uintptr_t)GetModuleHandleA(NULL) != 0x400000) return;
+    if (!game_exe_ok()) return;
 
     // Pre-register sv_competitive here (NOT in apply_competitive_caps, which runs at DLL
     // attach before the cvar system exists). This is only reached from the watcher once

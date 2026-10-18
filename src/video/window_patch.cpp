@@ -1,4 +1,5 @@
 #include "video/window_patch.h"
+#include "core/game.h"
 #include "video/mode_guard.h"
 #include "core/logger.h"
 #include "features/demo_upload.h"
@@ -42,7 +43,7 @@ constexpr uintptr_t WP_CVAR_COUNT_VA   = 0x01912aec;  // cvar count (system up)
 constexpr int       WP_CVAR_OFF_INTEGER = 0x20;
 
 bool engine_cvar_int(const char* name, int* out) {
-    if ((uintptr_t)GetModuleHandleA(NULL) != 0x400000) return false;
+    if (!game_exe_ok()) return false;
     if (*(volatile int*)WP_CVAR_COUNT_VA <= 0) return false;
     void* cv = ((WpCvarFindVar_t)WP_CVAR_FINDVAR_VA)(name);
     if (!cv) return false;

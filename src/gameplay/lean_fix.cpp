@@ -3,6 +3,7 @@
 #include "gameplay/lean_fix.h"
 #include "core/logger.h"
 #include "core/patches.h"
+#include "core/game.h"
 #include "video/widescreen_fix.h"
 #include "gameplay/swing_fix.h"
 #include "gameplay/stance_fix.h"
@@ -17,7 +18,7 @@
 
 namespace patches {
 
-// COMPETITIVE RELEASE: these are HARDCODED (no longer read from cod1reloaded.ini) so a
+// COMPETITIVE RELEASE: these are HARDCODED (no longer read from coduoplus.ini) so a
 // player can't edit the model/movement fixes to gain an advantage. Values = the tuned
 // set that was in the .ini as of 2026-07-24. To change them now you must rebuild.
 LeanFixConfig g_lean_fix_config = {
@@ -131,12 +132,12 @@ extern "C" void lean_ctrl_log_sink(const char* line) {
 
 // Measurement knob, read once. Dumping is a diagnostic and gives no gameplay advantage,
 // so unlike the pose values it is configurable at runtime:
-//     cod1reloaded.ini  ->  ctrl_dump = 400        (primary; logged at every launch)
+//     coduoplus.ini  ->  ctrl_dump = 400        (primary; logged at every launch)
 //     COD1RELOADED_CTRL_DUMP=400                   (fallback, matches the server's name)
 // The ini comes first on purpose. The environment route silently produced nothing twice,
 // because a shortcut or an Explorer double-click does not inherit a variable exported in
 // some other shell - and from inside the game an unset variable is indistinguishable from
-// one deliberately left off. Output lands in cod1reloaded.log next to the DLL.
+// one deliberately left off. Output lands in coduoplus.log next to the DLL.
 static int ctrl_dump_budget() {
     static int budget = -1;
     if (budget < 0) {
@@ -472,13 +473,19 @@ bool install_lean_fix(HMODULE cgame_module) {
 bool apply_to_cgame(HMODULE cgame_module) {
     if (!cgame_module) return false;
 
-    widescreen_apply_to_cgame(cgame_module);
-    settings_menu_apply_to_cgame(cgame_module);  // unlock cg_fov (before CG_Init proceeds)
-    apply_swing_fix(cgame_module);
-    apply_stance_fix(cgame_module);  // sync model stance blend with 1st person
+    // CoD:UO port: each group runs only once its uo_cgame addresses are mapped
+    // and covered by tests/site_check.cpp (core/game.h, port::*).
+    if (port::CGAME_WIDESCREEN) widescreen_apply_to_cgame(cgame_module);
+    if (port::CGAME_FOV) settings_menu_apply_to_cgame(cgame_module);  // unlock cg_fov (before CG_Init proceeds)
+    if (port::CGAME_SWING) apply_swing_fix(cgame_module);
+    if (port::CGAME_STANCE) apply_stance_fix(cgame_module);  // sync model stance blend with 1st person
     // apply_anim_clamp(cgame_module);  // REVERTED 2026-07-24: the `xor esi,esi` patch
     //   clobbers a register the CALLER still needs (the old path called Com_Error and
     //   never returned, so clobbering was harmless there) -> camera/mouse glitches.
+    if (!port::CGAME_LEAN) {
+        logger::logf("  lean hook NOT installed (not ported to UO yet)");
+        return true;
+    }
     if (!g_lean_fix_config.enable) {
         logger::logf("  lean hook NOT installed (disabled)");
         return true;
@@ -493,14 +500,14 @@ bool cgame_needs_reapply(HMODULE cgame_module) {
     if (!cgame_module) return false;
     const uintptr_t base = (uintptr_t)cgame_module;
 
-    if (g_lean_fix_config.enable) {
+    if (port::CGAME_LEAN && g_lean_fix_config.enable) {
         const uintptr_t cs = base + CGAME_DOCONTROLLERS_CALL_SITE_RVA;
         if (*(const uint8_t*)cs != 0xE8) return false;  // not ready yet
         const int32_t off = *(const int32_t*)(cs + 1);
         if (cs + 5 + (uintptr_t)(intptr_t)off != (uintptr_t)&lean_fix_hook)
             return true;  // reverted to original target
     }
-    if (g_swing_fix_config.enable) {
+    if (port::CGAME_SWING && g_swing_fix_config.enable) {
         const uintptr_t p = base + CGAME_SWING_LEGS_TOLERANCE_PUSH_RVA;
         if (*(const uint8_t*)p == 0x68 && *(const float*)(p + 1) > 39.0f)
             return true;  // legs swingTolerance back to vanilla 40.0

@@ -5,7 +5,7 @@
 
 namespace patches {
 
-// COMPETITIVE RELEASE: HARDCODED (not read from cod1reloaded.ini). The first-person
+// COMPETITIVE RELEASE: HARDCODED (not read from coduoplus.ini). The first-person
 // crouch view speed is the up/down mechanic - locked so it can't be tuned for an edge.
 // 80 = the tuned value as of 2026-07-24 (vanilla 180). Rebuild to change.
 ViewheightFixConfig g_viewheight_config = {
@@ -41,11 +41,11 @@ bool apply_viewheight_fix(HMODULE gamex86_module) {
     if (current != VIEWHEIGHT_LERP_SPEED_DEFAULT) {
         char msg[256];
         snprintf(msg, sizeof(msg),
-            "cod1reloaded: viewheight lerp speed sanity check failed.\n"
+            "coduoplus: viewheight lerp speed sanity check failed.\n"
             "Expected %.1f at gamex86+0x%08x, got %.4f.\n"
             "Aborting patch.",
             VIEWHEIGHT_LERP_SPEED_DEFAULT, (unsigned)VIEWHEIGHT_LERP_SPEED_RVA, current);
-        MessageBoxA(NULL, msg, "cod1reloaded", MB_OK | MB_ICONWARNING);
+        MessageBoxA(NULL, msg, "coduoplus", MB_OK | MB_ICONWARNING);
         return false;
     }
 

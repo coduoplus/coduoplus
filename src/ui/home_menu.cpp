@@ -328,7 +328,7 @@ HomeAction home_menu_draw(float sw, float sh) {
     float fx = 90 * s, fy = sh - 50 * s;
     fx += keycap(fx, fy, "CTRL+M", "settings", s) + 28 * s;
     fx += keycap(fx, fy, "ESC", "back", s) + 28 * s;
-    ui_text(fx, fy + 5 * s, px(13, s), 400, 0xFF444444, "cod1reloaded 1.6X");
+    ui_text(fx, fy + 5 * s, px(13, s), 400, 0xFF444444, "coduoplus 1.6X");
 
     ui_alpha(1.0f);
     return result;

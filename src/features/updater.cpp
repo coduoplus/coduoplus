@@ -21,15 +21,19 @@ namespace patches {
 
 /* THE URL IS A DEFAULT, NOT A REQUIREMENT (since 1.6.5).
  * It used to be "", and updater_tick() returns immediately on an empty URL - so any
- * install whose cod1reloaded.ini lacked `updater_manifest_url` had a dead auto-updater,
+ * install whose coduoplus.ini lacked `updater_manifest_url` had a dead auto-updater,
  * silently, and the log said `updater_enable = true (url="(none)")` which reads like it
  * is working. That is the normal case, not an edge one: updating a client means keeping
  * your existing .ini (it holds your settings), so a key added to the shipped .ini later
  * never reaches anyone who was already installed.
  * The .ini key still overrides this, for a fork or a private mirror. */
+/* CoD:UO port: NO DEFAULT URL. Upstream's manifest publishes COD1.6X - a CoD1
+ * mss32.dll. Fetching it here would overwrite the CoDUO+ proxy with a build that
+ * hooks CoDMP.exe addresses inside CoDUOMP.exe. CoDUO+ has no release feed yet,
+ * so the updater only runs when coduoplus.ini names one (updater_manifest_url). */
 UpdaterConfig g_updater_config = {
     /* enable        */ true,
-    /* manifest_url  */ "https://github.com/cod1plus/client/releases/latest/download/manifest.json",
+    /* manifest_url  */ "",
     /* auto_download */ true,
     /* show_dialog   */ true,
 };
@@ -84,7 +88,7 @@ bool json_extract_string(const char* json, const char* key, char* out, size_t ou
 bool http_download(const char* url, char* out_buf, size_t out_buf_size,
                    const char* out_file_path) {
     HINTERNET h_inet = InternetOpenA(
-        "cod1reloaded updater", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+        "coduoplus updater", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!h_inet) return false;
 
     DWORD tmo = 6000;
@@ -300,7 +304,7 @@ void updater_gate() {
 
     char msg[1400];
     snprintf(msg, sizeof(msg),
-        "A COD1.6X update is available.\n\n"
+        "A CoDUO+ update is available.\n\n"
         "Current version: %s\n"
         "New version:     %s\n\n"
         "%s\n\n"
@@ -308,7 +312,7 @@ void updater_gate() {
         "(The game cannot launch with the old version.)",
         COD1RELOADED_VERSION, remote, notes[0] ? notes : "");
 
-    const int r = MessageBoxA(NULL, msg, "COD1.6X - Update",
+    const int r = MessageBoxA(NULL, msg, "CoDUO+ - Update",
                               MB_YESNO | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND);
 
     if (r == IDYES) {
@@ -332,7 +336,7 @@ void updater_gate() {
             char done[320];
             snprintf(done, sizeof(done),
                 "Update installed!\n\nRestart the game to play on %s.", remote);
-            MessageBoxA(NULL, done, "COD1.6X",
+            MessageBoxA(NULL, done, "CoDUO+",
                         MB_OK | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND);
         } else {
             logger::logf("updater: auto-download/install FAILED, offering manual link");
@@ -340,7 +344,7 @@ void updater_gate() {
             snprintf(fail, sizeof(fail),
                 "Automatic download failed.\n\n"
                 "Download the new version manually here:\n%s", url);
-            MessageBoxA(NULL, fail, "COD1.6X",
+            MessageBoxA(NULL, fail, "CoDUO+",
                         MB_OK | MB_ICONWARNING | MB_TOPMOST | MB_SETFOREGROUND);
             ShellExecuteA(NULL, "open", url, NULL, NULL, SW_SHOWNORMAL);
         }
@@ -371,7 +375,7 @@ LONG WINAPI hk_ChangeDisplaySettingsA(DEVMODEA* dm, DWORD flags) {
 
 // Apply a leftover .new (interrupted update) + clean the previous .old. Call early.
 void updater_apply_pending() {
-    HMODULE self = GetModuleHandleA("cod1reloaded.dll");
+    HMODULE self = GetModuleHandleA("coduoplus.dll");
     if (!self) self = GetModuleHandleA("mss32.dll");
     if (!self) return;
     if (GetModuleFileNameA(self, g_dll_path, MAX_PATH) == 0) return;
@@ -392,7 +396,7 @@ void updater_apply_pending() {
 
 void updater_start() {
     if (g_dll_path[0] == '\0') {
-        HMODULE self = GetModuleHandleA("cod1reloaded.dll");
+        HMODULE self = GetModuleHandleA("coduoplus.dll");
         if (!self) self = GetModuleHandleA("mss32.dll");
         if (self) GetModuleFileNameA(self, g_dll_path, MAX_PATH);
     }

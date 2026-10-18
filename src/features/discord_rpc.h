@@ -9,7 +9,7 @@ struct DiscordRpcConfig {
     bool enable = true;
     char client_id[32]      = "";   // discord app id, empty = disabled
     char large_image[64]    = "logo";
-    char large_text[128]    = "cod1reloaded";
+    char large_text[128]    = "coduoplus";
     char details_menu[128]  = "Dans les menus";
     char details_match[128] = "En partie";
     char state_text[128]    = "";

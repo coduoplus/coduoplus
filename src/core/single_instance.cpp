@@ -2,6 +2,7 @@
 
 #include "core/single_instance.h"
 #include "core/logger.h"
+#include "core/game.h"
 
 #include <cstdio>
 #include <cstring>
@@ -24,7 +25,7 @@ void mutex_name(char* out, size_t n) {
         if (c >= 'A' && c <= 'Z') c = (unsigned char)(c - 'A' + 'a');
         h = (h ^ c) * 16777619u;
     }
-    snprintf(out, n, "Local\\cod1reloaded_instance_%08x", h);
+    snprintf(out, n, "Local\\coduoplus_instance_%08x", h);
 }
 
 bool cmdline_is_monkey_relaunch() {
@@ -67,7 +68,7 @@ void reap_parent_from_cmdline() {
 BOOL CALLBACK focus_existing(HWND hwnd, LPARAM) {
     char cls[32] = {0};
     if (!GetClassNameA(hwnd, cls, sizeof(cls))) return TRUE;
-    if (strcmp(cls, "CoDMP") != 0) return TRUE;
+    if (strcmp(cls, GAME_WINDOW_CLASS) != 0) return TRUE;
     DWORD owner = 0;
     GetWindowThreadProcessId(hwnd, &owner);
     if (owner == GetCurrentProcessId()) return TRUE;   // never our own
@@ -109,7 +110,7 @@ void single_instance_guard() {
         "Call of Duty is already running.\n\n"
         "A second copy would share the same config and log files and break both.\n"
         "Use the window that is already open (Alt+Tab).",
-        "COD1.6X", MB_OK | MB_ICONWARNING | MB_TOPMOST | MB_SETFOREGROUND);
+        "CoDUO+", MB_OK | MB_ICONWARNING | MB_TOPMOST | MB_SETFOREGROUND);
 
     ExitProcess(0);
 }
