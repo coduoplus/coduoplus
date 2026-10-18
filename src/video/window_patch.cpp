@@ -1,5 +1,6 @@
 #include "video/window_patch.h"
 #include "core/game.h"
+#include "core/session_report.h"
 #include "features/settings_menu.h"  // CODMP_CVAR_FINDVAR_VA
 #include "netcode/protocol_patch.h"  // CODMP_CVAR_COUNT_VA
 #include "video/mode_guard.h"
@@ -178,6 +179,8 @@ LRESULT CALLBACK cod1reloaded_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
 
     if (msg == WM_CLOSE || msg == WM_DESTROY) {
         demo_upload_trigger_now();
+        // ExitProcess often skips DLL_PROCESS_DETACH: the last session line goes here
+        session_report_final("end");
     }
 
     WNDPROC orig = g_original_wnd_proc;

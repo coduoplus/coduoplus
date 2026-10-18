@@ -25,6 +25,7 @@
 #include "performance/fps_cap.h"
 #include "performance/frame_limiter.h"
 #include "performance/gpu_sync.h"
+#include "core/session_report.h"
 #include "features/updater.h"
 #include "features/demo_upload.h"
 #include "core/toast.h"
@@ -116,6 +117,7 @@ DWORD WINAPI patch_watcher_thread(LPVOID) {
             patches::competitive_force_cvars();  // force/lock snaps+cl_maxpackets+rate for 40-tick
             patches::settings_menu_tick();       // register/poll cod1x_* cvars + cg_fov unlock + hotkey
             patches::rinput_tick();              // follow m_rinput, publish m_rinput_hz
+            patches::session_report_tick();      // one 'session' line a minute in the log
             patches::netmode_tick();             // follow cod1x_masterlist (1.6 <-> legacy 1.5)
         }
         patches::swing_server_tick();            // hosting: mirror swing into uo_game, publish it
@@ -220,6 +222,7 @@ extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
             }
             break;
         case DLL_PROCESS_DETACH:
+            patches::session_report_final("end");
             patches::rinput_shutdown();      // unregister the raw input device + join its thread
             patches::gamma_fix_shutdown();   // never leave the desktop gamma modified
             patches::fps_cap_shutdown();
