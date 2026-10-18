@@ -37,10 +37,13 @@ MUST_LOG = [
     'rinput: GetCursorPos IAT hook installed',
     'version_gate: client userinfo coduoplus=16',
     'settings_menu: registered cvars',
+    # server half of the swing fix: uo_game patched and the flag published
+    'swing_fix [server]: ON in 0x',
+    'swing_fix: server publishes sv_coduoplus_swing 1',
 ]
 # Phrases the patches log when they refuse to write (wrong bytes, wrong build).
 MUST_NOT_LOG = ['abort', 'SKIPPED', 'annule', 'PARTIAL', 'expected 0x', 'inattendu',
-                'not CoDUOMP.exe', 'borderless applied']
+                'not CoDUOMP.exe', 'borderless applied', 'do not match']
 
 
 def info_dict(reply):

@@ -354,35 +354,61 @@ void check_cgame_widescreen() {
     CHECK(g_cgame.bytes_eq(0x3002e022, {0xd8, 0x0d}) && g_cgame.f32(g_cgame.u32(0x3002e024)) == 1.0f / 480.0f);
 }
 
-void check_cgame_swing() {
-    using namespace patches;
+// The swing sites, checked the same way in either module (uo_cgame / uo_game compile
+// the same bg_ source). `im` is the module image, `s` its SwingSites table.
+void check_swing(const Image& im, const patches::SwingSites& s) {
+    const uint32_t B = im.base;
     // BG_SwingAngles(dest, swingTolerance, clampTolerance, speed, ...): the legs call
     // pushes clamp 150 then tolerance 40; the torso pitch call pushes speed 0.15 then 45
-    const uint32_t legs = CG + CGAME_SWING_LEGS_TOLERANCE_PUSH_RVA;
-    CHECK(g_cgame.bytes_eq(legs - 5, {0x68, 0x00, 0x00, 0x16, 0x43}));  // push 150.0
-    CHECK(g_cgame.u8(legs) == 0x68 && g_cgame.f32(legs + 1) == 40.0f);
-    CHECK(g_cgame.u8(legs + 5) == 0x55);                                 // push ebp
-    const uint32_t pitch = CG + CGAME_SWING_TORSO_PITCH_SPEED_PUSH_RVA;
-    CHECK(g_cgame.u8(pitch) == 0x68 && g_cgame.f32(pitch + 1) == 0.15f);
-    CHECK(g_cgame.bytes_eq(pitch + 5, {0x68, 0x00, 0x00, 0x34, 0x42}));  // push 45.0
-    // both are in the function that calls BG_SwingAngles (0x30004330) for torso and legs
-    const uint32_t swing = g_cgame.call_target(CG + 0x4711);
-    CHECK(is_call_to(g_cgame, CG + 0x4711, 0x30004330) && swing == 0x30004330);
+    const uint32_t legs = B + s.legs_tolerance_push;
+    CHECK(im.bytes_eq(legs - 5, {0x68, 0x00, 0x00, 0x16, 0x43}));  // push 150.0
+    CHECK(im.u8(legs) == 0x68 && im.f32(legs + 1) == 40.0f);
+    CHECK(im.u8(legs + 5) == 0x55);                                 // push ebp
+    const uint32_t pitch = B + s.torso_pitch_speed_push;
+    CHECK(im.u8(pitch) == 0x68 && im.f32(pitch + 1) == 0.15f);
+    CHECK(im.bytes_eq(pitch + 5, {0x68, 0x00, 0x00, 0x34, 0x42}));  // push 45.0
+    // the torso call into BG_SwingAngles (B+0x4330), right after the yaw arguments
+    CHECK(is_call_to(im, B + 0x4711, B + 0x4330));
     // torso yaw: mov esi,[swingSpeed] ; push esi ; push edx ; lea ebx,[edi+0x3b0] (torso)
-    const uint32_t mov = CG + CGAME_SWING_TORSO_YAW_MOV_RVA;
-    CHECK(g_cgame.bytes_eq(mov, {0x8b, 0x35}));
-    CHECK(g_cgame.u32(mov + 2) == CG + CGAME_SWING_TORSO_YAW_DVAR_RVA);
-    CHECK(g_cgame.bytes_eq(mov + 6, {0x56, 0x52, 0x8d, 0x9f, 0xb0, 0x03, 0x00, 0x00}));
+    const uint32_t mov = B + s.torso_yaw_mov;
+    CHECK(im.bytes_eq(mov, {0x8b, 0x35}));
+    CHECK(im.u32(mov + 2) == B + s.torso_yaw_dvar);
+    CHECK(im.bytes_eq(mov + 6, {0x56, 0x52, 0x8d, 0x9f, 0xb0, 0x03, 0x00, 0x00}));
     // the same swingSpeed is read 4 more times for the legs - only the torso load moves
-    CHECK(g_cgame.xrefs(CG + CGAME_SWING_TORSO_YAW_DVAR_RVA).size() == 5);
-    CHECK(g_cgame.xrefs(CG + CGAME_SWING_TORSO_YAW_DVAR_RVA)[0] == mov + 2);
+    const std::vector<uint32_t> readers = im.xrefs(B + s.torso_yaw_dvar);
+    CHECK(readers.size() == 5 && readers[0] == mov + 2);
     // movementYaw * 0.3: fmul [0.3f] operand
-    const uint32_t fm = CG + CGAME_SWING_TORSO_YAW_MOVEFRAC_FMUL_RVA;
-    CHECK(g_cgame.bytes_eq(fm - 2, {0xd8, 0x0d}));
-    CHECK(g_cgame.u32(fm) == CG + CGAME_SWING_TORSO_YAW_MOVEFRAC_CONST_RVA);
-    CHECK(g_cgame.f32(CG + CGAME_SWING_TORSO_YAW_MOVEFRAC_CONST_RVA) == 0.3f);
-    CHECK(g_cgame.bytes_eq(fm + 4, {0xd8, 0x44, 0x24, 0x18}));  // fadd [esp+0x18] (view yaw)
-    CHECK(fm < mov && mov - fm < 0x60);                          // same block, before the swing
+    const uint32_t fm = B + s.movefrac_fmul_op;
+    CHECK(im.bytes_eq(fm - 2, {0xd8, 0x0d}));
+    CHECK(im.u32(fm) == B + s.movefrac_const);
+    CHECK(im.f32(B + s.movefrac_const) == 0.3f);
+    CHECK(im.bytes_eq(fm + 4, {0xd8, 0x44, 0x24, 0x18}));  // fadd [esp+0x18] (view yaw)
+    CHECK(fm < mov && mov - fm < 0x60);                     // same block, before the swing
+}
+
+void check_cgame_swing() {
+    check_swing(g_cgame, patches::CGAME_SWING_SITES);
+}
+
+// The server mirror must patch the SAME code as the client, or "drawn == tested"
+// is lost: the two modules' BG_PlayerAngles must be byte-identical apart from the
+// absolute addresses of their own globals (relocated disp32 operands).
+void check_game_swing() {
+    using namespace patches;
+    check_swing(g_game, GAME_SWING_SITES);
+    // compare the whole swing region of both modules, masking each module's reloc'd
+    // globals: walk byte by byte, and where either side has an operand pointing into
+    // its own image, require the other to point into its own image at that spot too
+    const uint32_t from = 0x4680, to = 0x4840;
+    int diffs = 0;
+    for (uint32_t r = from; r < to; ++r) {
+        const uint32_t a = g_cgame.u32(g_cgame.base + r), b = g_game.u32(g_game.base + r);
+        const bool a_ptr = a >= g_cgame.base && a < g_cgame.base + g_cgame.size;
+        const bool b_ptr = b >= g_game.base && b < g_game.base + g_game.size;
+        if (a_ptr && b_ptr) { r += 3; continue; }  // both are module-relative addresses
+        if (g_cgame.u8(g_cgame.base + r) != g_game.u8(g_game.base + r)) ++diffs;
+    }
+    CHECK_MSG(diffs == 0, "uo_cgame and uo_game BG_PlayerAngles identical modulo relocations");
 }
 
 void check_cgame_stance() {
@@ -407,9 +433,13 @@ struct Group {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        printf("usage: site_check <binaries-dir> [<mss32_proxy.def>]\n");
+        printf("usage: site_check <binaries-dir> [<mss32_proxy.def>] [--optional]\n");
         return 2;
     }
+    // --optional: a missing binaries dir is a skip (ctest SKIP_RETURN_CODE 77), for
+    // variant builds that only some installs have.
+    bool optional = false;
+    for (int i = 1; i < argc; ++i) optional |= strcmp(argv[i], "--optional") == 0;
     const std::string dir = argv[1];
     g_def_path = argc > 2 ? argv[2] : "src/mss32_proxy.def";
     struct { Image* img; const char* file; } files[] = {
@@ -421,7 +451,7 @@ int main(int argc, char** argv) {
     for (auto& f : files) {
         if (!f.img->load(dir + "/" + f.file)) {
             printf("cannot load %s/%s (run tests/fetch_binaries.py first)\n", dir.c_str(), f.file);
-            return 2;
+            return optional ? 77 : 2;
         }
     }
 
@@ -436,6 +466,7 @@ int main(int argc, char** argv) {
         {"cgame_stance", port::CGAME_STANCE, check_cgame_stance},
         {"cgame_lean", port::CGAME_LEAN, nullptr},
         {"cgame_draw2d", port::CGAME_DRAW2D, nullptr},
+        {"game_swing", port::GAME_SWING, check_game_swing},
         {"game_viewheight", port::GAME_VIEWHEIGHT, nullptr},
         {"game_version", port::GAME_VERSION, nullptr},
         {"game_antilag", port::GAME_ANTILAG, nullptr},

@@ -174,6 +174,10 @@ if (Python3_FOUND)
     set_tests_properties(fetch_binaries PROPERTIES FIXTURES_SETUP uo_binaries)
     add_test(NAME site_check COMMAND site_check "${CODUO_TESTBIN}" "${CMAKE_SOURCE_DIR}/src/mss32_proxy.def")
     set_tests_properties(site_check PROPERTIES FIXTURES_REQUIRED uo_binaries)
+    # the same checks against the 2005-01-10 uo_game_mp_x86.dll, when the install has it
+    add_test(NAME site_check_2005
+             COMMAND site_check "${CODUO_TESTBIN}-2005" "${CMAKE_SOURCE_DIR}/src/mss32_proxy.def" --optional)
+    set_tests_properties(site_check_2005 PROPERTIES FIXTURES_REQUIRED uo_binaries SKIP_RETURN_CODE 77)
 else()
     message(WARNING "Python 3 not found: site_check test not registered")
 endif()
