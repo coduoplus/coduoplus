@@ -29,6 +29,7 @@
 #include "features/updater.h"        // COD1RELOADED_VERSION
 #include "netcode/protocol_patch.h"  // PROTOCOL_VANILLA_UO (demo extension)
 #include "video/display_probe.h"
+#include "video/vibrance.h"
 
 #include <cstdio>
 #include <cstdarg>
@@ -930,6 +931,35 @@ void modern_menu_draw(float sw, float sh) {
         if (ng != g10) cmdf("seta r_gamma %.1f\n", ng / 10.0);
         cy += 46;
 
+        // driver colour saturation, applied by video/vibrance.cpp only while the game
+        // has focus; the slider is live, coduoplus.ini is written when it is let go
+        section(cx, cy, colw, "DIGITAL VIBRANCE"); cy += 26;
+        const int vbe = vibrance_backend();
+        if (vbe < 0) {
+            hint(cx, cy, "Needs an NVIDIA or AMD driver on the game's screen.");
+            cy += 32;
+        } else {
+            static int  vib_pos = 50;     // slider position, kept while switched off
+            static bool vib_dirty = false;
+            const int lv = g_vibrance_config.level;
+            if (lv >= 0 && !vib_dirty) vib_pos = lv;
+            const bool von = toggle(cx, cy, vbe == 2 ? "Game-only saturation (AMD)"
+                                          : vbe == 1 ? "Game-only vibrance (NVIDIA)"
+                                                     : "Game-only vibrance", lv >= 0);
+            if (von != (lv >= 0)) vibrance_set_level(von ? vib_pos : -1, true);
+            cy += 36;
+            if (von) {
+                const int nvb = slider(cx, cy, colw - 64, 0, 100, vib_pos);
+                char vv[16]; snprintf(vv, sizeof(vv), "%d%%", nvb);
+                ui_text(cx + colw - 48, cy + 8, 17, 600, UI_TEXT, vv);
+                if (nvb != vib_pos) { vib_pos = nvb; vibrance_set_level(nvb, false); vib_dirty = true; }
+                if (vib_dirty && !ui_input().down) { vibrance_set_level(vib_pos, true); vib_dirty = false; }
+                cy += 44;
+            }
+            hint(cx, cy, "50% = driver default. Game screen only, only while the game has focus.");
+            cy += 30;
+        }
+
         section(cx, cy, colw, "V-SYNC"); cy += 26;
         bool vs = cv_int("r_swapInterval", 0) != 0;
         bool nvs = toggle(cx, cy, "Sync to the display (r_swapInterval)", vs);
@@ -1344,6 +1374,7 @@ void modern_menu_draw(float sw, float sh) {
             "Lean hitbox sync - the head you see is the head you can hit",
             "Raw mouse input - device-level, no Windows pipeline",
             "Per-display gamma - brightness stays on the game screen",
+            "Game-only digital vibrance - NVIDIA and AMD, desktop untouched",
             "FOV 80-95 unlocked, widescreen Hor+",
             "Anti-stutter frame limiter with precise pacing",
             "In-menu bind editor, demo browser across mod folders",

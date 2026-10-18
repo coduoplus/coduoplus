@@ -86,6 +86,7 @@ process. Work that needs the engine running or a module loaded happens here:
 | `swing_client_tick` | if `uo_cgame` is loaded: swing on/off according to the current server's systeminfo |
 | `widescreen_update_stretch` | feed the stretched-mode aspect, install FOV hooks if the view mode changed live |
 | `gamma_fix_tick` | per-monitor gamma on focus/monitor changes |
+| `vibrance_tick` | game-only digital vibrance on focus/monitor changes (loads NVAPI/ADL only once used) |
 | `session_report_tick` | once a minute (and at exit), one `session` line in the log: fps, late wakes, long frames, GPU wait, display mode, com_maxfps, raw input (upstream 1.6.9) |
 | `monitor_cgame` | apply cgame patches to a newly loaded or reloaded `uo_cgame` |
 

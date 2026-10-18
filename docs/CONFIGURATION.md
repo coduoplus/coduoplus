@@ -61,6 +61,7 @@ same combination. A test DLL without the lock: build with
 | `max_hz_native_res` | `on` | With `refresh_rate = max`: if a custom resolution is only listed at a lower Hz, use the resolution that reaches the maximum and stretch 4:3 in the mod. |
 | `force_resolution`, `resolution` | `off`, — | Force `r_mode -1` + `r_customwidth/height` (`resolution = 1920x1080`) through `uo\coduoplus_autoexec.cfg`. Older `widescreen_*` keys still read. |
 | `gamma_fix_enable` | (on) | Per-monitor hardware gamma: brightness applies to the game's monitor only and is restored on alt-tab/exit. |
+| `digital_vibrance` | `off` | Game-only digital vibrance (NVIDIA) / saturation (AMD), `0`-`100` in NVIDIA Control Panel terms: `50` = driver default, `0` greyscale, `100` maximum. Set on the game's monitor while the game has focus; that monitor's own level comes back on alt-tab, monitor change and exit (and at the next launch if the game crashed: `coduoplus.vibrancedesk`). Ctrl+M → Display writes it. |
 
 A window can only show a resolution your **desktop** is in. Only exclusive
 fullscreen switches the display mode. The display probe logs (and where

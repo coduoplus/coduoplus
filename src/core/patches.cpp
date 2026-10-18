@@ -27,6 +27,7 @@
 #include "features/discord_rpc.h"
 #include "features/settings_menu.h"
 #include "video/gamma_fix.h"
+#include "video/vibrance.h"
 #include "netcode/antilag.h"
 
 #include <cstdio>
@@ -374,6 +375,15 @@ void load_config(HMODULE self_module) {
     // per-monitor hardware gamma (dual-screen light bug fix, cod2x port)
     g_gamma_fix_config.enable = read_ini_bool(
         ini_path, "gamma_fix_enable", g_gamma_fix_config.enable);
+
+    // game-only digital vibrance: off, or 0..100 (50 = driver default)
+    {
+        char buf[16];
+        read_ini_string(ini_path, "digital_vibrance", buf, sizeof(buf), "off");
+        char* end = nullptr;
+        const long v = strtol(buf, &end, 10);
+        g_vibrance_config.level = end == buf ? -1 : (v < 0 ? 0 : (v > 100 ? 100 : (int)v));
+    }
 
     g_discord_rpc_config.enable = read_ini_bool(
         ini_path, "discord_rpc_enable", g_discord_rpc_config.enable);
