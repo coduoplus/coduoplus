@@ -55,9 +55,10 @@ FROM --platform=linux/386 debian:bookworm-slim AS server
 # server and reaps (a bare coduo_lnxded as PID 1 ignores `docker stop` for 10 s).
 ARG LIBSTDCPP5_URL=http://archive.debian.org/debian/pool/main/g/gcc-3.3/libstdc++5_3.3.6-30_i386.deb
 ARG LIBSTDCPP5_SHA256=c88f93cd5b7b32ca88b40f671fc09f3387c7fb514902b4737b471bd812786ee6
-RUN apt-get update \
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+ && apt-get update \
  && apt-get install -y --no-install-recommends tini curl ca-certificates \
- && curl -fsSL -o /tmp/libstdc++5.deb "$LIBSTDCPP5_URL" \
+ && curl -fsSL --retry 5 --retry-all-errors -o /tmp/libstdc++5.deb "$LIBSTDCPP5_URL" \
  && echo "$LIBSTDCPP5_SHA256  /tmp/libstdc++5.deb" | sha256sum -c - \
  && dpkg -i /tmp/libstdc++5.deb \
  && apt-get purge -y --auto-remove curl ca-certificates \
