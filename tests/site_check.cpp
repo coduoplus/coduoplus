@@ -30,6 +30,7 @@
 #include "netcode/version_patch.h"
 #include "performance/frame_limiter.h"
 #include "video/fullscreen_patch.h"
+#include "video/widescreen_fix.h"
 
 #include <cstdio>
 #include <cstring>
@@ -313,6 +314,44 @@ void check_cgame_fov() {
     CHECK(g_cgame.bytes_eq(jp + 0x10, {0xd8, 0x1d}) && g_cgame.f32(g_cgame.u32(jp + 0x12)) == 160.0f);
 }
 
+void check_cgame_widescreen() {
+    using namespace patches;
+    const uint32_t calcfov = CG + CGAME_CALCFOV_RVA;
+    const uint32_t call1 = CG + CGAME_CALCFOV_CALL1_RVA, call2 = CG + CGAME_CALCFOV_CALL2_RVA;
+    // CG_GetEffectiveFov has exactly the two callers we hook
+    CHECK(is_call_to(g_cgame, call1, calcfov));
+    CHECK(is_call_to(g_cgame, call2, calcfov));
+    int callers = 0;
+    for (const Image::Section& s : g_cgame.sections) {
+        if (!s.code) continue;
+        for (uint32_t va = CG + s.rva; va + 5 <= CG + s.rva + s.vsize; ++va)
+            if (g_cgame.u8(va) == 0xe8 && g_cgame.call_target(va) == calcfov) ++callers;
+    }
+    CHECK(callers == 2);
+    // it takes no stack args: both call sites are a bare call (CG_CalcFov pushes esi
+    // as a callee-save, not an argument) and the function ends `add esp,8 ; ret`
+    CHECK(g_cgame.bytes_eq(call1 - 1, {0x56}));
+    CHECK(g_cgame.bytes_eq(calcfov, {0x83, 0xec, 0x08}));
+    // vfov trig right after call1: fild [height] ; fild [width] ; ... fptan ... fpatan
+    CHECK(g_cgame.bytes_eq(CG + CGAME_VFOV_HEIGHT_OP_RVA - 2, {0xdb, 0x05}));
+    CHECK(g_cgame.bytes_eq(CG + CGAME_VFOV_WIDTH_OP_RVA - 2, {0xdb, 0x05}));
+    CHECK(g_cgame.u32(CG + CGAME_VFOV_HEIGHT_OP_RVA) == CG + CGAME_REFDEF_HEIGHT_RVA);
+    CHECK(g_cgame.u32(CG + CGAME_VFOV_WIDTH_OP_RVA) == CG + CGAME_REFDEF_WIDTH_RVA);
+    CHECK(CGAME_VFOV_HEIGHT_OP_RVA == CGAME_CALCFOV_CALL1_RVA + 7);
+    CHECK(CGAME_VFOV_WIDTH_OP_RVA == CGAME_CALCFOV_CALL1_RVA + 13);
+    CHECK(g_cgame.bytes_eq(call1 + 0x22, {0xd9, 0xf2}));  // fptan
+    CHECK(g_cgame.bytes_eq(call1 + 0x28, {0xd9, 0xf3}));  // fpatan
+    // refdef: x, y, width (+8), height (+0xc) - height is 4 above width
+    CHECK(CGAME_REFDEF_HEIGHT_RVA == CGAME_REFDEF_WIDTH_RVA + 4);
+    // the skybox caller reads the same refdef fields
+    CHECK(g_cgame.bytes_eq(call2 + 11, {0xdb, 0x05}) && g_cgame.u32(call2 + 13) == CG + CGAME_REFDEF_HEIGHT_RVA);
+    // glConfig.vidWidth/Height: CG_Init scales them by 1/640 and 1/480
+    CHECK(g_cgame.bytes_eq(0x3002e003, {0xdb, 0x05}) && g_cgame.u32(0x3002e005) == CG + CGAME_VIDWIDTH_RVA);
+    CHECK(g_cgame.bytes_eq(0x3002e010, {0xd8, 0x0d}) && g_cgame.f32(g_cgame.u32(0x3002e012)) == 1.0f / 640.0f);
+    CHECK(g_cgame.bytes_eq(0x3002e01c, {0xdb, 0x05}) && g_cgame.u32(0x3002e01e) == CG + CGAME_VIDHEIGHT_RVA);
+    CHECK(g_cgame.bytes_eq(0x3002e022, {0xd8, 0x0d}) && g_cgame.f32(g_cgame.u32(0x3002e024)) == 1.0f / 480.0f);
+}
+
 struct Group {
     const char* name;
     bool enabled;
@@ -347,7 +386,7 @@ int main(int argc, char** argv) {
         {"proxy", true, check_proxy},
         {"engine", port::ENGINE, check_engine},
         {"cgame_fov", port::CGAME_FOV, check_cgame_fov},
-        {"cgame_widescreen", port::CGAME_WIDESCREEN, nullptr},
+        {"cgame_widescreen", port::CGAME_WIDESCREEN, check_cgame_widescreen},
         {"cgame_swing", port::CGAME_SWING, nullptr},
         {"cgame_stance", port::CGAME_STANCE, nullptr},
         {"cgame_lean", port::CGAME_LEAN, nullptr},
