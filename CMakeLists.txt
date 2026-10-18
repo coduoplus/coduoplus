@@ -199,3 +199,10 @@ if (Python3_FOUND)
     add_test(NAME ui_pk3
              COMMAND Python3::Interpreter -I "${CMAKE_SOURCE_DIR}/ui_pk3/build_pk3.py" --game "${CODUO_GAME_DIR}")
 endif()
+
+# Every relative link / #anchor in README, BUILD, CHANGELOG and docs/ resolves.
+if (Python3_FOUND)
+    add_test(NAME doc_links
+             COMMAND Python3::Interpreter -I "${CMAKE_SOURCE_DIR}/tests/check_doc_links.py"
+             WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+endif()

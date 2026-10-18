@@ -1,4 +1,57 @@
-# cod1reloaded — Changelog
+# CoDUO+ — Changelog
+
+## v0.1.0 (2026-10-17) — first CoD:UO 1.51 build
+
+Port of COD1.6X 1.6.6 (`cod1plus/client` `6f8fec0`) to Call of Duty: United
+Offensive 1.51. How and why: [docs/PORTING.md](docs/PORTING.md).
+
+### Ported
+- Every `CoDUOMP.exe` patch, re-found and checked against the 1.51 binaries:
+  version string, protocol/master/browser sites (left at UO's own values),
+  snaps 40 / cl_maxpackets 125 caps, server-pushed competitive spec and
+  fair-play ruleset, r_displayRefresh 1000 Hz cap, r_fullscreen default,
+  raw mouse input, live systeminfo lookup.
+- cgame: cg_fov unlock (80–95), Hor+ / stretched FOV, swing fix, stance blend
+  hold (off, as upstream).
+- Everything Win32-only: 1 ms timer, CPU affinity, priorities, working set,
+  FSO opt-out, per-monitor gamma, display probe, mode guard, borderless window,
+  single-instance guard, Ctrl+M overlay, Discord, updater, PAM installer.
+
+### Different from COD1.6X, on purpose
+- **Swing fix** follows the server: a CoDUO+ server mirrors it into its own
+  `uo_game_mp_x86.dll` and publishes `sv_coduoplus_swing 1`; the client only
+  applies it there. On vanilla servers the drawn pose stays the tested one.
+- **Frame limiter** still runs UO's `Com_EventLoop` every frame (in UO the
+  patched call *is* the event loop) and removes the engine's integer-ms re-wait.
+- **Protocol 22 and the stock master**: no separate ecosystem, so CoDUO+
+  players use the normal browser and servers.
+- **Version gate** works on both known `uo_game` builds and survives map
+  changes (upstream's was lost at the first rotation). Vanilla players are
+  always let in.
+- **Window patch** only restyles the game window (upstream's turned a
+  dedicated server's console into a borderless full-screen window).
+- **Main-menu entry** is generated from the player's own `pakuo03.pk3`; no
+  CoD1 menus are shipped. Upstream's 1.6/1.5 server-list buttons are dropped.
+- **Updater / PAM** have no default feed (upstream's ship CoD1 files).
+- `fullscreen = on` by default (as upstream's own 1.6.10 ini).
+
+### Not ported
+- Lean fix and controller smoothing, antilag, viewheight lerp speed, the
+  CG_Draw2D hook (avatar overlay, Discord in-match heartbeat). Reasons in
+  [docs/PORTING.md](docs/PORTING.md#feature-status).
+
+### Tests
+- `site_check`: 253 offline checks of every patch site against the stock
+  binaries (and the 2005 `uo_game` build).
+- `smoke_dedicated`: the real game with the mod as a dedicated server: UDP
+  queries, real (Huffman-compressed) connect handshakes against the version
+  gate, and the mod's log.
+
+---
+
+# COD1.6X (cod1reloaded) — upstream changelog
+
+The history below is upstream's, for the CoD1 mod this port is based on.
 
 ## v1.6.6 (2026-09-18)
 

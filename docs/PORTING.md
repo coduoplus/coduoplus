@@ -1,0 +1,357 @@
+# Porting COD1.6X to CoD:UO — how it was done, what was decided, and why
+
+CoDUO+ is a port of [COD1.6X](https://github.com/cod1plus/client) (`cod1plus/client`,
+`main` at `6f8fec0`, release **1.6.6**) from Call of Duty 1.5 (`CoDMP.exe`) to
+Call of Duty: United Offensive 1.51 (`CoDUOMP.exe`). This document covers the
+method, every decision that departs from "same code, new addresses", and the
+status of each feature. [ADDRESSES.md](ADDRESSES.md) is the full address map,
+[ARCHITECTURE.md](ARCHITECTURE.md) how the mod runs inside the game, and
+[TESTING.md](TESTING.md) how all of this is verified.
+
+## Contents
+
+1. [Why a port is mostly re-finding addresses](#why-a-port-is-mostly-re-finding-addresses)
+2. [Method](#method)
+3. [Safety rules the port adds](#safety-rules-the-port-adds)
+4. [Feature status](#feature-status)
+5. [Decisions, one by one](#decisions-one-by-one)
+6. [What is left, and how to continue](#what-is-left-and-how-to-continue)
+
+---
+
+## Why a port is mostly re-finding addresses
+
+COD1.6X is not a source mod. The game is closed-source 2003-era C, so every
+change is a patch to the **running** program: overwrite a constant, repoint a
+`call`, swap a pointer in the import table. Each patch names a precise address
+in `CoDMP.exe`, `cgame_mp_x86.dll` or `game_mp_x86.dll`, and that address only
+means something in that exact build.
+
+CoD:UO is built from the same Quake 3–derived engine, extended. Most of the
+code COD1.6X touches exists in UO, usually *identical* instruction for
+instruction, but the linker put it elsewhere: new functions in front shift
+everything after them. So the bulk of the port is answering one question per
+patch site: **where is that same instruction in UO, and is it really the same?**
+
+A few sites are not the same, and those are where the decisions below come from.
+
+## Method
+
+### 1. Inventory
+
+Every hardcoded address in upstream's `src/` was listed: 96 named constants plus
+inline literals across 38 files. Each was classified:
+
+- **engine** (`CoDMP.exe`): cvar API, version, protocol, rate caps, frame
+  limiter, mouse, refresh cap, systeminfo;
+- **cgame** (`cgame_mp_x86.dll`): FOV, widescreen, swing, stance, lean, 2D hooks;
+- **game** (`game_mp_x86.dll`): version gate, antilag, viewheight;
+- **none**: modules that only talk to Win32/OpenGL (performance, gamma, the GL
+  overlay menu, display probing, updater, Discord). These port by renaming
+  things, not by RE.
+
+### 2. Re-find each site by its meaning, not its bytes
+
+Searching UO for a CoD1 byte pattern is unreliable: operands differ, and a short
+pattern matches by coincidence. Each site was found through what it *does*:
+
+- **Strings it uses.** `shortversion`, `r_fullscreen`, `com_maxfps`, `snaps`,
+  `cl_maxpackets`, `"getservers %s"`, `"coduomaster.activision.com"`,
+  `"GAME_INVALIDPASSWORD"`. The code that pushes a string's address is the code
+  that registers or uses that cvar.
+- **Neighbouring constants.** The legs swing tolerance is the `push 40.0` that
+  follows `push 150.0`. The FOV clamp is the `fcomp` against `80.0f` reading
+  `cg_fov.value`. Screen scale is `fild [x] ; fmul [1/640]`.
+- **Call graph.** `CG_GetEffectiveFov` must have exactly two callers, followed by
+  the `fild/fptan/fpatan` vertical-FOV math. ClientConnect has exactly one
+  caller, inside the exported `vmMain`.
+- **Side-by-side disassembly** of the CoD1 function and the UO candidate (MinGW
+  `objdump` via `tools/re/dis.sh`, and the Ghidra exports in
+  `coduo-1.6/analysis/`).
+
+The helpers are in `tools/re/`: `pe.py` (PE mapping), `find.py` (string / imm32
+xref / `call` search), `dis.sh` (objdump wrapper), `q3query.py` / `q3connect.py`
+/ `q3huff.py` (talking to a live server).
+
+### 3. Write the evidence down as a test
+
+Each found address goes into `tests/site_check.cpp`. The test does more than
+"the byte we overwrite is what we expect". It pins the address to its
+**meaning**: the string pushed next to it, the call target, the global the code
+reads, how many readers that global has. A byte match can be a coincidence;
+four facts about the surrounding code are not. A one-byte mutation of a constant
+is caught (tried).
+
+### 4. Switch the feature on
+
+Every feature group has a switch in `src/core/game.h` (`port::ENGINE`,
+`port::CGAME_FOV`, …). A group is switched on only after its checks exist and
+pass, and `site_check` fails if an enabled group has no checks. Until then the
+group's code is compiled but never applied.
+
+### 5. Run it
+
+`tests/smoke_dedicated.py` starts the real game with the mod as a dedicated
+server, queries it over UDP, performs real connect handshakes, and reads the
+mod's log for every patch's "applied" line and the absence of any refusal. See
+[TESTING.md](TESTING.md).
+
+One feature per git branch (`port/engine`, `port/cgame-fov`, …), merged into
+`main` once `ctest` passes.
+
+## Safety rules the port adds
+
+Upstream already verifies the bytes before most writes. The port tightens three
+things that would otherwise go wrong on UO.
+
+**A real build check instead of "exe is at 0x400000".** Upstream's guard was
+`GetModuleHandle(NULL) == 0x400000`, which every 32-bit exe of that era passes,
+including other UO patches. `game_exe_ok()` checks the PE link timestamp and the
+`"1.51"` literal at its known address. Every engine call goes through it,
+including the menus' cvar reads, which upstream left unguarded.
+
+**Verify all sites before writing any.** The protocol patch used to check one of
+its five bytes and then write all of them. It now checks all six, because half a
+protocol change is worse than none. The frame limiter checks the call target
+*and* the loop branch before touching either.
+
+**Never assume a module's base.** `uo_game` was observed loaded at `0x241f0000`
+on a dedicated server. All module patches work from `base + RVA`, and operand
+checks compare against relocated values.
+
+## Feature status
+
+| Feature (upstream module) | Status | Notes |
+| --- | --- | --- |
+| mss32.dll proxy (`mss32_proxy.def`) | ✅ ported | All 77 `mss32.dll` imports of `CoDUOMP.exe` are forwarded (checked). |
+| Build identity, names, paths (`core/game.*`) | ✅ new | UO module names, window class, `uo\uoconfig_mp.cfg`. |
+| Version string in menus (`version_patch`) | ✅ ported | Shows `CoDUO+ 0.1.0`. |
+| Protocol / master / browser (`protocol_patch`) | ✅ ported, **vanilla values** | [Decision](#protocol-and-master-server-stay-vanilla). |
+| 40-tick caps: snaps 40, cl_maxpackets 125 (`competitive`) | ✅ ported | Server-pushed competitive spec + ROM lock work unchanged. |
+| Fair-play ruleset (`ruleset*`, `cheat_scan`) | ✅ ported (inactive) | Only acts when a server publishes `sv_competitive*`; vanilla UO servers don't. |
+| Frame limiter (`frame_limiter`) | ✅ ported, **reworked** | [Decision](#frame-limiter). |
+| 1 ms timer, CPU affinity, priority, working set, FSO (`performance/*`) | ✅ ported | Win32 only. |
+| Raw mouse input `m_rinput` (`rinput`) | ✅ ported | Same two `GetCursorPos` callers. |
+| Refresh-rate cap 200 → 1000 Hz (`settings_menu`) | ✅ ported | |
+| Display probe, mode guard, fullscreen default (`video/*`) | ✅ ported | Now reads/writes `uo\uoconfig_mp.cfg`. |
+| Borderless window (`window_patch`) | ✅ ported, **fixed** | [Decision](#window-patch-only-touches-the-game-window). |
+| Per-monitor gamma (`gamma_fix`) | ✅ ported | GDI only. |
+| Single-instance guard (`single_instance`) | ✅ ported | UO window class. |
+| Ctrl+M overlay menu (`ui/*`) | ✅ ported | Paths and cvar reads point at UO. |
+| Main-menu "SETTINGS" button (`ui_pk3`) | ✅ ported, **generated** | [Decision](#the-ui-pk3-is-generated-from-the-players-own-files). |
+| cg_fov unlock 80–95 (`settings_menu`) | ✅ ported | [Note](#fov-unlock-is-ported-as-is--read-this). |
+| Hor+ / stretched FOV (`widescreen_fix`) | ✅ ported | Off by default (`view_mode = classic`). |
+| Swing fix: torso/legs follow the view (`swing_fix`) | ✅ ported, **client + server** | [Decision](#swing-fix-only-where-the-server-mirrors-it). |
+| Stance blend hold (`stance_fix`) | ✅ ported (off) | Upstream ships it disabled since 1.6.1; same here. |
+| Server version gate (`version_gate`) | ✅ ported, **fixed** | Both uo_game builds. Survives map changes (upstream's didn't). Vanilla players allowed. |
+| Lean fix / controller smoothing (`lean_fix`, `shared/lean_controllers`) | ❌ not ported | [Why](#lean-fix). |
+| Viewheight lerp speed (`viewheight_fix`) | ❌ not ported | [Why](#viewheight-fix). |
+| Antilag (`antilag`) | ❌ not ported | Disabled in upstream's release too ("expérimental … désactivé"). |
+| CG_Draw2D hook: Discord in-match heartbeat, avatar overlay (`engine_2d`, `avatar_overlay`) | ❌ not ported | Discord does nothing without an application id; the avatar overlay is an off-by-default proof of concept. |
+| Auto-updater (`updater`) | ✅ ported, **no feed** | [Decision](#updater-and-pam-installer-point-nowhere-by-default). |
+| PAM installer (`pam_install`) | ✅ ported, **off** | Same. |
+| Discord Rich Presence (`discord_rpc`) | ✅ ported (idle) | Needs `discord_rpc_client_id`. |
+| Demo upload (`demo_upload`) | ✅ ported (off) | Off by default upstream; looks in `uo\demos`. |
+
+Not ported features stay compiled, gated off by their `port::` switch, so
+nothing of upstream is lost and each can be continued in isolation.
+
+## Decisions, one by one
+
+### Protocol and master server stay vanilla
+
+**Upstream** moves CoD1 from network protocol 6 to 10 and repoints the master
+server to its own (`87.106.7.52`). COD1.6X clients then only see and join
+COD1.6X servers. That separate ecosystem is what lets upstream change things
+both sides must agree on (hitboxes, lean geometry).
+
+**UO has no such ecosystem.** That master lists CoD1 servers only. A CoDUO+
+client on protocol 23 would see an empty browser, and every existing UO server
+would refuse it as a different version.
+
+**So:** the machinery is ported and verified (six protocol sites, master slot,
+netadr cache, `getservers` format, browser filter), but it applies UO's own
+values: protocol 22 and `coduomaster.activision.com` (probed 2026-10-17: about
+111 servers). CoDUO+ players use the normal browser and the normal servers.
+To run a separate CoDUO+ ecosystem later, change `g_protocol_version` and
+`g_master_host` in `netcode/protocol_patch.cpp` to a new protocol and a master
+that serves it. Everything else is in place.
+
+### Frame limiter
+
+**Upstream** replaces one `call` inside `Com_Frame`'s wait loop with a QPC-based
+wait that returns the current time. In CoD1 that call reads a clock.
+
+**In UO that call is `Com_EventLoop`.** It's the stock Quake 3 loop:
+
+```text
+do {
+    com_frameTime = Com_EventLoop();     // 0x43c6a7  <- the patched call
+    if (lastTime > com_frameTime) lastTime = com_frameTime;
+    msec = com_frameTime - lastTime;
+} while (msec < minMsec);                // 0x43c6c9  jl
+```
+
+`Com_EventLoop` drains every key, mouse, console and network event. Replacing
+it with a pure wait would starve input and networking.
+
+**So the UO replacement:**
+
+1. waits for the QPC deadline (same exact-rate maths as upstream: carried
+   remainder, deadline anchoring, resync after hitches);
+2. then calls the real `Com_EventLoop`, and returns *its* clock, the engine's
+   own time base. That honours upstream's hard-won rule "the deadline is what we
+   WAIT for, never what we REPORT";
+3. removes the loop's `jl` (`7c dc` → `90 90`), so the engine's integer-ms gate,
+   the cause of "250 shows 240–248", can't add a second wait after ours. A
+   1 ms floor keeps vanilla's minimum frame time above 1000 fps.
+
+With `com_maxfps 0` or on a dedicated server (the engine's own condition for
+applying `com_maxfps`), the replacement reproduces the original loop exactly,
+`minMsec` included.
+
+### Window patch only touches the game window
+
+Upstream finds "the game window" as any visible top-level window of the process
+at least 200×200. On a dedicated server that's the WinConsole, and the first
+smoke run turned the server console into a borderless full-monitor window. The
+search now also requires the renderer's window class. This is an upstream bug,
+fixed here.
+
+### The UI pk3 is generated from the player's own files
+
+Upstream's `zz_cod1x_ui.pk3` carries CoD1's `main.menu`, `menus.txt` and
+`joinserver.menu`, edited. A pk3 file replaces the whole file, so in UO those
+would replace UO's menus, and CoD1's `menus.txt` does not even list UO's.
+
+`ui_pk3/build_pk3.py` takes `ui_mp/main.menu` from the install's
+`uo/pakuo03.pk3`, checks it is byte-for-byte the stock 1.51 file, and inserts
+upstream's settings item (relabelled "CoDUO+ SETTINGS") at y=400, between QUIT
+and AUTO-UPDATE. That slot is empty in UO's layout as in CoD1's. Nothing of
+Activision's is kept in the repository. `joinserver.menu`'s 1.6/1.5 list
+buttons are dropped, because they do nothing while the protocol is vanilla.
+
+### Updater and PAM installer point nowhere by default
+
+Upstream's manifest URL publishes the CoD1 `mss32.dll`. Fetching it on UO would
+replace CoDUO+ with a build that hooks CoD1 addresses. The PAM installer fetches
+CoD1's rPAM. Both default to empty / off. Set `updater_manifest_url` /
+`pam_manifest_url` to CoDUO+-specific feeds to use them.
+
+### FOV unlock is ported as is — read this
+
+Upstream unlocks `cg_fov` (normally cheat-protected at 80) to 80–95, and its own
+servers allow the same range. That's fair inside the COD1.6X ecosystem, where
+every client has it.
+
+On UO servers, players without the mod stay at 80. **A CoDUO+ player at FOV 95
+on a vanilla server sees more than everyone else, and a server or league that
+checks `cg_fov` (PunkBuster rules) may kick for it.** It's ported as is, because
+that's the upstream feature. The compiled switch is
+`SettingsMenuConfig::fov_unlock` in `features/settings_menu.h`. The ini key
+`fov_unlock` is **not read** (upstream stopped reading it in 1.6.5 so players
+can't flip it). Revisit this before a public release; the natural UO version
+is the same server opt-in the swing fix uses.
+
+### Swing fix only where the server mirrors it
+
+The swing fix changes four constants in `BG_PlayerAngles`, so the drawn torso
+follows the view with no lag. That function doesn't just draw. The server
+builds the skeleton its **bullet traces test** from the same function. Upstream
+measured up to ~10 units between what is drawn and what is tested when only the
+client is patched ("THE TWO SIDES MUST STAY IN STEP"), and patches its own
+server to match (`cod1plushookserver/src/swing_sync.c`).
+
+Every UO server is vanilla. A client-only port would make CoDUO+ players aim at
+a torso that isn't where the server tests hits. So:
+
+- **Server half.** A process hosting a server (dedicated or listen) applies the
+  same four values to its `uo_game_mp_x86.dll`, which contains the same bg_ code
+  at the same RVAs (the test checks the two copies are byte-identical apart from
+  relocated globals). It then publishes the SYSTEMINFO|ROM cvar
+  `sv_coduoplus_swing 1`. This is reapplied every tick, so map-change reloads
+  are covered.
+- **Client half.** The cgame gets the fix only while the server it's connected
+  to publishes that flag, read from the live systeminfo configstring rather
+  than the cvar (which would keep a previous server's value). On any other
+  server the vanilla values are back within 5 ms.
+
+Result: what a CoDUO+ player sees always matches what the server tests, on
+every server.
+
+### Lean fix
+
+Upstream's lean fix hooks `BG_Player_DoControllersInternal` (the function that
+turns animation state into bone controllers) and adds a lateral body shift and
+back-bone reprojection, from one shared file compiled into both client and
+server so the drawn and tested poses agree.
+
+In UO this function **changed**, not just moved:
+
+- **Calling convention.** CoD1 passes output buffer / clientInfo / entityState
+  in `eax` / `ecx` / `ebx`. UO passes clientInfo in `eax`, entityState on the
+  stack and the output in `esi`. Upstream's naked-asm trampoline is
+  CoD1-specific.
+- **Body.** UO adds a whole branch on `eFlags & 0x100000` (likely vehicles or
+  mounted weapons) reading new clientInfo fields `+0x3f4..+0x3fc`.
+- **Structures.** `entityState.clientNum` moved from `+0x90` to `+0x94`, and
+  clientInfo grew (the stance hold field went from `+0x4a4` to `+0x4c0`). The
+  crouch bit in `eFlags` and the engine's own lateral constant, both measured on
+  live CoD1 servers upstream, would need re-measuring on UO.
+
+On top of the RE, the fix only works with a matching server-side hitbox
+(upstream's `lean_hitbox.c`, `pose_sync.c`, `hitbox_fix.c`), calibrated over
+many releases with live probes on real servers ("leaning heads silently stop
+registering" when the two disagree). Shipping a client lean change without
+that, on vanilla servers, would recreate the exact desync upstream spent 1.6.1
+to 1.6.13 fixing. It stays off (`port::CGAME_LEAN = false`). The UO locations
+found so far (`0x30004da0`, call site `0x30005741`) are in
+[ADDRESSES.md](ADDRESSES.md).
+
+### Viewheight fix
+
+Upstream patches the crouch view-height lerp speed (180 → 150) in
+**`gamex86.dll`**. That's the *single-player* game module, which `CoDMP.exe`
+never loads. The RVA it uses only holds 180.0f in the SP DLL. So in CoD1
+multiplayer this patch has never run.
+
+Porting it "for real" to `uo_game` would introduce a movement change upstream
+never shipped. Because pmove runs on both sides, client prediction and server
+would also disagree unless both were patched. Not ported; noted in
+`core/main.cpp`.
+
+### Version numbering
+
+CoDUO+ starts at **0.1.0**. `cod1x_build` (sent in userinfo) is derived from the
+version, so 0.1.0 → 100 can never be confused with a COD1.6X build (1.6.x →
+106xx). The upstream base version is kept in
+`COD1RELOADED_UPSTREAM_VERSION = "1.6.6"`.
+
+### Internal names kept
+
+`cod1x_*` cvars, `COD1RELOADED_*` macros and the `CODMP_*` constant names are
+kept. Menus and the ruleset protocol depend on the cvar names, and keeping the
+code names makes a future merge of upstream changes a matter of resolving
+values, not renames. Everything a player sees says CoDUO+ (`coduoplus.ini`,
+`coduoplus.log`, dialogs, version string, userinfo key `coduoplus`).
+
+## What is left, and how to continue
+
+In order of value:
+
+1. **A client run.** The dedicated-server smoke test covers the engine and
+   server side, but not the renderer, input or cgame (FOV, widescreen, swing
+   client half, overlay menu, raw input, borderless window, frame rate). The
+   checklist is in [TESTING.md](TESTING.md#manual-client-checklist).
+2. **FOV policy** (above).
+3. **Upstream's newer branches.** `release/1.6.8`, `1.6.9`, `1.6.10` (~50
+   commits after 1.6.6: Discord presence with join, a demos tab, HD-texture and
+   PAM packages, menu hotkey option, hitbox overlays, bone probes) and
+   `test/lean-v7-cod2eq`. Most are UI/menu work that would port the same way;
+   the hitbox work depends on the lean fix.
+4. **Lean fix**, as a client+server pair, following the swing-fix pattern
+   (shared code, server publishes, client follows).
+
+To port another site: find it by meaning (strings, neighbours, call graph),
+add its checks to `site_check.cpp`, switch its `port::` flag on, run `ctest`,
+then the smoke test and, for client features, the client checklist.
