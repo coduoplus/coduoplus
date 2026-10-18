@@ -290,6 +290,29 @@ void check_engine() {
     check_engine_mouse();
 }
 
+// ---------------------------------------------------------------------------
+// cgame: uo_cgame_mp_x86.dll (base 0x30000000)
+// ---------------------------------------------------------------------------
+constexpr uint32_t CG = 0x30000000;
+
+void check_cgame_fov() {
+    using namespace patches;
+    // cvarTable entry: {vmCvar_t*, name, default, flags}; flags is the 4th dword
+    const uint32_t entry = CG + CGAME_FOV_CVAR_FLAGS_RVA - 12;
+    CHECK(g_cgame.cstr_eq(g_cgame.u32(entry + 4), "cg_fov"));
+    CHECK(g_cgame.cstr_eq(g_cgame.u32(entry + 8), "80"));
+    CHECK(g_cgame.u32(CG + CGAME_FOV_CVAR_FLAGS_RVA) == 0x201);  // ARCHIVE|CHEAT
+    const uint32_t vmcvar = g_cgame.u32(entry);
+    // CG_CalcFov: mov ecx,[cg_fov.value] ... fcomp [80.0f] ... jp +0x0a ; mov [fov],80.0f
+    const uint32_t jp = CG + CGAME_FOV_MINCLAMP_JP_RVA;
+    CHECK(g_cgame.bytes_eq(jp, {0x7a, 0x0a}));
+    CHECK(g_cgame.bytes_eq(jp + 2, {0xc7, 0x44, 0x24, 0x04, 0x00, 0x00, 0xa0, 0x42}));  // 80.0f
+    CHECK(g_cgame.bytes_eq(jp - 0x0b, {0xd8, 0x1d}) && g_cgame.f32(g_cgame.u32(jp - 0x09)) == 80.0f);
+    CHECK(g_cgame.bytes_eq(jp - 0x19, {0x8b, 0x0d}) && g_cgame.u32(jp - 0x17) == vmcvar + 8);  // .value
+    // the max clamp (160) right after is left in place
+    CHECK(g_cgame.bytes_eq(jp + 0x10, {0xd8, 0x1d}) && g_cgame.f32(g_cgame.u32(jp + 0x12)) == 160.0f);
+}
+
 struct Group {
     const char* name;
     bool enabled;
@@ -323,7 +346,7 @@ int main(int argc, char** argv) {
         {"identity", true, check_identity},
         {"proxy", true, check_proxy},
         {"engine", port::ENGINE, check_engine},
-        {"cgame_fov", port::CGAME_FOV, nullptr},
+        {"cgame_fov", port::CGAME_FOV, check_cgame_fov},
         {"cgame_widescreen", port::CGAME_WIDESCREEN, nullptr},
         {"cgame_swing", port::CGAME_SWING, nullptr},
         {"cgame_stance", port::CGAME_STANCE, nullptr},

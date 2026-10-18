@@ -33,11 +33,16 @@ void menu_ini_writeback(const char* key, const char* value);   // settings_menu.
 constexpr int COD1X_FOV_MIN = 80;
 constexpr int COD1X_FOV_MAX = 95;
 
-// cgame_mp_x86.dll RVAs (RE'd 2026-07-05, see memory cod1-fov-cvar-clamp).
-//   FLAGS    : cg_fov cvarTable flags dword 0x00000201 (ARCHIVE|CHEAT) -> 0x00000001 (drop CHEAT)
-//   MINCLAMP : CG_GetEffectiveFov min-80 branch 'jp +0x0a' (7A 0A) -> 'jmp +0x0a' (EB 0A)
-constexpr uintptr_t CGAME_FOV_CVAR_FLAGS_RVA  = 0x000769ec;
-constexpr uintptr_t CGAME_FOV_MINCLAMP_JP_RVA = 0x000344e6;
+// uo_cgame_mp_x86.dll 1.51 RVAs (base 0x30000000; CoD1 had 0x769ec / 0x344e6).
+//   FLAGS    : cg_fov cvarTable entry {vmCvar 0x3052f7c0, "cg_fov", "80", flags} at
+//              0x30085230; flags dword 0x00000201 (ARCHIVE|CHEAT) -> 0x00000001 (drop CHEAT)
+//   MINCLAMP : CG_CalcFov reads cg_fov.value (0x3052f7c8) and clamps it to [80, 160]:
+//                3003fffd  d8 1d b0 bf 07 30   fcomp [80.0f]
+//                30040008  7a 0a               jp  +0x0a      <- 7A -> EB (jmp): no min clamp
+//                3004000a  c7 44 24 04 00 00 a0 42  mov [fov],80.0f
+//              (same shape as CoD1; the 160 max clamp right after stays)
+constexpr uintptr_t CGAME_FOV_CVAR_FLAGS_RVA  = 0x0008523c;
+constexpr uintptr_t CGAME_FOV_MINCLAMP_JP_RVA = 0x00040008;
 // CoDUOMP.exe 1.51 R_Register, right after ri.Cvar_Get("r_displayRefresh","0",0x20):
 //   4c4000  68 00 00 48 43   push 0x43480000   ; max 200.0f   <- imm patched
 //   4c4005  6a 00            push 0            ; min 0
