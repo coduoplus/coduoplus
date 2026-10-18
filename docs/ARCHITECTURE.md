@@ -61,7 +61,8 @@ initialised anything, so only work that touches no engine state happens here:
    - r_displayRefresh cap;
    - r_fullscreen default (only if `fullscreen = off`);
    - frame-limiter call and loop branch;
-   - IAT hooks: `GetCursorPos` (raw input), `SwapBuffers` (overlay),
+   - IAT hooks: `GetCursorPos` (raw input), `SwapBuffers` (overlay, then
+     gpu_sync chained on top),
      `SetDeviceGammaRamp` (gamma), `ChangeDisplaySettingsA` (mode guard).
 5. **Display probe.** Reads `uo\uoconfig_mp.cfg` and fixes contradictions with
    the ini before the renderer starts (e.g. a resolution a window can't show).

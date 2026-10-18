@@ -129,8 +129,9 @@ checks compare against relocated values.
 | Protocol / master / browser (`protocol_patch`) | ✅ ported, **vanilla values** | [Decision](#protocol-and-master-server-stay-vanilla). |
 | 40-tick caps: snaps 40, cl_maxpackets 125 (`competitive`) | ✅ ported | Server-pushed competitive spec + ROM lock work unchanged. |
 | PunkBuster-replacement ruleset + cheat-cvar scan (`ruleset*`, `cheat_scan`) | 🗑️ removed | [Why](#punkbuster-code-removed). |
-| Frame limiter (`frame_limiter`) | ✅ ported, **reworked** | [Decision](#frame-limiter). |
-| 1 ms timer, CPU affinity, priority, working set, FSO (`performance/*`) | ✅ ported | Win32 only. |
+| Frame limiter (`frame_limiter`) | ✅ ported, **reworked**, 1.6.9 | Continuous engine-epoch clock and late mouse from 1.6.9. [Decision](#frame-limiter). |
+| 1 ms timer, CPU affinity, priority, working set, FSO (`performance/*`) | ✅ ported | Win32 only. 1.6.9: the timer request survives an occluded window (Windows 11), working-set sizes no longer wrap in 32 bits. |
+| GPU sync: `glFinish` after `SwapBuffers` (`gpu_sync`, 1.6.9) | ✅ ported | Chains with the overlay's `SwapBuffers` hook. |
 | Raw mouse input `m_rinput` (`rinput`) | ✅ ported | Same two `GetCursorPos` callers. |
 | Refresh-rate cap 200 → 1000 Hz (`settings_menu`) | ✅ ported | |
 | Display probe, mode guard, fullscreen default (`video/*`) | ✅ ported | Now reads/writes `uo\uoconfig_mp.cfg`. |

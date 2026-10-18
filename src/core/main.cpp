@@ -24,6 +24,7 @@
 #include "input/rinput.h"
 #include "performance/fps_cap.h"
 #include "performance/frame_limiter.h"
+#include "performance/gpu_sync.h"
 #include "features/updater.h"
 #include "features/demo_upload.h"
 #include "core/toast.h"
@@ -171,6 +172,7 @@ extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
             patches::widescreen_fix_apply();
             patches::settings_menu_start();  // in-game 1.6X settings menu (FOV + screen ratio)
             patches::overlay_start();        // modern GL settings menu (Ctrl+M)
+            patches::gpu_sync_start();       // glFinish after SwapBuffers; chains onto the overlay's hook
 
             // per-monitor hardware gamma (dual-screen light bugs; must precede vid init)
             patches::gamma_fix_start();

@@ -309,6 +309,9 @@ void check_engine_mouse() {
         }
     }
     CHECK(calls == 2);
+
+    // gpu_sync and the overlay both IAT-hook gdi32!SwapBuffers in the exe
+    CHECK(g_exe.iat_slot("gdi32.dll", "SwapBuffers") != 0);
 }
 
 void check_engine() {
