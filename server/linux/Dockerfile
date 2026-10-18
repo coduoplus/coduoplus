@@ -30,6 +30,7 @@
 FROM --platform=linux/386 debian:bullseye-slim AS build
 RUN sed -i -e 's|^deb http://deb.debian.org|# deb http://deb.debian.org|' \
            -e 's|^# deb http://snapshot.debian.org|deb http://snapshot.debian.org|' /etc/apt/sources.list \
+ && echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
  && apt-get -o Acquire::Check-Valid-Until=false update \
  && apt-get install -y --no-install-recommends g++ binutils \
  && rm -rf /var/lib/apt/lists/*

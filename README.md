@@ -43,7 +43,8 @@ has the full table and the reasons.
    `mss32.dll` forwards all sound to the original. Without it the game won't
    start.
 3. Copy **`mss32.dll`** and **`coduoplus.ini`** next to `CoDUOMP.exe`.
-4. Copy **`zz_coduoplus_ui.pk3`** into the `uo\` folder (for the main-menu entry).
+4. Optional: copy **`zz_coduoplus_ui.pk3`** into the `uo\` folder for a main-menu
+   entry. Ctrl+M opens the settings without it.
 5. Start `CoDUOMP.exe` as usual. `coduoplus.log` appears next to the DLL.
 
 Your folder ends up with:
@@ -90,7 +91,7 @@ Details in [BUILD.md](BUILD.md).
 | [docs/PORTING.md](docs/PORTING.md) | How the port was done, every decision and why, feature status, what's left |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the DLL loads, the startup sequence, the watcher thread, safe patching, client↔server agreement |
 | [docs/ADDRESSES.md](docs/ADDRESSES.md) | Every address, CoD1 → UO, with the evidence |
-| [docs/CI.md](docs/CI.md) | GitHub workflows, the self-hosted game runner, branch protection, cutting a release |
+| [docs/CI.md](docs/CI.md) | GitHub workflows, branch protection, cutting a release |
 | [docs/TESTING.md](docs/TESTING.md) | The test layers, how to run them, the manual client checklist |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every `coduoplus.ini` key |
 | [BUILD.md](BUILD.md) | Toolchain, build, deploy, release |
