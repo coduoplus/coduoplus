@@ -192,3 +192,10 @@ if (CODUO_SMOKE AND Python3_FOUND)
              COMMAND Python3::Interpreter -I "${CMAKE_SOURCE_DIR}/tests/smoke_dedicated.py" "${CODUO_GAME_DIR}")
     set_tests_properties(smoke_dedicated PROPERTIES TIMEOUT 120)
 endif()
+
+# The UI pk3 is generated from the install's own pakuo03.pk3 (ui_pk3/build_pk3.py);
+# building it is the test that the stock menu is there and our item still fits.
+if (Python3_FOUND)
+    add_test(NAME ui_pk3
+             COMMAND Python3::Interpreter -I "${CMAKE_SOURCE_DIR}/ui_pk3/build_pk3.py" --game "${CODUO_GAME_DIR}")
+endif()
