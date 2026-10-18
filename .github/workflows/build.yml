@@ -29,8 +29,11 @@ jobs:
             -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc \
             -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ \
             -DCMAKE_RC_COMPILER=i686-w64-mingw32-windres
-          cmake --build build --target mss32 -j
+          cmake --build build --target mss32 site_check -j
           test -f build/mss32.dll
+          # site_check itself needs the CoD:UO binaries, which a runner does not
+          # have: it is built here so it keeps compiling, and run locally (ctest).
+          test -f build/site_check.exe
 
       - uses: actions/upload-artifact@v4
         with:
