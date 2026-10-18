@@ -227,6 +227,23 @@ void enforce_ini_fullscreen() {
     const long pos = find_fullscreen_value(buf, &have, &vlen);
     if (pos < 0 || have == want) { free(buf); return; }
 
+    // ONE direction only (upstream 1.6.9 e1161b7). The mod's r_fullscreen default was
+    // "0" up to COD1.6X 1.6.8, and the engine writes every archived cvar back on exit,
+    // so a "0" in the config is ambiguous: it is what an older build left there for a
+    // player who never chose it (ini on, config 0 -> repaired below). A "1" can ONLY
+    // come from the player (vanilla Options menu, or the file): COD1.6X 1.6.6 rewrote it
+    // to 0 because its shipped .ini said `fullscreen = off`, which threw every
+    // exclusive-fullscreen player into a borderless window - CoDUO+'s first smoke run did
+    // exactly that to the test install's uoconfig_mp.cfg. Their choice stands;
+    // window_patch follows r_fullscreen live.
+    if (have == 1 && want == 0) {
+        logger::logf("display_probe: uoconfig_mp.cfg asks r_fullscreen 1 (exclusive) while "
+                     "coduoplus.ini says fullscreen = off - the config is the player's "
+                     "choice, keeping exclusive fullscreen");
+        free(buf);
+        return;
+    }
+
     // rewrite just the digit(s), everything else byte-identical
     char exe_path[MAX_PATH];
     DWORD len = GetModuleFileNameA(NULL, exe_path, MAX_PATH);
