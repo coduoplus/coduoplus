@@ -1,5 +1,14 @@
 # CoDUO+ — Changelog
 
+## Unreleased
+
+### Netcode
+- **Lag compensation** on CoDUO+ servers (Windows and Linux): a shot is traced
+  against where the other players were on the shooter's screen, up to
+  `g_antilagMaxMs` (300) back. Server cvar `g_antilag` (on by default, in
+  serverinfo; `2` logs every compensated shot). Nothing changes on clients. Pose
+  (stance/lean) is not rewound yet. [docs/NETCODE.md](docs/NETCODE.md#lag-compensation).
+
 ## v0.2.0 (2026-10-17) — upstream 1.6.9, without PunkBuster
 
 Everything new in COD1.6X `release/1.6.8`..`release/1.6.9` except the

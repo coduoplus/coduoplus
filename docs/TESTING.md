@@ -86,7 +86,7 @@ cgame_draw2d       off    0 checks  -
 game_swing         ON    16 checks  ok
 game_viewheight    off    0 checks  -
 game_version       ON    11 checks  ok
-game_antilag       off    0 checks  -
+game_antilag       ON    12 checks  ok
 ```
 
 Rules (enforced): a group switched ON in `core/game.h` must have checks, and

@@ -109,7 +109,16 @@ possible fixes) the impossible combinations before the renderer starts.
 
 | Key | What it does |
 | --- | --- |
-| `ctrl_dump`, `antilag_diag_*` | Upstream diagnostics for the (not ported) lean and antilag code. |
+| `ctrl_dump` | Upstream diagnostic for the (not ported) lean code. |
+
+## Hosting
+
+Only used when this game runs a server.
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `antilag` | `on` | Default of the server cvar `g_antilag` ([lag compensation](NETCODE.md#lag-compensation)). `+set` / rcon still win. |
+| `antilag_max_ms` | `300` | Default of `g_antilagMaxMs`, the furthest back a shot is compensated. |
 
 ## Server: competitive.cfg
 

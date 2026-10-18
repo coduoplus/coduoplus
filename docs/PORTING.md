@@ -152,7 +152,7 @@ checks compare against relocated values.
 | Server version gate (`version_gate`) | ✅ ported, **fixed** | Both uo_game builds. Survives map changes (upstream's didn't). Vanilla players allowed. |
 | Lean fix / controller smoothing (`lean_fix`, `shared/lean_controllers`) | ❌ not ported | [Why](#lean-fix). |
 | Viewheight lerp speed (`viewheight_fix`) | ❌ not ported | [Why](#viewheight-fix). |
-| Antilag (`antilag`) | ❌ not ported | Disabled in upstream's release too ("expérimental … désactivé"). |
+| Lag compensation (`antilag`, `shared/antilag_core`) | ✅ **new**, client-free, Windows + Linux servers | Upstream's was a CoD1-only experiment shipped disabled; rewritten for UO. Origin + angles, not pose: [NETCODE.md](NETCODE.md#lag-compensation). |
 | CG_Draw2D hook: Discord in-match heartbeat, avatar overlay (`engine_2d`, `avatar_overlay`) | ❌ not ported | Discord does nothing without an application id; the avatar overlay is an off-by-default proof of concept. |
 | Auto-updater (`updater`) | ✅ ported, **no feed** | [Decision](#updater-and-pam-installer-point-nowhere-by-default). |
 | PAM installer (`pam_install`) | ✅ ported, **off** | Same. |
