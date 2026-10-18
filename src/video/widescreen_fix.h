@@ -31,23 +31,29 @@ struct WidescreenConfig {
 
 extern WidescreenConfig g_widescreen_config;
 
-// cgame_mp_x86.dll RVAs (RE'd). CALCFOV = CG_GetEffectiveFov, two callers.
-constexpr uintptr_t CGAME_CALCFOV_RVA       = 0x000344c0;
-constexpr uintptr_t CGAME_CALCFOV_CALL1_RVA = 0x000345e1; // CG_CalcViewValues tail
-constexpr uintptr_t CGAME_CALCFOV_CALL2_RVA = 0x000350a5; // fcn.30034e40 CG_DrawSkyBoxPortal
+// uo_cgame_mp_x86.dll 1.51 RVAs (base 0x30000000). UO's CG_CalcFov is the CoD1 code
+// instruction for instruction, at new addresses (CoD1 RVAs in brackets):
+//   3003ffc0  CG_GetEffectiveFov: no args, hfov in ST(0)            [0x344c0]
+//   300402b0  push esi ; call CG_GetEffectiveFov                    [0x345e1]
+//   300402b6  fild [refdef.height] ; fild [refdef.width] ; fld st(2) ;
+//             fmul k ; fptan ; fstp st0 ; fdivp ; fpatan            [0x345e6..]
+//   30042085  call CG_GetEffectiveFov ; fst [refdef.fov_x] ...      [0x350a5]
+// CALCFOV = CG_GetEffectiveFov, two callers.
+constexpr uintptr_t CGAME_CALCFOV_RVA       = 0x0003ffc0;
+constexpr uintptr_t CGAME_CALCFOV_CALL1_RVA = 0x000402b1; // CG_CalcViewValues tail
+constexpr uintptr_t CGAME_CALCFOV_CALL2_RVA = 0x00042085; // CG_DrawSkyBoxPortal
 
 // Stretch: the vfov trig in CG_CalcViewValues reads refdef.width/height via two `fild`
 // instructions; their disp32 operands sit at these RVAs. Redirect them to mod-owned ints
 // (g_stretch_w/h) so we can feed a forced 4:3 ratio (= horizontal stretch) live.
-constexpr uintptr_t CGAME_VFOV_HEIGHT_OP_RVA = 0x000345e8; // operand of `fild [refdef.height]`
-constexpr uintptr_t CGAME_VFOV_WIDTH_OP_RVA  = 0x000345ee; // operand of `fild [refdef.width]`
-// Original operand values of the two fild sites above. Verified byte-exact in
-// Main/cgame_mp_x86.dll: at RVA 0x345e8 the 4 operand bytes are 3c d3 20 30 =
-// 0x3020d33c, i.e. imagebase 0x30000000 + RVA 0x20d33c (the other site holds ...d338).
-// These were 0x34d33c/0x34d338 (0x140000 too high) which made the sanity check fail on
-// every load -> "stretch operands redirected (PARTIAL)" and stretched did nothing.
+constexpr uintptr_t CGAME_VFOV_HEIGHT_OP_RVA = 0x000402b8; // operand of `fild [refdef.height]`
+constexpr uintptr_t CGAME_VFOV_WIDTH_OP_RVA  = 0x000402be; // operand of `fild [refdef.width]`
+// Original operand values of the two fild sites above. In uo_cgame 1.51 the operand
+// at RVA 0x402b8 is 84 7a 48 30 = 0x30487a84 (the other site holds ...7a80).
+// (Upstream history, CoD1: its first constants were 0x140000 too high, which made the
+// sanity check fail on every load -> "stretch operands redirected (PARTIAL)".)
 //
-// WHICH IS WHICH: traced through the FPU in CG_CalcFov @0x345e0:
+// WHICH IS WHICH: traced through the FPU in CG_CalcFov (CoD1 @0x345e0, UO @0x402b0):
 //   fild [d33c] ; fild [d338] ; fld st(2) ; fmul k ; fptan ; fstp ; fdivp st(1) ; fpatan
 // resolves to  fov_y = atan( [d33c] * tan(fov_x/2) / [d338] ), and the Q3 formula is
 // fov_y = atan(height * tan(fov_x/2) / width). So **d33c is HEIGHT and d338 is WIDTH** -
@@ -55,15 +61,20 @@ constexpr uintptr_t CGAME_VFOV_WIDTH_OP_RVA  = 0x000345ee; // operand of `fild [
 // produced a 3:4 (portrait) aspect, which is why stretched looked wrong. In the
 // non-stretched path the two swaps cancelled out, so classic/widescreen still looked
 // right - which is exactly why this stayed hidden.
-constexpr uintptr_t CGAME_REFDEF_HEIGHT_RVA  = 0x0020d33c; // read by the fild @0x345e8
-constexpr uintptr_t CGAME_REFDEF_WIDTH_RVA   = 0x0020d338; // read by the fild @0x345ee
+// (CoD1's d33c/d338 = UO's 7a84/7a80: refdef.width at +8, height at +0xc, as in Q3.)
+constexpr uintptr_t CGAME_REFDEF_HEIGHT_RVA  = 0x00487a84; // read by the fild @0x402b6
+constexpr uintptr_t CGAME_REFDEF_WIDTH_RVA   = 0x00487a80; // read by the fild @0x402bc
 // glConfig dims. These were swapped too: with the game running 1440x1080 the mod logged
 // "seed dims 1080x1440", i.e. 0x1d5a28 holds the WIDTH and 0x1d5a2c the HEIGHT (normal
 // struct order, width first). Combined with the swapped refdef names above, the error
 // cancelled out in the non-stretched path - so nothing looked broken until stretched
 // actually started working. Both are now named correctly; do not "re-align" them.
-constexpr uintptr_t CGAME_VIDWIDTH_RVA       = 0x001d5a28; // glConfig.vidWidth  (=1440)
-constexpr uintptr_t CGAME_VIDHEIGHT_RVA      = 0x001d5a2c; // glConfig.vidHeight (=1080)
+// UO: CG_Init calls trap_GetGlconfig(&cgs.glconfig = 0x30447a04) (syscall 0x4e), then
+//   3002e003  fild [0x30447a88] ; fmul [1/640] ; fstp [cgs.screenXScale]
+//   3002e01c  fild [0x30447a8c] ; fmul [1/480] ; fstp [cgs.screenYScale]
+// so vidWidth/vidHeight are glconfig+0x84/+0x88, width first - same as CoD1.
+constexpr uintptr_t CGAME_VIDWIDTH_RVA       = 0x00447a88; // glConfig.vidWidth  (=1440)
+constexpr uintptr_t CGAME_VIDHEIGHT_RVA      = 0x00447a8c; // glConfig.vidHeight (=1080)
 
 float widescreen_get_aspect_ratio();
 float widescreen_horplus_hfov(float cg_fov_43, float actual_aspect);
