@@ -1,7 +1,12 @@
 // cod2x BG_PlayerAngles swing fixes: model snaps to camera, no leg/torso lag.
+// CoD:UO port: applied to the server's uo_game and the client's uo_cgame in
+// step - see swing_fix.h for why one side alone is a hitbox desync.
 
 #include "gameplay/swing_fix.h"
+#include "core/game.h"
 #include "core/logger.h"
+#include "netcode/competitive.h"     // systeminfo_value, CODMP_CVAR_SET_VA, COMP_CVAR_*
+#include "netcode/protocol_patch.h"  // CODMP_CVAR_GET_VA, CODMP_CVAR_COUNT_VA
 
 #include <cstdio>
 #include <cstring>
@@ -15,6 +20,7 @@ namespace patches {
 // swing state to the view before posing for bullet tests: with the client locked to
 // the view, the drawn pose is a pure function of the view angles — reproducible
 // server-side with no history. THE TWO SIDES MUST STAY IN STEP.
+// (CoD:UO: the server side is swing_server_tick() below, same values, same code.)
 SwingFixConfig g_swing_fix_config = {
     /* enable             */ true,
     /* legs_tolerance     */ 0.0f,   // vanilla 40.0
@@ -28,151 +34,123 @@ extern "C" float g_torso_yaw_speed_live = 1.0f;
 extern "C" float g_torso_yaw_movefrac_live = 0.0f;
 
 namespace {
-bool g_installed = false;
 
-// push imm32 = 68 xx xx xx xx; validates opcode + current value vs DLL version
-bool patch_push_imm32_float(uintptr_t addr,
-                            float expected_value,
-                            float new_value,
-                            const char* label) {
-    const uint8_t opcode = *(const uint8_t*)addr;
-    if (opcode != 0x68) {
-        logger::logf("  swing_fix [%s] : opcode inattendu 0x%02x a cgame+RVA "
-                     "(attendu 0x68 = push imm32). Patch annule.",
-                     label, opcode);
-        return false;
-    }
+constexpr float VANILLA_LEGS_TOLERANCE    = 40.0f;
+constexpr float VANILLA_TORSO_PITCH_SPEED = 0.15f;
 
-    const float current = *(const float*)(addr + 1);
-
-    // may already be new_value on re-init (vid_restart)
-    const float diff_expected = current - expected_value;
-    const float diff_new      = current - new_value;
-    const float abs_diff_expected = diff_expected < 0 ? -diff_expected : diff_expected;
-    const float abs_diff_new      = diff_new      < 0 ? -diff_new      : diff_new;
-
-    if (abs_diff_expected > 0.01f && abs_diff_new > 0.01f) {
-        logger::logf("  swing_fix [%s] : float value mismatch (got %.4f, "
-                     "expected %.4f or already-patched %.4f). Patch annule.",
-                     label, current, expected_value, new_value);
-        return false;
-    }
-
-    if (abs_diff_new < 0.01f) {
-        logger::logf("  swing_fix [%s] : deja patche (value=%.4f)", label, current);
-        return true;
-    }
-
-    DWORD old_protect = 0;
-    if (!VirtualProtect((void*)(addr + 1), 4, PAGE_READWRITE, &old_protect)) {
-        logger::logf("  swing_fix [%s] : VirtualProtect failed. Patch annule.", label);
-        return false;
-    }
-    *(float*)(addr + 1) = new_value;
-    VirtualProtect((void*)(addr + 1), 4, old_protect, &old_protect);
-
-    logger::logf("  swing_fix [%s] : patched at 0x%08x (%.4f -> %.4f)",
-                 label, (unsigned)addr, expected_value, new_value);
+bool write4(void* p, const void* v) {
+    DWORD old = 0;
+    if (!VirtualProtect(p, 4, PAGE_EXECUTE_READWRITE, &old)) return false;
+    memcpy(p, v, 4);
+    VirtualProtect(p, 4, old, &old);
+    FlushInstructionCache(GetCurrentProcess(), p, 4);
     return true;
 }
+
+// `push imm32` holding either the vanilla float or ours -> set to the wanted one.
+bool set_push_float(uintptr_t addr, float vanilla, float ours, bool on) {
+    if (*(const uint8_t*)addr != 0x68) return false;  // not push imm32: wrong DLL
+    float* imm = (float*)(addr + 1);
+    const float want = on ? ours : vanilla;
+    if (*imm == want) return true;
+    if (*imm != vanilla && *imm != ours) return false;
+    return write4(imm, &want);
+}
+
+// disp32 operand pointing at either the module's own global or ours -> set.
+bool set_operand(uintptr_t op, uint32_t vanilla, uint32_t ours, bool on) {
+    uint32_t* p = (uint32_t*)op;
+    const uint32_t want = on ? ours : vanilla;
+    if (*p == want) return true;
+    if (*p != vanilla && *p != ours) return false;
+    return write4(p, &want);
+}
+
+bool engine_ready() {
+    return game_exe_ok() && *(volatile int*)CODMP_CVAR_COUNT_VA > 0;
+}
+
 }  // namespace
 
-bool apply_swing_fix(HMODULE cgame_module) {
-    // no g_installed early-return: re-runnable so the watcher can re-apply after a
-    // map-change cgame reload. The per-patch helpers below are byte-idempotent.
-    if (!cgame_module) return false;
-    if (!g_swing_fix_config.enable) {
-        logger::logf("  swing_fix : disabled in config, skipping");
-        return true;
+bool swing_set(HMODULE module, const SwingSites& s, bool on, const char* who) {
+    if (!module) return false;
+    const uintptr_t base = (uintptr_t)module;
+
+    // The opcodes the operands belong to must be the expected ones before any write.
+    const bool shapes_ok =
+        *(const uint16_t*)(base + s.torso_yaw_mov) == 0x358b &&            // mov esi,[m32]
+        *(const uint16_t*)(base + s.movefrac_fmul_op - 2) == 0x0dd8;        // fmul [m32]
+
+    bool ok = shapes_ok;
+    if (shapes_ok) {
+        // patch 1: legs swingTolerance 40.0 -> legs_tolerance
+        ok &= set_push_float(base + s.legs_tolerance_push, VANILLA_LEGS_TOLERANCE,
+                             g_swing_fix_config.legs_tolerance, on);
+        // patch 2: torso pitch (lean channel) swing speed 0.15 -> torso_pitch_speed
+        ok &= set_push_float(base + s.torso_pitch_speed_push, VANILLA_TORSO_PITCH_SPEED,
+                             g_swing_fix_config.torso_pitch_speed, on);
+        // patch 3: torso yaw swingSpeed load -> g_torso_yaw_speed_live (torso only)
+        ok &= set_operand(base + s.torso_yaw_mov + 2, (uint32_t)(base + s.torso_yaw_dvar),
+                          (uint32_t)(uintptr_t)&g_torso_yaw_speed_live, on);
+        // patch 4: head/weapon lock - 0.3*movementYaw pull -> g_torso_yaw_movefrac_live
+        ok &= set_operand(base + s.movefrac_fmul_op, (uint32_t)(base + s.movefrac_const),
+                          (uint32_t)(uintptr_t)&g_torso_yaw_movefrac_live, on);
     }
 
-    const uintptr_t base = (uintptr_t)cgame_module;
-
-    // patch 1: legs swingTolerance push 40.0, cgame+0x451d = `68 00 00 20 42`
-    const uintptr_t legs_tol_push = base + CGAME_SWING_LEGS_TOLERANCE_PUSH_RVA;
-    const bool ok1 = patch_push_imm32_float(legs_tol_push, 40.0f,
-                                            g_swing_fix_config.legs_tolerance,
-                                            "legs_tolerance");
-
-    // patch 2: torso pitch swingSpeed push 0.15 = `68 9a 99 19 3e` (CoD1 +0x459d, UO +0x4832)
-    const uintptr_t torso_pitch_speed_push = base + CGAME_SWING_TORSO_PITCH_SPEED_PUSH_RVA;
-    const bool ok2 = patch_push_imm32_float(torso_pitch_speed_push, 0.15f,
-                                            g_swing_fix_config.torso_pitch_speed,
-                                            "torso_pitch_speed");
-
-    // patch 3: torso yaw swingSpeed dvar (CoD1 0x301dd388 / UO 0x3044ff08), `mov esi,ds:..`
-    // (CoD1 @0x4468, UO @0x46f8), operand at +2. The dvar is read at 5 sites, torso first,
-    // then the legs (UO 0x4726/0x4780/0x4796/0x47a5, CoD1 0x4495/0x44ee/0x4503/0x4513).
-    // redirect TORSO ONLY: forcing legs to 1.0 snaps legs to walk dir, torso clamped to legs = aimwalk bug.
-    bool ok3 = false;
-    {
-        // CoD:UO port: was a literal {0x446a} - the CoD1 RVA - next to the header constant.
-        static const uintptr_t YAW_OPS[1] = {CGAME_SWING_TORSO_YAW_MOV_RVA + 2};
-        const uint32_t expected = (uint32_t)(base + CGAME_SWING_TORSO_YAW_DVAR_RVA);
-        const uint32_t ours     = (uint32_t)(uintptr_t)&g_torso_yaw_speed_live;
-        int n = 0;
-        for (int k = 0; k < 1; ++k) {
-            uint32_t* operand = (uint32_t*)(base + YAW_OPS[k]);
-            if (*operand != expected && *operand != ours) {
-                logger::logf("  swing_fix [yaw_speed] : operande @rva 0x%lx inattendue "
-                             "(0x%08x), skip.", (unsigned long)YAW_OPS[k], (unsigned)*operand);
-                continue;
-            }
-            DWORD oldp = 0;
-            if (VirtualProtect(operand, 4, PAGE_READWRITE, &oldp)) {
-                *operand = ours;
-                VirtualProtect(operand, 4, oldp, &oldp);
-                FlushInstructionCache(GetCurrentProcess(), operand, 4);
-                ++n;
-            }
-        }
-        ok3 = (n >= 1);
-        logger::logf("  swing_fix [yaw_speed] : %d/1 chargement dvar redirige "
-                     "-> notre var (=%.2f) [TORSE seul ; jambes=vanilla]", n, g_torso_yaw_speed_live);
+    // One log line per change of outcome, per side - this runs every 5 ms.
+    static int last_client = -1, last_server = -1;
+    int& last = (who && who[0] == 's') ? last_server : last_client;
+    const int now = !ok ? 2 : (on ? 1 : 0);
+    if (now != last) {
+        last = now;
+        if (!ok)
+            logger::logf("  swing_fix [%s]: sites in module 0x%08x do not match - left alone "
+                         "(wrong DLL build?)", who, (unsigned)base);
+        else if (on)
+            logger::logf("  swing_fix [%s]: ON in 0x%08x (legs_tol=%.2f pitch_spd=%.2f "
+                         "yaw_spd=%.2f yaw_movefrac=%.2f)", who, (unsigned)base,
+                         g_swing_fix_config.legs_tolerance, g_swing_fix_config.torso_pitch_speed,
+                         g_torso_yaw_speed_live, g_torso_yaw_movefrac_live);
+        else
+            logger::logf("  swing_fix [%s]: vanilla in 0x%08x", who, (unsigned)base);
     }
+    return ok;
+}
 
-    // patch 4: head/weapon lock - fmul ds:imm32 (CoD1 @0x444b, UO @0x46a9), operand at +2
-    // -> our var (0=drop 0.3*movementYaw)
-    bool ok4 = false;
-    {
-        const uintptr_t fmul_op = base + CGAME_SWING_TORSO_YAW_MOVEFRAC_FMUL_RVA;
-        if (*(const uint16_t*)(fmul_op - 2) != 0x0dd8) {                          // fmul ds:imm32
-            logger::logf("  swing_fix [torso_yaw_movefrac] : opcode inattendu @0x%08x "
-                         "(pas 'fmul ds:imm32'). Patch annule.", (unsigned)(fmul_op - 2));
-        } else {
-            uint32_t* operand = (uint32_t*)fmul_op;
-            const uint32_t expected = (uint32_t)(base + CGAME_SWING_TORSO_YAW_MOVEFRAC_CONST_RVA);
-            const uint32_t ours     = (uint32_t)(uintptr_t)&g_torso_yaw_movefrac_live;
-            if (*operand != expected && *operand != ours) {
-                logger::logf("  swing_fix [torso_yaw_movefrac] : operande inattendu "
-                             "(got 0x%08x, attendu 0x%08x). Patch annule.",
-                             (unsigned)*operand, (unsigned)expected);
-            } else {
-                DWORD oldp = 0;
-                if (VirtualProtect(operand, 4, PAGE_READWRITE, &oldp)) {
-                    *operand = ours;
-                    VirtualProtect(operand, 4, oldp, &oldp);
-                    FlushInstructionCache(GetCurrentProcess(), operand, 4);
-                    ok4 = true;
-                    logger::logf("  swing_fix [torso_yaw_movefrac] : fmul @0x%08x redirige "
-                                 "-> notre var (=%.2f ; 0=arme verrouillee sur la vue)",
-                                 (unsigned)(fmul_op - 2), g_torso_yaw_movefrac_live);
-                }
-            }
-        }
-    }
+void swing_server_tick() {
+    if (!port::GAME_SWING || !engine_ready()) return;
+    // Only a process that is running a server has the game module loaded (dedicated,
+    // or a listen server / devmap). A pure client never publishes anything.
+    HMODULE game = GetModuleHandleA(GAME_GAME_DLL);
+    if (!game) return;
 
-    if (ok1 && ok2 && ok3 && ok4) {
-        g_installed = true;
-        logger::logf("  swing_fix : 4/4 patches applied (legs_tol=%.2f pitch_spd=%.2f yaw_spd=%.2f yaw_movefrac=%.2f)",
-                     g_swing_fix_config.legs_tolerance,
-                     g_swing_fix_config.torso_pitch_speed,
-                     g_torso_yaw_speed_live, g_torso_yaw_movefrac_live);
-    } else {
-        logger::logf("  swing_fix : partial install (legs=%d pitch=%d yaw=%d movefrac=%d) - check DLL version",
-                     ok1, ok2, ok3, ok4);
-    }
-    return ok1 && ok2;
+    const bool mirrored = g_swing_fix_config.enable &&
+                          swing_set(game, GAME_SWING_SITES, true, "server");
+
+    // Publish through systeminfo. Cvar_Get creates it once with SYSTEMINFO|ROM (the
+    // player cannot set it); Cvar_Set (force) moves it. Re-sent on every change, and
+    // the engine re-broadcasts systeminfo itself whenever a SYSTEMINFO cvar changes.
+    static int published = -1;
+    const int want = mirrored ? 1 : 0;
+    if (want == published) return;
+    typedef void* (__cdecl* Cvar_Get_t)(const char*, const char*, int);
+    typedef void* (__cdecl* Cvar_Set_t)(const char*, const char*);
+    ((Cvar_Get_t)CODMP_CVAR_GET_VA)(SWING_SERVERINFO_CVAR, "0", COMP_CVAR_SYSTEMINFO | COMP_CVAR_ROM);
+    ((Cvar_Set_t)CODMP_CVAR_SET_VA)(SWING_SERVERINFO_CVAR, want ? "1" : "0");
+    published = want;
+    logger::logf("swing_fix: server publishes %s %d", SWING_SERVERINFO_CVAR, want);
+}
+
+void swing_client_tick() {
+    if (!port::CGAME_SWING || !engine_ready()) return;
+    HMODULE cgame = GetModuleHandleA(GAME_CGAME_DLL);
+    if (!cgame) return;
+    // The CURRENT server's systeminfo, not the cvar: a cvar would keep the previous
+    // server's "1" after moving to a vanilla one (see systeminfo_value).
+    char v[8];
+    const bool server_mirrors = systeminfo_value(SWING_SERVERINFO_CVAR, v, sizeof(v)) &&
+                                strcmp(v, "1") == 0;
+    swing_set(cgame, CGAME_SWING_SITES, g_swing_fix_config.enable && server_mirrors, "client");
 }
 
 }  // namespace patches

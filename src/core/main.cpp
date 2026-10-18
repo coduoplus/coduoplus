@@ -13,6 +13,7 @@
 #include "netcode/ruleset.h"
 #include "gameplay/viewheight_fix.h"
 #include "gameplay/lean_fix.h"
+#include "gameplay/swing_fix.h"
 #include "core/logger.h"
 #include "netcode/version_patch.h"
 #include "netcode/protocol_patch.h"
@@ -120,6 +121,8 @@ DWORD WINAPI patch_watcher_thread(LPVOID) {
             patches::rinput_tick();              // follow m_rinput, publish m_rinput_hz
             patches::netmode_tick();             // follow cod1x_masterlist (1.6 <-> legacy 1.5)
         }
+        patches::swing_server_tick();            // hosting: mirror swing into uo_game, publish it
+        patches::swing_client_tick();            // follow the server's sv_coduoplus_swing on the cgame
         patches::widescreen_update_stretch();    // drive the stretched-mode vfov ratio (live)
         patches::gamma_fix_tick();               // per-monitor gamma: focus/monitor transitions
         monitor_cgame();

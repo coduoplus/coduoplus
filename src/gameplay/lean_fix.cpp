@@ -477,7 +477,7 @@ bool apply_to_cgame(HMODULE cgame_module) {
     // and covered by tests/site_check.cpp (core/game.h, port::*).
     if (port::CGAME_WIDESCREEN) widescreen_apply_to_cgame(cgame_module);
     if (port::CGAME_FOV) settings_menu_apply_to_cgame(cgame_module);  // unlock cg_fov (before CG_Init proceeds)
-    if (port::CGAME_SWING) apply_swing_fix(cgame_module);
+    // swing: not applied here - swing_client_tick() follows the server (swing_fix.h)
     if (port::CGAME_STANCE) apply_stance_fix(cgame_module);  // sync model stance blend with 1st person
     // apply_anim_clamp(cgame_module);  // REVERTED 2026-07-24: the `xor esi,esi` patch
     //   clobbers a register the CALLER still needs (the old path called Com_Error and
@@ -515,11 +515,6 @@ bool cgame_needs_reapply(HMODULE cgame_module) {
     if (port::CGAME_FOV && g_settings_menu_config.enable && g_settings_menu_config.fov_unlock) {
         if (*(const uint32_t*)(base + CGAME_FOV_CVAR_FLAGS_RVA) == 0x00000201)
             return true;
-    }
-    if (port::CGAME_SWING && g_swing_fix_config.enable) {
-        const uintptr_t p = base + CGAME_SWING_LEGS_TOLERANCE_PUSH_RVA;
-        if (*(const uint8_t*)p == 0x68 && *(const float*)(p + 1) > 39.0f)
-            return true;  // legs swingTolerance back to vanilla 40.0
     }
     return false;
 }
