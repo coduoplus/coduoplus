@@ -122,6 +122,7 @@ DWORD WINAPI patch_watcher_thread(LPVOID) {
             patches::netmode_tick();             // follow cod1x_masterlist (1.6 <-> legacy 1.5)
         }
         patches::swing_server_tick();            // hosting: mirror swing into uo_game, publish it
+        patches::version_gate_tick();            // hosting: ClientConnect version gate (per map load)
         patches::swing_client_tick();            // follow the server's sv_coduoplus_swing on the cgame
         patches::widescreen_update_stretch();    // drive the stretched-mode vfov ratio (live)
         patches::gamma_fix_tick();               // per-monitor gamma: focus/monitor transitions

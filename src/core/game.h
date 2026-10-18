@@ -71,7 +71,7 @@ constexpr bool CGAME_LEAN       = false;  // uo_cgame: DoControllers lean/body h
 constexpr bool CGAME_DRAW2D     = false;  // uo_cgame: CG_Draw2D / shader hooks (discord, avatar)
 constexpr bool GAME_SWING       = true;   // uo_game: server mirror of the swing fix (+ systeminfo flag)
 constexpr bool GAME_VIEWHEIGHT  = false;  // uo_game: PM_UpdateViewHeight lerp speed
-constexpr bool GAME_VERSION     = false;  // uo_game: ClientConnect version gate
+constexpr bool GAME_VERSION     = true;   // uo_game: ClientConnect version gate
 constexpr bool GAME_ANTILAG     = false;  // uo_game: experimental lag compensation
 }  // namespace port
 

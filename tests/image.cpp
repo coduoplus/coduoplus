@@ -29,6 +29,7 @@ bool Image::load(const std::string& file) {
     base = rd32(f, opt + 28);
     size = rd32(f, opt + 56);
     const uint32_t hdr_size = rd32(f, opt + 60);
+    export_dir_rva = rd32(f, opt + 96);      // DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT]
     import_dir_rva = rd32(f, opt + 96 + 8);  // DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT]
     mem.assign(size, 0);
     memcpy(mem.data(), f.data(), hdr_size < f.size() ? hdr_size : f.size());
@@ -113,6 +114,19 @@ std::vector<std::string> Image::imports_of(const char* dll) const {
     std::vector<std::string> out;
     walk_imports(*this, dll, [&](const char* name, uint32_t) { out.push_back(name); });
     return out;
+}
+
+uint32_t Image::export_va(const char* name) const {
+    if (!export_dir_rva) return 0;
+    const uint32_t d = base + export_dir_rva;
+    const uint32_t n = u32(d + 24), funcs = base + u32(d + 28);
+    const uint32_t names = base + u32(d + 32), ords = base + u32(d + 36);
+    for (uint32_t i = 0; i < n; ++i) {
+        if (strcmp((const char*)at(base + u32(names + 4 * i)), name) != 0) continue;
+        const uint16_t ord = (uint16_t)(u32(ords + 2 * i) & 0xffff);
+        return base + u32(funcs + 4 * ord);
+    }
+    return 0;
 }
 
 uint32_t Image::iat_slot(const char* dll, const char* func) const {
