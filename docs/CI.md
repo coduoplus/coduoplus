@@ -7,7 +7,7 @@ machine, how `main` is protected, and how a release is cut.
 
 | Workflow | Trigger | Jobs |
 | --- | --- | --- |
-| `.github/workflows/ci.yml` | push to `main`, pull request into `main`, manual | **`portable`** (GitHub-hosted Windows) and **`game`** (self-hosted) |
+| `.github/workflows/ci.yml` | push to `main`, pull request into `main`, manual | **`portable`** (hosted Windows), **`linux`** (hosted Ubuntu: the Linux library) and **`game`** (self-hosted) |
 | `.github/workflows/release.yml` | tag `v*` pushed, manual on a tag | `build` (hosted), `game` (self-hosted), `publish` |
 
 ### Why two kinds of runner
@@ -17,7 +17,7 @@ The test suite ([TESTING.md](TESTING.md)) has three kinds of test, by CTest labe
 | Label | Tests | Needs | Runs on |
 | --- | --- | --- | --- |
 | `portable` | `doc_links`, `ini_lock`, `competitive_sv` | only the build | hosted Windows runner |
-| `game` | `fetch_binaries`, `site_check`, `site_check_2005`, `ui_pk3`, `smoke_dedicated` | a CoD:UO 1.51 install; the smoke test **launches the game** | self-hosted |
+| `game` | `fetch_binaries`, `site_check`, `site_check_2005`, `site_check_linux`, `ui_pk3`, `smoke_dedicated`, `smoke_linux` | a CoD:UO 1.51 install; the smoke test **launches the game** | self-hosted |
 | `timing` | `frame_limiter` | a quiet machine (wall-clock measurement) | self-hosted |
 
 The `game` tests read Activision's binaries (`CoDUOMP.exe`, the `uo_*_mp_x86.dll`
@@ -40,7 +40,7 @@ expected in `C:\tools\mingw32`.
 
 ## Branch protection on `main`
 
-- **Required status checks:** `portable` and `game`, with "require branches to be
+- **Required status checks:** `portable`, `linux` and `game`, with "require branches to be
   up to date" on, so a change is tested against the current `main`.
 - **Pull requests required:** no direct pushes; admins included.
 - No force-pushes, no deletion.

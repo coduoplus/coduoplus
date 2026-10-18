@@ -4,6 +4,8 @@
 #include <windows.h>
 #include <stdint.h>
 
+#include "shared/coduoplus_shared.h"
+
 // cod2x BG_PlayerAngles swing fixes: model follows the camera without lag.
 //
 // CoD:UO port - BOTH SIDES OR NEITHER. The fix changes the pose BG_PlayerAngles
@@ -71,9 +73,9 @@ constexpr SwingSites GAME_SWING_SITES = {
     0x47af, 0x4832, 0x46f8, 0x1ecac8, 0x46ab, 0x7d138,
 };
 
-// SYSTEMINFO|ROM cvar a CoDUO+ server publishes while its uo_game carries the
-// mirror. "1" = the server tests the swing-fixed pose; anything else = vanilla.
-constexpr const char* SWING_SERVERINFO_CVAR = "sv_coduoplus_swing";
+// SWING_SERVERINFO_CVAR (shared/coduoplus_shared.h): the SYSTEMINFO|ROM cvar a CoDUO+
+// server - Windows (here) or Linux (server/linux/) - publishes while its game module
+// carries the mirror. "1" = the server tests the swing-fixed pose; anything else = vanilla.
 
 extern "C" float g_torso_yaw_speed_live;
 extern "C" float g_torso_yaw_movefrac_live;

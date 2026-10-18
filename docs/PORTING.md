@@ -129,6 +129,7 @@ checks compare against relocated values.
 | Version string in menus (`version_patch`) | ✅ ported | Shows `CoDUO+ 0.1.0`. |
 | Protocol / master / browser (`protocol_patch`) | ✅ ported, **vanilla values** | [Decision](#protocol-and-master-server-stay-vanilla). |
 | 40-tick caps: snaps 40, cl_maxpackets 125 (`competitive`) | ✅ ported | Client applies a server-pushed spec (lock / clamp). An over-cap `cl_maxpackets` resets to 125 (vanilla reset it to 100). |
+| Linux dedicated server (`server/linux/coduoplus_sv.so`, new) | ✅ new | Every server-side feature (snaps 40, shortversion, swing mirror, version gate, spec publisher) for `coduo_lnxded` 1.51b. [LINUX.md](LINUX.md). |
 | Server publisher of the competitive spec (`competitive_sv`, new) | ✅ new | Upstream's lives in its Linux server module; a UO server had none, so clients never got snaps 40 / 125 pps. Reads `competitive.cfg` next to the server's DLL. [NETCODE.md](NETCODE.md). |
 | Imposed ini keys (`ini_lock`, 1.6.9) | ✅ ported | [Decision](#ini-lock-imposed-settings). |
 | Session report (`session_report`, 1.6.9) | ✅ ported | One `session` line a minute in the log. |

@@ -10,7 +10,9 @@ name: CI
 #             machine with the CoD:UO 1.51 install: deploys the build into that install
 #             and runs every other test - site_check against the stock binaries, the UI
 #             pk3, the frame limiter timing test and the dedicated-server smoke test
-#             (which LAUNCHES the game as a dedicated server: console window only).
+#             (which LAUNCHES the game as a dedicated server: console window only), and
+#             the Linux server library on the real coduo_lnxded in Docker under WSL.
+#   linux     GitHub-hosted Ubuntu: builds coduoplus_sv.so in the i386 build image.
 #             The game binaries are Activision's: they stay on that machine, never in
 #             the repo or in a hosted runner.
 #
@@ -75,6 +77,20 @@ jobs:
             build/mss32.dll
             build/coduoplus.dll
 
+  linux:
+    name: linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build coduoplus_sv.so (i386 Debian image, server/linux/Dockerfile)
+        run: |
+          docker build -t coduoplus-linux server/linux
+          docker run --rm -v "$PWD":/src coduoplus-linux sh server/linux/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coduoplus_sv-${{ github.sha }}
+          path: build/linux/coduoplus_sv.so
+
   game:
     name: game
     runs-on: [self-hosted, windows, coduo-game]
@@ -94,7 +110,7 @@ jobs:
         run: |
           $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ `
-                "-DCODUO_GAME_DIR=$env:CODUO_GAME_DIR" -DCODUO_SMOKE=ON
+                "-DCODUO_GAME_DIR=$env:CODUO_GAME_DIR" -DCODUO_SMOKE=ON -DCODUO_LINUX_SMOKE=ON
           cmake --build build
 
       - name: Deploy into the test install

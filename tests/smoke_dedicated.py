@@ -29,6 +29,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools', 're'))
 from q3query import query  # noqa: E402
 from q3connect import connect  # noqa: E402
+from q3rcon import rcon  # noqa: E402
 
 MUST_LOG = [
     'DLL_PROCESS_ATTACH',
@@ -51,13 +52,29 @@ MUST_LOG = [
     'version_gate: reject client ',
     # server half of the competitive netconfig: competitive.cfg published, engine holds it
     'competitive_sv: ',
-    'engine holds sv_competitive "snaps=40 cl_maxpackets=125 com_maxfps=125:250 rate=90000',
+    'engine holds sv_competitive "snaps=40 cl_maxpackets=125 com_maxfps=125:250 rate=90000"',
     'SYSTEMINFO yes)',
 ]
 # Phrases the patches log when they refuse to write (wrong bytes, wrong build).
 MUST_NOT_LOG = ['abort', 'SKIPPED', 'annule', 'PARTIAL', 'expected 0x', 'inattendu',
                 'not CoDUOMP.exe', 'borderless applied', 'do not match',
                 'line refused', 'too long', 'still empty']
+
+
+RCON_PW = 'coduoplus-smoke'
+
+
+def sysinfo_value(text, key):
+    # `systeminfo` prints the info string ("Info string: \\k\\v...") and/or "key  value" lines
+    marker = '\\' + key + '\\'
+    i = text.rfind(marker)
+    if i >= 0:
+        return text[i + len(marker):].split('\\', 1)[0].split('\n', 1)[0]
+    for line in text.splitlines():
+        parts = line.split(None, 1)
+        if len(parts) == 2 and parts[0] == key:
+            return parts[1].strip()
+    return None
 
 
 def info_dict(reply):
@@ -84,7 +101,8 @@ def main():
 
     exe = os.path.join(game, 'CoDUOMP.exe')
     proc = subprocess.Popen([exe, '+set', 'dedicated', '1', '+set', 'net_port', str(port),
-                             '+set', 'sv_punkbuster', '0', '+map', 'mp_harbor'], cwd=game)
+                             '+set', 'sv_punkbuster', '0', '+set', 'rconpassword', RCON_PW,
+                             '+map', 'mp_harbor'], cwd=game)
     failures = []
     try:
         reply = None
@@ -110,6 +128,15 @@ def main():
                 failures.append('shortversion is %r, expected "CoDUO+ ..."' % info.get('shortversion'))
             if info.get('mapname') != 'mp_harbor':
                 failures.append('mapname is %r' % info.get('mapname'))
+            # what clients actually receive: the CS_SYSTEMINFO string, via rcon systeminfo.
+            # The engine caps it at 1024 chars and silently drops keys that do not fit
+            # (vanilla UO already drops some with many pk3s): ours must be in.
+            sysinfo = rcon('127.0.0.1', port, RCON_PW, 'systeminfo')
+            for key, want in (('sv_coduoplus_swing', '1'), ('sv_competitive', 'snaps=40 ')):
+                got = sysinfo_value(sysinfo, key)
+                print('systeminfo %-18s = %r' % (key, got))
+                if got is None or not got.startswith(want):
+                    failures.append('systeminfo lacks %s=%s... (clients would not get it)' % (key, want))
             # version gate, end to end: (userinfo extra, expected reply prefix)
             for extra, want in (({'coduoplus': '5'}, 'error\nUpdate coduoplus'),
                                 ({}, 'connectResponse'),

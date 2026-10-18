@@ -21,23 +21,9 @@
 // every second when the file changes, and cleared when the file goes away. Vanilla
 // clients ignore it. No file = nothing published = vanilla behaviour.
 
-#include <string>
-#include <vector>
+#include "shared/competitive_spec.h"   // the spec builder / chunker, shared with Linux
 
 namespace patches {
-
-constexpr int COMP_SV_CHUNK_MAX = 220;   // per-cvar payload, safely under the 256 limit
-constexpr int COMP_SV_CHUNKS    = 4;     // sv_competitive, sv_competitive2..4 (~880 chars)
-
-// competitive.cfg text -> "name=v name=lo:hi ..." (pure; tests/test_competitive_sv.cpp).
-// Lines whose tokens hold anything but [A-Za-z0-9_.+-] are refused (they would break
-// the systeminfo string or the console command that sets it) and listed in `rejected`.
-std::string competitive_build_spec(const std::string& cfg_text, std::vector<std::string>* rejected);
-
-// Split a spec into exactly COMP_SV_CHUNKS parts of <= COMP_SV_CHUNK_MAX chars, cut on
-// spaces (an entry is never split; the client joins the parts back with a space).
-// Returns false if the spec did not fit (the tail is dropped).
-bool competitive_chunk_spec(const std::string& spec, std::vector<std::string>& parts);
 
 // Watcher tick: only acts while this process hosts a server (uo_game loaded).
 void competitive_sv_tick();

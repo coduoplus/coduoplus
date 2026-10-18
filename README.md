@@ -28,6 +28,7 @@ against the stock binaries and on a running dedicated server. The client side
 | 🧍 **Swing fix** | Torso and legs follow your view without lag. Applied only on servers that run CoDUO+ and test the same pose, so what you see is always what the server hits ([why](docs/PORTING.md#swing-fix-only-where-the-server-mirrors-it)). |
 | 🌐 **40-tick** | snaps cap 30 → 40, cl_maxpackets 100 → 125. A CoDUO+ server pushes its `competitive.cfg` (snaps 40, 125 pps, rate 90000 …) to CoDUO+ clients. Setup and the hit-reg maths: [docs/NETCODE.md](docs/NETCODE.md). |
 | ⚙️ **Settings overlay** | Ctrl+M, or **CoDUO+ SETTINGS** in the main menu. |
+| 🐧 **Linux servers too** | `coduoplus_sv.so` (LD_PRELOAD) gives a `coduo_lnxded` 1.51b server every server-side feature below. [docs/LINUX.md](docs/LINUX.md) |
 | 🧰 **Server side** | Running CoDUO+ on a dedicated server: swing mirror for its players, a version gate that turns away *outdated* CoDUO+ builds (vanilla players are always welcome), uncapped snaps. |
 | 🛡️ **Safe by construction** | Every patch checks the exact original bytes first; on any other exe or DLL build it patches nothing and says so in the log. |
 
@@ -83,6 +84,7 @@ Details in [BUILD.md](BUILD.md).
 
 | Document | What's in it |
 | --- | --- |
+| [docs/LINUX.md](docs/LINUX.md) | The Linux server library: what it does, running it, how it hooks the engine, testing |
 | [docs/NETCODE.md](docs/NETCODE.md) | How a shot is registered, server/client setup for 40-tick, why sv_fps 40, what lag compensation would add |
 | [docs/PORTING.md](docs/PORTING.md) | How the port was done, every decision and why, feature status, what's left |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the DLL loads, the startup sequence, the watcher thread, safe patching, client↔server agreement |

@@ -15,6 +15,12 @@
 #   set sv_fps 40          snapshots only go out on server frames - see "snaps"
 #   set sv_maxRate 0       0 = no server cap; otherwise >= 90000 or "rate" below is cut
 # Full reasoning: docs/NETCODE.md.
+#
+# KEEP IT SHORT. The spec travels in the server's systeminfo string, which the engine
+# caps at 1024 characters - and a stock UO server already overflows it (with many map
+# pk3s, sv_paks / sv_referencedPaks and several ui_* vote settings are dropped from what
+# clients receive, mod or not). Every character here pushes another vanilla key out, so
+# only the four lines that 40-tick needs are active; the rest are commented examples.
 
 # ---- snapshots: MUST equal sv_fps ------------------------------------------------
 # The server sends a snapshot when nextSnapshotTime = now + 1000/snaps has passed, but
@@ -36,11 +42,11 @@ com_maxfps 125 250
 # engine's own ceiling is 90000. Lower rates delay snapshots exactly when it matters.
 rate 90000
 # delta compression keeps snapshots small (it is also what keeps them under the rate)
-cl_nodelta 0
+# cl_nodelta 0
 
 # ---- loss and interpolation -----------------------------------------------------
 # each packet repeats the previous 1 (to 2) commands: a lost packet loses no input
-cl_packetdup 1 2
+# cl_packetdup 1 2
 # negative = render closer to the newest snapshot (less lead to aim with, a little
 # extrapolation); positive would only add delay
-cl_timenudge -20 0
+# cl_timenudge -20 0

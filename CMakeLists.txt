@@ -43,6 +43,7 @@ set(COD1RELOADED_SOURCES
     src/netcode/protocol_patch.cpp
     src/netcode/competitive.cpp
     src/netcode/competitive_sv.cpp
+    src/shared/competitive_spec.cpp
     src/features/pam_install.cpp
     src/netcode/version_gate.cpp
     src/video/window_patch.cpp
@@ -242,8 +243,7 @@ add_test(NAME ini_lock COMMAND test_ini_lock "${CMAKE_SOURCE_DIR}/coduoplus.ini"
 set_tests_properties(frame_limiter PROPERTIES TIMEOUT 120)
 
 # competitive.cfg -> sv_competitive* parsing and chunking, checked against the client's reading.
-add_executable(test_competitive_sv tests/test_competitive_sv.cpp
-               src/netcode/competitive_sv.cpp src/core/logger.cpp src/core/game.cpp)
+add_executable(test_competitive_sv tests/test_competitive_sv.cpp src/shared/competitive_spec.cpp)
 target_include_directories(test_competitive_sv PRIVATE src)
 target_compile_options(test_competitive_sv PRIVATE -Wall -Wextra -Wno-unused-parameter -O2)
 target_link_options(test_competitive_sv PRIVATE -static -static-libgcc -static-libstdc++)
@@ -264,3 +264,33 @@ foreach(t fetch_binaries site_check site_check_2005 ui_pk3 smoke_dedicated)
     endif()
 endforeach()
 set_tests_properties(frame_limiter PROPERTIES LABELS timing)
+
+# The Linux server library's address table against the 1.51b Linux binaries (offline,
+# runs on Windows). CODUO_LINUX_DIR: coduo_lnxded + uo/game.mp.uo.i386.so. docs/LINUX.md.
+set(CODUO_LINUX_DIR "C:/Users/Tony/git/coduo-1.6/bin/linux" CACHE PATH
+    "CoD:UO 1.51b Linux dedicated server binaries (coduo_lnxded, uo/game.mp.uo.i386.so)")
+add_executable(site_check_linux tests/site_check_linux.cpp)
+target_include_directories(site_check_linux PRIVATE src server/linux)
+target_compile_options(site_check_linux PRIVATE -Wall -Wextra -O1)
+target_link_options(site_check_linux PRIVATE -static -static-libgcc -static-libstdc++)
+add_test(NAME site_check_linux COMMAND site_check_linux "${CODUO_LINUX_DIR}")
+set_tests_properties(site_check_linux PROPERTIES LABELS game)
+
+# Opt-in: the Linux server library on the real coduo_lnxded, in Docker under WSL
+# (tests/smoke_linux.py). Needs WSL with Docker and the paks volume
+# (server/linux/make_game_volume.sh). -DCODUO_LINUX_SMOKE=ON.
+option(CODUO_LINUX_SMOKE "Register the Linux server smoke test (WSL + Docker)" OFF)
+set(CODUO_WSL_DISTRO "Ubuntu" CACHE STRING "WSL distribution with Docker")
+if (CODUO_LINUX_SMOKE)
+    # WSL paths for the repo and the Linux binaries (C:/x -> /mnt/c/x)
+    foreach(v CMAKE_SOURCE_DIR CODUO_LINUX_DIR)
+        file(TO_CMAKE_PATH "${${v}}" _p)                # C:/Users/...
+        string(SUBSTRING "${_p}" 0 1 _drive)
+        string(TOLOWER "${_drive}" _drive)
+        string(SUBSTRING "${_p}" 2 -1 _rest)            # /Users/...
+        set(WSL_${v} "/mnt/${_drive}${_rest}")
+    endforeach()
+    add_test(NAME smoke_linux
+             COMMAND wsl -d ${CODUO_WSL_DISTRO} --cd "${WSL_CMAKE_SOURCE_DIR}" -- python3 tests/smoke_linux.py "${WSL_CODUO_LINUX_DIR}")
+    set_tests_properties(smoke_linux PROPERTIES TIMEOUT 600 LABELS game)
+endif()

@@ -15,7 +15,9 @@ ctest
  ├─ frame_limiter      the real wait inside a copy of the patched Com_Frame loop (~20 s)
  ├─ ini_lock           the imposed-keys rewrite over the shipped coduoplus.ini
  ├─ competitive_sv     competitive.cfg -> sv_competitive*, checked against the client's reading
- └─ smoke_dedicated    (opt-in) run the real game with the mod as a server
+ ├─ site_check_linux   the Linux library's address table against coduo_lnxded 1.51b (offline)
+ ├─ smoke_dedicated    (opt-in) run the real game with the mod as a server
+ └─ smoke_linux        (opt-in) the real coduo_lnxded with coduoplus_sv.so, in Docker (docs/LINUX.md)
 ```
 
 ## Running
@@ -161,11 +163,14 @@ or if the result loses CRLF or balanced braces.
    | (vanilla) | `connectResponse` | vanilla players are let in |
    | `coduoplus=16` | `connectResponse` | current build |
 
-5. for the run, installs `competitive.cfg.example` as the server's
+5. reads `rcon systeminfo`, the string clients actually receive, and requires
+   `sv_coduoplus_swing 1` and the spec in it (the engine silently drops keys past
+   1024 characters);
+6. for the run, installs `competitive.cfg.example` as the server's
    `competitive.cfg` (and removes it afterwards), and requires
    `engine holds sv_competitive "snaps=40 cl_maxpackets=125 …" (SYSTEMINFO yes)`:
    the spec really is in the cvar clients receive;
-6. kills the server and reads `coduoplus.log`, which must contain every
+7. kills the server and reads `coduoplus.log`, which must contain every
    ENGINE patch's "applied" line, the swing server mirror, the published
    `sv_coduoplus_swing 1`, the version gate installed and its rejection. It
    must contain **none** of the phrases a patch logs when it refuses
