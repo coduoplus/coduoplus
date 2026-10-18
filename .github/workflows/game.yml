@@ -1,0 +1,66 @@
+name: game
+
+# The tests that need the real game, on the self-hosted runner (labels: self-hosted,
+# windows, coduo-game) on the machine with the CoD:UO 1.51 install: deploys the build
+# into that install and runs every test - site_check against the stock binaries, the
+# UI pk3, the frame limiter timing test, the dedicated-server smoke test (which
+# LAUNCHES the game as a dedicated server: console window only), and the Linux server
+# image on the real coduo_lnxded in Docker under WSL. The game binaries are
+# Activision's: they stay on that machine, never in the repo or on a hosted runner.
+#
+# NOT a required check: main is protected by the hosted jobs in ci.yml, so merging
+# never waits for that machine. This workflow runs after every push to main, and on
+# demand (`gh workflow run game.yml`, any branch). If the machine is off, the run waits
+# for it: the concurrency group below keeps only the newest waiting run, so turning the
+# machine on tests the latest main once instead of replaying a backlog. GitHub drops a
+# run that has waited 24 hours; start a new one by hand. Releases still need it
+# (release.yml has its own game job), so nothing ships untested against the game.
+#
+# SECURITY: no pull_request trigger, so code from a pull request never reaches the
+# self-hosted runner: only commits already on main, or a branch a maintainer chose to
+# run. See docs/CI.md.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: coduo-game-install   # one run at a time: they share the game install
+  cancel-in-progress: false
+
+jobs:
+  game:
+    name: game
+    runs-on: [self-hosted, windows, coduo-game]
+    env:
+      # the CoD:UO 1.51 install on the runner machine (repository variable, see docs/CI.md)
+      CODUO_GAME_DIR: ${{ vars.CODUO_GAME_DIR || 'D:/Call of Duty - Copy' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ `
+                "-DCODUO_GAME_DIR=$env:CODUO_GAME_DIR" -DCODUO_SMOKE=ON -DCODUO_LINUX_SMOKE=ON
+          cmake --build build
+
+      - name: Deploy into the test install
+        shell: pwsh
+        run: .\deploy.ps1 -Game $env:CODUO_GAME_DIR
+
+      - name: All tests (game, timing, portable)
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
+          ctest --test-dir build --output-on-failure
+
+      - name: Keep the mod's log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coduoplus-log-${{ github.sha }}
+          path: ${{ env.CODUO_GAME_DIR }}/coduoplus.log
+          if-no-files-found: ignore

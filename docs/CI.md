@@ -7,7 +7,8 @@ machine, how `main` is protected, and how a release is cut.
 
 | Workflow | Trigger | Jobs |
 | --- | --- | --- |
-| `.github/workflows/ci.yml` | push to `main`, pull request into `main`, manual | **`portable`** (hosted Windows), **`linux`** (hosted Ubuntu: the Linux library) and **`game`** (self-hosted) |
+| `.github/workflows/ci.yml` | push to `main`, pull request into `main`, manual | **`portable`** (hosted Windows) and **`linux`** (hosted Ubuntu: the Linux library), the required checks |
+| `.github/workflows/game.yml` | push to `main`, manual (any branch) | `game` (self-hosted): the full suite against the real game, **not** required |
 | `.github/workflows/release.yml` | tag `v*` pushed, manual on a tag | `build` (hosted), `game` (self-hosted), `publish` |
 
 ### Why two kinds of runner
@@ -30,6 +31,30 @@ The hosted `portable` job still compiles *everything* (both DLLs and every test
 program) with the pinned toolchain, so a compile error is caught even when the
 self-hosted machine is off.
 
+### Why `game` is not a required check
+
+The self-hosted machine is someone's own PC, and it is not always on. When `game`
+was required, every pull request sat at "Waiting for a runner to pick up this job"
+until that PC came online, and nothing could merge. So:
+
+- **Pull requests are gated by the hosted jobs only** (`portable`, `linux`). They
+  never wait for a particular machine.
+- **`game.yml` runs after every push to `main`.** If the machine is off, the run
+  waits for it. Its concurrency group (`coduo-game-install`) keeps only the newest
+  waiting run, so when the machine comes on it tests the latest `main` once rather
+  than replaying every merge. GitHub drops a run that has waited 24 hours; start a
+  new one with `gh workflow run game.yml` (add `--ref <branch>` to test a branch
+  before merging it).
+- **Releases still need it.** `release.yml` has its own `game` job, and `publish`
+  depends on it, so no release ships without the full suite passing against the
+  real game. Cutting a release needs the machine on.
+- The game tests are also run locally, against the test install, before a branch
+  is merged (see [TESTING.md](TESTING.md)).
+
+What's given up: a change that compiles and passes the portable tests, but breaks
+against the real binaries, can reach `main`. It shows up as a red `game` run on
+`main` as soon as the machine is on, and it can't reach a release.
+
 ### Toolchain
 
 Both runners use the same compiler, WinLibs GCC 16.2.0 i686 (posix, dwarf,
@@ -40,13 +65,15 @@ expected in `C:\tools\mingw32`.
 
 ## Branch protection on `main`
 
-- **Required status checks:** `portable`, `linux` and `game`, with "require branches to be
-  up to date" on, so a change is tested against the current `main`.
+- **Required status checks:** `portable` and `linux` (hosted), with "require branches to
+  be up to date" on, so a change is tested against the current `main`. `game` is not
+  required, [see above](#why-game-is-not-a-required-check).
 - **Pull requests required:** no direct pushes; admins included.
 - No force-pushes, no deletion.
 
-So nothing reaches `main` unless the whole suite passed on that exact merge
-result, including the live dedicated-server run.
+So nothing reaches `main` unless the hosted jobs passed on that exact merge
+result, and nothing is released unless the whole suite, including the live
+dedicated-server runs, passed on the tagged commit.
 
 ## Security of the self-hosted runner
 
@@ -54,14 +81,15 @@ A self-hosted runner executes whatever the workflow tells it to, on that
 machine, with that user's rights. A pull-request workflow runs the workflow
 file *from the pull request*, so anyone who can open a PR can change what runs.
 
-- The `game` job is skipped for pull requests from forks (`if:` in `ci.yml`).
-  That alone isn't enough, because a fork can edit that `if:`. The real controls are:
-- **Keep the repository private**, or, if public, set *Settings → Actions → General →
-  Fork pull request workflows → Require approval for all outside collaborators*.
-  Never approve a fork run without reading its workflow changes.
-- A skipped job counts as passing for branch protection. To merge an outside
-  contribution, a maintainer pushes it to a branch of this repo and opens the
-  PR from there, so `game` actually runs.
+- `game.yml` has **no `pull_request` trigger**: it runs only commits already on
+  `main`, or a branch a maintainer started by hand. A pull request's own code never
+  reaches the runner through it.
+- That alone isn't enough, because a pull request can *add* a workflow that asks for
+  the self-hosted labels. The real control is *Settings → Actions → General → Fork
+  pull request workflows → **Require approval for all outside collaborators***, set
+  on this repository. Never approve a fork run without reading its workflow changes.
+- To test an outside contribution against the game, a maintainer reads it, pushes
+  it to a branch of this repo and runs `gh workflow run game.yml --ref <branch>`.
 - Run the runner as a normal user (not an administrator), and give it its own
   copy of the game install: `deploy.ps1` overwrites `mss32.dll` there on every
   run.
