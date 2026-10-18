@@ -1,0 +1,38 @@
+// CoDUO+ example server.cfg for the Docker image (docs/DOCKER.md).
+// Put your own as config/server.cfg; this one is used only when there is none.
+// The netcode lines follow docs/NETCODE.md - read it before changing them.
+
+// ---- identity -----------------------------------------------------------------
+set sv_hostname "CoDUO+ server"
+set scr_motd "CoDUO+ - 40-tick netcode"
+set sv_maxclients "16"
+set g_password ""
+// set rconpassword "change-me"       // remote admin; leave unset if you do not use it
+
+// ---- netcode (docs/NETCODE.md) ------------------------------------------------
+// 40 server frames/s; with competitive.cfg CoDUO+ clients get snaps 40 to match.
+set sv_fps "40"
+// no per-client cap: the client's rate (90000 from competitive.cfg) decides
+set sv_maxRate "0"
+set sv_maxPing "0"
+set sv_minPing "0"
+set sv_timeout "120"
+
+// ---- logging (written to the /data volume) --------------------------------------
+set g_log "games_mp.log"
+set g_logsync "1"
+set logfile "1"
+
+// ---- game ------------------------------------------------------------------------
+set sv_pure "1"
+set sv_allowDownload "1"
+set sv_punkbuster "0"
+set scr_friendlyfire "1"
+set scr_killcam "1"
+set scr_teambalance "1"
+set g_gametype "tdm"
+set scr_tdm_scorelimit "200"
+set scr_tdm_timelimit "20"
+
+// ---- map rotation (the image's default command ends with +map_rotate) --------------
+set sv_mapRotation "gametype tdm map mp_arnhem map mp_berlin map mp_cassino map mp_foy map mp_italy map mp_kharkov map mp_kursk map mp_ponyri map mp_rhinevalley map mp_sicily"

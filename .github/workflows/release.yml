@@ -9,6 +9,7 @@ name: Release
 #             (generated from the install's own pakuo03.pk3 - it cannot be built
 #             anywhere else, see ui_pk3/build_pk3.py)
 #   linux     hosted Ubuntu: coduoplus_sv.so for Linux servers
+#   image     only if all passed: the server image -> ghcr.io/<owner>/coduoplus-server
 #   publish   only if all passed: player zip in the game folder layout, manifest.json
 #             for the updater, release notes from CHANGELOG.md
 #
@@ -98,9 +99,7 @@ jobs:
         with:
           ref: ${{ env.TAG }}
       - name: Build coduoplus_sv.so
-        run: |
-          docker build -t coduoplus-linux server/linux
-          docker run --rm -v "$PWD":/src coduoplus-linux sh server/linux/build.sh
+        run: docker build -f server/linux/Dockerfile --target artifact --output type=local,dest=build/linux .
       - uses: actions/upload-artifact@v4
         with:
           name: linux
@@ -143,6 +142,36 @@ jobs:
           name: ui-pk3
           path: dist/zz_coduoplus_ui.pk3
 
+  # The server image (no game files in it - see docs/DOCKER.md) to the GitHub Container
+  # Registry, only once every test passed: ghcr.io/<owner>/coduoplus-server:<version>, :latest
+  image:
+    name: image
+    needs: [build, linux, game]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and push
+        run: |
+          VERSION="${TAG#v}"
+          IMG="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/coduoplus-server"
+          docker build -f server/linux/Dockerfile \
+            --label org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY" \
+            --label org.opencontainers.image.version="$VERSION" \
+            --label org.opencontainers.image.description="CoDUO+ $VERSION Linux dedicated server (game files not included)" \
+            -t "$IMG:$VERSION" -t "$IMG:latest" .
+          docker push "$IMG:$VERSION"
+          docker push "$IMG:latest"
+
   publish:
     name: publish
     needs: [build, linux, game]
@@ -166,6 +195,7 @@ jobs:
           cp artifacts/ui-pk3/zz_coduoplus_ui.pk3 dist/
           cp artifacts/linux/coduoplus_sv.so dist/
           cp coduoplus.ini competitive.cfg.example dist/
+          cp server/linux/docker-compose.yml dist/
           printf '{\n  "version": "%s",\n  "download_url": "https://github.com/%s/releases/latest/download/mss32.dll",\n  "notes": "CoDUO+ %s - see CHANGELOG"\n}\n' \
             "$VERSION" "$GITHUB_REPOSITORY" "$VERSION" > dist/manifest.json
           cat > dist/README.txt <<EOF
@@ -200,5 +230,5 @@ jobs:
           fi
           gh release upload "$TAG" --clobber \
             dist/mss32.dll dist/mss32-norinput.dll dist/coduoplus.ini dist/competitive.cfg.example \
-            dist/zz_coduoplus_ui.pk3 dist/manifest.json dist/coduoplus_sv.so \
+            dist/zz_coduoplus_ui.pk3 dist/manifest.json dist/coduoplus_sv.so dist/docker-compose.yml \
             "dist/coduoplus-$VERSION.zip" "dist/coduoplus-$VERSION-norinput.zip"

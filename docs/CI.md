@@ -8,7 +8,7 @@ machine, how `main` is protected, and how a release is cut.
 | Workflow | Trigger | Jobs |
 | --- | --- | --- |
 | `.github/workflows/ci.yml` | push to `main`, pull request into `main`, manual | **`portable`** (hosted Windows), **`linux`** (hosted Ubuntu: the Linux library) and **`game`** (self-hosted) |
-| `.github/workflows/release.yml` | tag `v*` pushed, manual on a tag | `build` (hosted), `game` (self-hosted), `publish` |
+| `.github/workflows/release.yml` | tag `v*` pushed, manual on a tag | `build` (hosted), `linux` (hosted), `game` (self-hosted), then `image` (server image to GHCR) and `publish` |
 
 ### Why two kinds of runner
 

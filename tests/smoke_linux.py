@@ -1,23 +1,26 @@
-"""End-to-end smoke test of the LINUX server library, on the real coduo_lnxded 1.51b.
+"""End-to-end smoke test of the LINUX server image, on the real coduo_lnxded 1.51b.
 
-    python3 tests/smoke_linux.py <linux-bins-dir> [<docker volume with the stock paks>]
+    python3 tests/smoke_linux.py <linux-bins-dir> <game-dir>
 
-Runs on a Linux host with Docker (WSL works). Steps:
-  1. builds the image (server/linux/Dockerfile) and coduoplus_sv.so (server/linux/build.sh);
-  2. starts coduo_lnxded with the library preloaded and competitive.cfg.example as
-     its competitive.cfg, on mp_harbor (server/linux/run_server.sh);
-  3. checks over UDP: getstatus protocol 22 + shortversion "CoDUO+ ..."; three real
+<game-dir> holds main/ (or Main/) and uo/ with the pk3s - a Windows install seen from
+WSL (/mnt/d/...) is fine, and is the harder case (see step 2). Runs on a Linux host with
+Docker (WSL works). Steps:
+  1. builds the server image (server/linux/Dockerfile, the image docs/DOCKER.md ships);
+  2. control run on a Windows drive: the same image with CODUOPLUS_LFS=0 must find
+     "0 files in pk3 files" (the 2005 engine's 32-bit stat/readdir vs 64-bit inodes) -
+     proof that the run that follows really exercises the large-inode wrappers;
+  3. runs the image as in production - /game, /bins, /config (competitive.cfg.example as
+     competitive.cfg) read-only - on mp_harbor, and waits for Docker's HEALTHCHECK;
+  4. checks over UDP: getstatus protocol 22 + shortversion "CoDUO+ ..."; three real
      connects against the version gate (old CoDUO+ refused, vanilla + current in);
-     rcon `systeminfo` - what clients receive - holds sv_coduoplus_swing 1 and the
-     competitive spec;
-  4. checks the console log: every patch applied, nothing refused.
-
-The paks volume is made once with server/linux/make_game_volume.sh (default name
-coduo-uo-game). See docs/LINUX.md.
+     rcon `systeminfo` - what clients receive - holds sv_coduoplus_swing 1 and the spec,
+     before and after a map change (the game module is reloaded and re-patched);
+  5. checks the console log: every patch applied, nothing refused; `docker stop` is quick.
 """
 import os
 import subprocess
 import sys
+import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -27,12 +30,13 @@ from q3query import query  # noqa: E402
 from q3connect import connect  # noqa: E402
 from q3rcon import rcon  # noqa: E402
 
-NAME, PORT, PW = 'coduoplus-smoke-linux', 28997, 'coduoplus-smoke'
+NAME, PORT, PW, IMAGE = 'coduoplus-smoke-linux', 28960, 'coduoplus-smoke', 'coduoplus-server:smoke'
 
 MUST_LOG = [
     'CoDUO+ ',                                   # library loaded in coduo_lnxded
     'competitive: snaps cap 30 -> 40 applied',
     'version_patch: shortversion -> "CoDUO+ ',
+    'lfs: engine stat/readdir -> 64-bit wrappers installed',
     'engine: dlopen hook installed',
     'swing_fix [server]: ON in 0x',
     'ClientConnect gate installed, G_RunFrame hook installed',
@@ -58,21 +62,39 @@ def sysinfo_value(text, key):
 
 def main():
     bins = os.path.abspath(sys.argv[1])
-    vol = sys.argv[2] if len(sys.argv) > 2 else 'coduo-uo-game'
+    game = os.path.abspath(sys.argv[2])
     failures = []
 
-    for cmd in (['docker', 'build', '-q', '-t', 'coduoplus-linux', os.path.join(REPO, 'server', 'linux')],
-                ['docker', 'run', '--rm', '-v', REPO + ':/src', 'coduoplus-linux', 'sh', 'server/linux/build.sh']):
-        r = sh(*cmd)
-        if r.returncode:
-            print(r.stdout, r.stderr)
-            sys.exit('FAIL: %s' % ' '.join(cmd[:3]))
-    print(r.stdout.strip().splitlines()[-2], '|', r.stdout.strip().splitlines()[-1].split()[-1])
+    r = sh('docker', 'build', '-q', '-f', os.path.join(REPO, 'server', 'linux', 'Dockerfile'),
+           '-t', IMAGE, REPO)
+    if r.returncode:
+        print(r.stdout, r.stderr)
+        sys.exit('FAIL: docker build')
+    print('image', IMAGE, r.stdout.strip()[:19])
+
+    cfg = tempfile.mkdtemp(prefix='coduoplus-smoke-')
+    with open(os.path.join(REPO, 'competitive.cfg.example')) as f, \
+            open(os.path.join(cfg, 'competitive.cfg'), 'w') as o:
+        o.write(f.read())
+    os.chmod(cfg, 0o755)
+    mounts = ['-v', game + ':/game:ro', '-v', bins + ':/bins:ro', '-v', cfg + ':/config:ro']
+
+    if game.startswith('/mnt/'):
+        sh('docker', 'rm', '-f', NAME + '-control')
+        c = sh('docker', 'run', '--name', NAME + '-control', '-e', 'DEDICATED=1', '-e', 'CODUOPLUS_LFS=0',
+               *mounts, IMAGE, '+map', 'mp_harbor', timeout=120)
+        sh('docker', 'rm', '-f', NAME + '-control')
+        found = '0 files in pk3 files' in c.stdout + c.stderr
+        print('control (CODUOPLUS_LFS=0 on %s): %s' % (
+            game, 'engine finds 0 pk3 files, as expected' if found else 'engine found its files?!'))
+        if not found:
+            failures.append('control run without the lfs wrappers did not fail - the test would '
+                            'not prove the large-inode fix')
 
     sh('docker', 'rm', '-f', NAME)
-    r = sh('docker', 'run', '-d', '--name', NAME, '-e', 'COMPETITIVE=1',
-           '-v', bins + ':/bins:ro', '-v', vol + ':/game:ro', '-v', REPO + ':/src:ro',
-           'coduoplus-linux', 'sh', '/src/server/linux/run_server.sh', '+set', 'rconpassword', PW)
+    r = sh('docker', 'run', '-d', '--name', NAME, '-e', 'DEDICATED=1',
+           '--health-interval', '2s', '--health-start-period', '0s', *mounts,
+           IMAGE, '+set', 'rconpassword', PW, '+map', 'mp_harbor')
     if r.returncode:
         sys.exit('FAIL: docker run: ' + r.stderr)
     try:
@@ -85,6 +107,15 @@ def main():
             if not reply:
                 time.sleep(1)
         time.sleep(2)
+        health = ''
+        for _ in range(30):
+            health = sh('docker', 'inspect', '-f', '{{.State.Health.Status}}', NAME).stdout.strip()
+            if health == 'healthy':
+                break
+            time.sleep(1)
+        print('docker health:', health)
+        if health != 'healthy':
+            failures.append('HEALTHCHECK says %r' % health)
         if not reply:
             failures.append('server never answered getstatus')
         else:
@@ -128,6 +159,12 @@ def main():
         log = _l.stdout + _l.stderr
         print('game-module loads seen:', log.count('G_RunFrame hook installed'))
         state = sh('docker', 'ps', '-a', '--filter', 'name=' + NAME, '--format', '{{.Status}}').stdout.strip()
+        t0 = time.time()
+        sh('docker', 'stop', NAME)
+        stop_s = time.time() - t0
+        print('docker stop: %.1f s' % stop_s)
+        if stop_s > 5:
+            failures.append('docker stop took %.1f s (SIGTERM not reaching the server?)' % stop_s)
         sh('docker', 'rm', '-f', NAME)
     if not state.startswith('Up'):
         failures.append('server not running at the end: %s' % state)

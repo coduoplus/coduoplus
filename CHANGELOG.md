@@ -33,6 +33,11 @@ PunkBuster ruleset, ported onto 0.1.0. Upstream's 1.6.8/1.6.9 line starts from
   snaps cap 40, `CoDUO+` shortversion, swing-fix mirror + `sv_coduoplus_swing`,
   version gate, `competitive.cfg` publisher, re-applied on every map change.
   Shares its values and spec code with the Windows mod. [docs/LINUX.md](docs/LINUX.md)
+- **Docker image** `coduoplus-server` (no game files inside: mounted read-only) with
+  an example `docker-compose.yml`, health check, tini, unprivileged user; published
+  to `ghcr.io/coduoplus/coduoplus-server` by the release workflow. [docs/DOCKER.md](docs/DOCKER.md)
+- The Linux engine's 32-bit `stat`/`readdir` are wrapped: on a Windows drive under
+  WSL/Docker Desktop or a big XFS/btrfs disk the stock server finds no pk3s at all.
 - `competitive.cfg.example` trimmed to the four 40-tick lines: the systeminfo
   string is capped at 1024 chars and stock UO servers already overflow it.
 

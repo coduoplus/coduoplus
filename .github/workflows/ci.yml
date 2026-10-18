@@ -82,10 +82,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build coduoplus_sv.so (i386 Debian image, server/linux/Dockerfile)
+      - name: Lint the Dockerfile
+        run: docker build --check -f server/linux/Dockerfile .
+      - name: Build coduoplus_sv.so (artifact stage of server/linux/Dockerfile)
+        run: docker build -f server/linux/Dockerfile --target artifact --output type=local,dest=build/linux .
+      - name: Build the server image (default stage; not pushed)
+        run: docker build -f server/linux/Dockerfile -t coduoplus-server:ci .
+      - name: The image's entrypoint refuses to start without game files
         run: |
-          docker build -t coduoplus-linux server/linux
-          docker run --rm -v "$PWD":/src coduoplus-linux sh server/linux/build.sh
+          out=$(docker run --rm coduoplus-server:ci 2>&1 || true)
+          echo "$out"
+          echo "$out" | grep -q "not found in /bins or /game"
       - uses: actions/upload-artifact@v4
         with:
           name: coduoplus_sv-${{ github.sha }}

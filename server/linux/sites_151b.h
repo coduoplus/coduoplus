@@ -52,8 +52,23 @@ typedef struct {
  *   8049f1c  ff 25 cc e1 0f 08  jmp [0x80fe1cc]     (R_386_JUMP_SLOT dlopen@GLIBC_2.1) */
 #define LNX_EXE_GOT_DLOPEN 0x080fe1ccu
 
+/* The engine's only inode-sensitive file APIs, both the 2005 non-LFS (32-bit) ones:
+ * glibc fails them with EOVERFLOW when an inode number needs more than 32 bits (drvfs /
+ * 9p Windows drives under WSL or Docker Desktop, big XFS/btrfs disks), and the engine
+ * then finds "0 files in pk3 files". Repointed to wrappers over the 64-bit calls that
+ * fold the inode to 32 bits (nothing in the engine uses it). closedir: per-DIR buffers.
+ *   8049a8c  ff 25 a8 e0 0f 08  jmp [0x80fe0a8]   __xstat@GLIBC_2.0
+ *   8049e9c  ff 25 ac e1 0f 08  jmp [0x80fe1ac]   readdir@GLIBC_2.0
+ *   8049cac  ff 25 30 e1 0f 08  jmp [0x80fe130]   closedir@GLIBC_2.0              */
+#define LNX_EXE_GOT_XSTAT    0x080fe0a8u
+#define LNX_EXE_GOT_READDIR  0x080fe1acu
+#define LNX_EXE_GOT_CLOSEDIR 0x080fe130u
+
 static const coduo_site_t LNX_EXE_SITES[] = {
     { "dlopen plt",   0x08049f1c, 6,  { 0xff, 0x25, 0xcc, 0xe1, 0x0f, 0x08 } },
+    { "__xstat plt",  0x08049a8c, 6,  { 0xff, 0x25, 0xa8, 0xe0, 0x0f, 0x08 } },
+    { "readdir plt",  0x08049e9c, 6,  { 0xff, 0x25, 0xac, 0xe1, 0x0f, 0x08 } },
+    { "closedir plt", 0x08049cac, 6,  { 0xff, 0x25, 0x30, 0xe1, 0x0f, 0x08 } },
     { "snaps clamp",  0x0808d48d, 15, { 0x83, 0x7d, 0xf8, 0x1e, 0x7e, 0x07,
                                         0xc7, 0x45, 0xf8, 0x1e, 0x00, 0x00, 0x00, 0x8b, 0x4d } },
     { "snaps 1000/x", 0x0808d49d, 5,  { 0xba, 0xe8, 0x03, 0x00, 0x00 } },
