@@ -1,7 +1,8 @@
 # Porting COD1.6X to CoD:UO — how it was done, what was decided, and why
 
 CoDUO+ is a port of [COD1.6X](https://github.com/cod1plus/client) (`cod1plus/client`,
-`main` at `6f8fec0`, release **1.6.6**) from Call of Duty 1.5 (`CoDMP.exe`) to
+`main` at `6f8fec0`, release **1.6.6**, plus every non-PunkBuster change of
+`release/1.6.9` — see [Upstream 1.6.8 and 1.6.9](#upstream-168-and-169)) from Call of Duty 1.5 (`CoDMP.exe`) to
 Call of Duty: United Offensive 1.51 (`CoDUOMP.exe`). This document covers the
 method, every decision that departs from "same code, new addresses", and the
 status of each feature. [ADDRESSES.md](ADDRESSES.md) is the full address map,
@@ -385,12 +386,34 @@ What remains that mentions PunkBuster is the engine's own switch:
 `smoke_dedicated.py` starts its test server with `+set sv_punkbuster 0`, which
 turns the game's PunkBuster off.
 
+### Upstream 1.6.8 and 1.6.9
+
+Upstream's history forks after 1.6.5. **1.6.6** (this port's base) was later
+*withdrawn* upstream; **1.6.7** re-released the 1.6.5 code; **1.6.8** is 1.6.7
+plus only the PunkBuster-replacement cvar ruleset; **1.6.9** continues 1.6.8.
+Taking 1.6.8 or 1.6.9 literally would therefore *remove* 1.6.6 features
+(overlay menu, PAM installer, display probe, single-instance guard, refresh cap,
+gamma work) and add PunkBuster code. Instead, CoDUO+ 0.2.0 keeps 1.6.6 and ports
+every **new, non-PunkBuster** commit of 1.6.8..1.6.9:
+
+| Upstream commit | What | In CoDUO+ |
+| --- | --- | --- |
+| `bbe6faf` (1.6.8) | PunkBuster-replacement ruleset | skipped (PunkBuster) |
+| `871eadd`, `12d5cd4`, `da88414`, `3f04efd` | ruleset list syncs, generator | skipped (PunkBuster) |
+| `a9dd4a2` | limiter on the engine clock, no doubled frame; timer kept when occluded | engine-epoch + no-doubled-frame were already true of the UO wait; **continuous clock** and the **Windows 11 timer opt-out** ported |
+| `c8b4643` | working-set sizes in 64 bits | ported as is |
+| `e1161b7` | exclusive fullscreen, mode guard, 1000 Hz cap | mostly already in 1.6.6; **one-direction fullscreen repair** and **window_patch refinements** ported |
+| `041e3f8` | gpu_sync | ported, chained on the overlay's SwapBuffers hook |
+| `809a439` | late input sampling, session report | **late mouse** ported (keys were already pumped late in UO); **session report** ported |
+| `b2bb8f4`, `3787d88` | ini lock, gpu_sync auto | ported (+ 1.6.10's dev-unlock build option) |
+| `9edaa29` | version bump | — |
+
 ### Version numbering
 
-CoDUO+ starts at **0.1.0**. `cod1x_build` (sent in userinfo) is derived from the
+CoDUO+ started at **0.1.0** (1.6.6 port); **0.2.0** adds the 1.6.9 work. `cod1x_build` (sent in userinfo) is derived from the
 version, so 0.1.0 → 100 can never be confused with a COD1.6X build (1.6.x →
 106xx). The upstream base version is kept in
-`COD1RELOADED_UPSTREAM_VERSION = "1.6.6"`.
+`COD1RELOADED_UPSTREAM_VERSION = "1.6.6+1.6.9"`.
 
 ### Internal names kept
 
@@ -406,14 +429,13 @@ In order of value:
 
 1. **A client run.** The dedicated-server smoke test covers the engine and
    server side, but not the renderer, input or cgame (FOV, widescreen, swing
-   client half, overlay menu, raw input, borderless window, frame rate). The
-   checklist is in [TESTING.md](TESTING.md#manual-client-checklist).
+   client half, overlay menu, raw input, frame rate, late mouse, gpu_sync,
+   session line). The checklist is in [TESTING.md](TESTING.md#manual-client-checklist).
 2. **FOV policy** (above).
-3. **Upstream's newer branches.** `release/1.6.8`, `1.6.9`, `1.6.10` (~50
-   commits after 1.6.6: Discord presence with join, a demos tab, HD-texture and
-   PAM packages, menu hotkey option, hitbox overlays, bone probes) and
-   `test/lean-v7-cod2eq`. Most are UI/menu work that would port the same way;
-   the hitbox work depends on the lean fix.
+3. **Upstream `release/1.6.10`** and `test/lean-v7-cod2eq` (1.6.8 and 1.6.9 are
+   done, see above): Discord presence with join, a demos tab, HD-texture
+   packages, a menu hotkey option, hitbox overlays, bone probes. Most are UI/menu
+   work that would port the same way; the hitbox work depends on the lean fix.
 4. **Lean fix**, as a client+server pair, following the swing-fix pattern
    (shared code, server publishes, client follows).
 

@@ -1,5 +1,46 @@
 # CoDUO+ — Changelog
 
+## v0.2.0 (2026-10-17) — upstream 1.6.9, without PunkBuster
+
+Everything new in COD1.6X `release/1.6.8`..`release/1.6.9` except the
+PunkBuster ruleset, ported onto 0.1.0. Upstream's 1.6.8/1.6.9 line starts from
+1.6.5 (1.6.6 was withdrawn), so the 1.6.6 features CoDUO+ is built on stay. See
+[docs/PORTING.md](docs/PORTING.md#upstream-168-and-169).
+
+### Frame pacing and input
+- **Continuous clock**: the limiter reports a QPC clock calibrated onto the
+  engine's `Sys_Milliseconds` epoch; at 250 fps every frame reads exactly 4 ms
+  (61 % with the stepped engine clock, measured).
+- **Late mouse**: the mouse is read again once the frame wait is over, so
+  movement made during the wait lands in this frame's command
+  (`input_late_sampling`).
+- **gpu_sync**: `glFinish` after every `SwapBuffers`, one frame in flight;
+  switches itself off for the session when the GPU sets the fps (`gpu_sync`).
+- The 1 ms timer is kept while the window is occluded (Windows 11).
+- Working-set sizes computed in 64 bits (5000 MB no longer wraps to 904 MB).
+
+### Display
+- A `r_fullscreen 1` in `uoconfig_mp.cfg` is the player's choice and is never
+  rewritten to 0; a minimized window is never restyled.
+
+### Imposed settings (ini lock)
+- `fullscreen`, `refresh_rate`, `frame_limiter_enable`, `force_1ms_timer`,
+  `gpu_sync`, `input_late_sampling`, `smoothness_cpu_cores` are rewritten to
+  fixed values at every launch; `r_fullscreen` is read-only at 1 and
+  `r_displayRefresh` held at the display's maximum. The borderless window is
+  therefore not available in release builds (as upstream 1.6.10).
+  `-DCOD1RELOADED_DEV_UNLOCK=ON` builds a test DLL without the lock.
+
+### Log
+- One `session` line a minute and at exit: fps, late wakes, long frames, GPU
+  wait, display mode, com_maxfps, raw input.
+
+### Tests
+- `frame_limiter`: the real wait in a copy of the patched `Com_Frame` loop.
+- `ini_lock`: the rewrite over the shipped `coduoplus.ini`.
+- `site_check`: 264 checks (11 new for the limiter's clock, mouse and
+  dedicated-server path).
+
 ## v0.1.0 (2026-10-17) — first CoD:UO 1.51 build
 
 Port of COD1.6X 1.6.6 (`cod1plus/client` `6f8fec0`) to Call of Duty: United
