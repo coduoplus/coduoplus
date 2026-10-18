@@ -188,6 +188,32 @@ void check_engine_frame_limiter() {
     CHECK(push_str(g_exe, 0x43bdec, "dedicated"));
     CHECK(g_exe.u8(0x43bdfe) == 0xa3 && g_exe.u32(0x43bdff) == CODMP_COM_DEDICATED_DVAR_SLOT_VA);
     CHECK(CODMP_DVAR_INTEGER_OFFSET == 0x20);
+
+    // Sys_Milliseconds, inlined: `mov [sys_timeBase],eax ; mov [sys_timeInitialized],1`
+    // right after timeGetTime (Com_Frame's own copy, 0x43c663). 51 inlined copies.
+    CHECK(g_exe.u8(0x43c663) == 0xa3 && g_exe.u32(0x43c664) == CODMP_SYS_TIMEBASE_VA);
+    CHECK(g_exe.bytes_eq(0x43c668, {0xc7, 0x05}) && g_exe.u32(0x43c66a) == CODMP_SYS_TIMEINIT_VA &&
+          g_exe.u32(0x43c66e) == 1);
+    const uint32_t tgt = g_exe.iat_slot("winmm.dll", "timeGetTime");
+    CHECK(tgt != 0 && g_exe.bytes_eq(0x43c672, {0xff, 0x15}) && g_exe.u32(0x43c674) == tgt);
+    int base_writes = 0;
+    for (uint32_t r : g_exe.xrefs(CODMP_SYS_TIMEBASE_VA)) base_writes += g_exe.u8(r - 1) == 0xa3;
+    CHECK_MSG(base_writes == 51, "sys_timeBase set by 51 inlined Sys_Milliseconds");
+
+    // The second Com_EventLoop after the wait loop is skipped on a dedicated server:
+    //   mov ecx,[dedicated] ; mov eax,[ecx+0x20] ; test eax,eax ; jne ... ; call Com_EventLoop
+    // so on a server the in-loop call we replace is the only event drain - the reason
+    // the UO wait must call Com_EventLoop itself (frame_limiter.h).
+    CHECK(g_exe.bytes_eq(0x43c888, {0x8b, 0x0d}) && g_exe.bytes_eq(0x43c88e, {0x8b, 0x41, 0x20, 0x85, 0xc0, 0x0f, 0x85}));
+    CHECK(g_exe.u32(0x43c88a) == CODMP_COM_DEDICATED_DVAR_SLOT_VA);
+    CHECK(is_call_to(g_exe, 0x43c899, CODMP_FRAME_LIMIT_ORIGINAL_TARGET));
+
+    // Late mouse: IN_MouseMove is the GetCursorPos/SetCursorPos(centre)/queue function,
+    // reached from IN_Frame (0x469e50) only through the initialized/active gate.
+    CHECK(contains_u32(g_exe, CODMP_IN_MOUSEMOVE_VA, 0x30, g_exe.iat_slot("user32.dll", "GetCursorPos")));
+    CHECK(g_exe.u8(0x469e93) == 0xa1 && g_exe.u32(0x469e94) == CODMP_MOUSE_INITIALIZED_VA);
+    CHECK(g_exe.u8(0x469e9c) == 0xa1 && g_exe.u32(0x469e9d) == CODMP_MOUSE_ACTIVE_VA);
+    CHECK(g_exe.u8(0x469eb9) == 0xe9 && g_exe.call_target(0x469eb9) == CODMP_IN_MOUSEMOVE_VA);  // tail jmp
 }
 
 void check_engine_protocol() {

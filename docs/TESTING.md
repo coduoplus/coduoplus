@@ -12,6 +12,7 @@ ctest
  ├─ site_check_2005    the same against the 2005 uo_game build (skipped if absent)
  ├─ ui_pk3             generate the UO main-menu pk3 from the install
  ├─ doc_links          every relative link / #anchor in the docs resolves
+ ├─ frame_limiter      the real wait inside a copy of the patched Com_Frame loop (~20 s)
  └─ smoke_dedicated    (opt-in) run the real game with the mod as a server
 ```
 
@@ -94,13 +95,32 @@ first run; each was a wrong *assumption in the test* (string prefixes, operand
 offsets, a linker import thunk), investigated and documented before the
 address was trusted.
 
-## 3. ui_pk3
+## 3. frame_limiter — the wait itself, against a fake engine
+
+`tests/test_frame_limiter.cpp` (after upstream 1.6.9's `tools/test_frame_limiter.cpp`)
+runs the real `frame_wait()` inside a copy of UO's *patched* `Com_Frame` loop:
+one pass per frame, because the `jl` is removed. The engine side is faked: a
+`Sys_Milliseconds` with its own epoch, an event loop and a late-mouse hook that
+count their calls. At 250, 125 and 333 fps, with and without overrunning frames,
+it checks:
+
+- the average period is 1000/com_maxfps within 1%;
+- no frame is doubled;
+- the reported time is within 2 ms of the engine's clock;
+- the event loop runs exactly once per frame, after the late mouse read;
+- at 250 fps at least 95% of Com_Frame's whole-ms deltas are exactly 4. The
+  continuous clock gives 100%; reporting the stepped engine clock instead
+  gives about 61% and fails (tried);
+- with `com_maxfps 0` and on a dedicated server, the vanilla loop: `minMsec` 1,
+  the engine's own clock, no late mouse.
+
+## 4. ui_pk3
 
 Builds `dist/zz_coduoplus_ui.pk3` from the install's `uo/pakuo03.pk3`. It fails
 if UO's `main.menu` isn't the stock file, if the AUTO-UPDATE anchor is missing,
 or if the result loses CRLF or balanced braces.
 
-## 4. smoke_dedicated — the real game, running the mod
+## 5. smoke_dedicated — the real game, running the mod
 
 `tests/smoke_dedicated.py <game>`:
 

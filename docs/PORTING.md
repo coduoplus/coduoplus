@@ -180,9 +180,10 @@ that serves it. Everything else is in place.
 ### Frame limiter
 
 **Upstream** replaces one `call` inside `Com_Frame`'s wait loop with a QPC-based
-wait that returns the current time. In CoD1 that call reads a clock.
+wait, and in CoD1 relies on `Com_Frame`'s *second* `Com_EventLoop` (after the
+loop) to process events.
 
-**In UO that call is `Com_EventLoop`.** It's the stock Quake 3 loop:
+**In UO the patched call is also `Com_EventLoop`**, in the stock Quake 3 loop:
 
 ```text
 do {
@@ -192,23 +193,44 @@ do {
 } while (msec < minMsec);                // 0x43c6c9  jl
 ```
 
-`Com_EventLoop` drains every key, mouse, console and network event. Replacing
-it with a pure wait would starve input and networking.
+`Com_EventLoop` drains every key, mouse, console and network event. UO also has
+the second call (`0x43c899`), but it is **skipped when `dedicated` is set**. On a
+server the in-loop call is the only event drain, so a pure wait would starve it.
 
-**So the UO replacement:**
+**So the UO replacement does each frame, in one call:**
 
-1. waits for the QPC deadline (same exact-rate maths as upstream: carried
-   remainder, deadline anchoring, resync after hitches);
-2. then calls the real `Com_EventLoop`, and returns *its* clock, the engine's
-   own time base. That honours upstream's hard-won rule "the deadline is what we
-   WAIT for, never what we REPORT";
-3. removes the loop's `jl` (`7c dc` → `90 90`), so the engine's integer-ms gate,
-   the cause of "250 shows 240–248", can't add a second wait after ours. A
-   1 ms floor keeps vanilla's minimum frame time above 1000 fps.
+1. **Wait** for the QPC deadline (upstream's exact-rate maths: carried
+   remainder, deadline anchoring, resync after hitches).
+2. **Late mouse** (upstream 1.6.9). The engine reads the mouse in `IN_Frame`,
+   *before* the wait, so movement made during the wait used to reach only the
+   next frame. Once the wait is over, `IN_MouseMove` (`0x469c20`) runs again,
+   behind `IN_Frame`'s own gate (mouse initialised and active). `input_late_sampling`
+   in the ini switches it off.
+3. **Drain events**: the real `Com_EventLoop`. UO has no separate
+   `Sys_SendKeyEvents`; the PeekMessage pump is inlined in `Sys_GetEvent`, which
+   `Com_EventLoop` calls. This one call therefore pumps keys and buttons late
+   too, and delivers the late mouse event into *this* frame's command.
+4. **Report** a clock that follows upstream 1.6.9's three rules:
+   - **the engine's epoch**, because key-event stamps are subtracted from it
+     (`CL_KeyState`). CoD1 reported QPC-since-boot until 1.6.9, which quantised
+     keyboard movement to whole frames;
+   - **real time, never the deadline**, which upstream learned through flickering
+     remote models;
+   - **continuous.** It's a QPC clock calibrated onto `Sys_Milliseconds`'
+     epoch (`sys_timeBase 0x489bc3c`), re-checked every 1024 frames. The
+     stepped `Sys_Milliseconds` gives whole-ms deltas of 3 and 5 at an exact
+     4 ms period; measured with `tests/test_frame_limiter.cpp`, it gets only 61%
+     of 250 fps frames at exactly 4 ms, against 100% for the continuous clock.
+
+The loop's `jl` is removed (`7c dc` → `90 90`), so the engine's integer-ms gate
+(the cause of "250 shows 240–248") can't re-loop. That's also why upstream
+1.6.9's "doubled frame after a late wake" fix has nothing to do in UO: there's
+no second call to double. A 1 ms floor keeps vanilla's minimum frame time above
+1000 fps.
 
 With `com_maxfps 0` or on a dedicated server (the engine's own condition for
-applying `com_maxfps`), the replacement reproduces the original loop exactly,
-`minMsec` included.
+applying `com_maxfps`), the replacement reproduces the original loop exactly:
+`minMsec` included, the engine's own clock, no late mouse.
 
 ### Window patch only touches the game window
 
