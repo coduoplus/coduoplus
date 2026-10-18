@@ -34,7 +34,7 @@ MUST_LOG = [
     'DLL_PROCESS_ATTACH',
     'version_patch: shortversion redirige -> "CoDUO+ ',
     'protocol_patch: protocol 22',
-    'competitive: caps applied (snaps->40, cl_maxpackets->125)',
+    'competitive: caps applied (snaps->40, cl_maxpackets->125, over-cap resets to 125)',
     'r_displayRefresh engine cap 200 -> 1000 @0x004c4001 patched',
     # applied only with `fullscreen = off`; the shipped ini says on (vanilla)
     ('fullscreen_patch: r_fullscreen default redirige', 'fullscreen_patch: disabled in config'),

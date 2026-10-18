@@ -94,7 +94,31 @@ bool apply_competitive_caps() {
     ok &= poke_verify(CODMP_SNAPS_CAP_MOV_VA, CODMP_SNAPS_CAP_OLD, snaps_new, "snaps cap mov");
     ok &= poke_verify(CODMP_MAXPACKETS_CAP_VA, CODMP_MAXPACKETS_OLD, 0x7d, "cl_maxpackets cap");
 
-    logger::logf("  competitive: caps %s (snaps->40, cl_maxpackets->125)",
+    // ...and what an over-cap value is reset TO. The engine resets with
+    // Cvar_Set2("cl_maxpackets", "100", 1), so with only the compare raised a player who
+    // types 150 dropped to 100 - below the new cap. The push of "100" is repointed at
+    // our own "125" (the "100" literal itself is shared with the handicap default and
+    // stays). Same as coduo-1.6/tools/patch-netcode.mjs did on the exe file.
+    {
+        static const char k125[] = "125";
+        uint8_t* push = (uint8_t*)CODMP_MAXPACKETS_RESET_PUSH_VA;
+        const uint32_t ours = (uint32_t)(uintptr_t)k125;
+        if (push[0] == 0x68 && (*(uint32_t*)(push + 1) == CODMP_MAXPACKETS_RESET_STR_VA ||
+                                *(uint32_t*)(push + 1) == ours)) {
+            DWORD old = 0;
+            if (VirtualProtect(push + 1, 4, PAGE_EXECUTE_READWRITE, &old)) {
+                *(uint32_t*)(push + 1) = ours;
+                VirtualProtect(push + 1, 4, old, &old);
+                FlushInstructionCache(GetCurrentProcess(), push, 5);
+            }
+        } else {
+            logger::logf("  competitive: cl_maxpackets reset push @0x%08x unexpected -> skip",
+                         (unsigned)CODMP_MAXPACKETS_RESET_PUSH_VA);
+            ok = false;
+        }
+    }
+
+    logger::logf("  competitive: caps %s (snaps->40, cl_maxpackets->125, over-cap resets to 125)",
                  ok ? "applied" : "PARTIAL");
     return ok;
 }
