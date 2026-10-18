@@ -94,18 +94,20 @@ bool apply_swing_fix(HMODULE cgame_module) {
                                             g_swing_fix_config.legs_tolerance,
                                             "legs_tolerance");
 
-    // patch 2: torso pitch swingSpeed push 0.15, cgame+0x459d = `68 9a 99 19 3e`
+    // patch 2: torso pitch swingSpeed push 0.15 = `68 9a 99 19 3e` (CoD1 +0x459d, UO +0x4832)
     const uintptr_t torso_pitch_speed_push = base + CGAME_SWING_TORSO_PITCH_SPEED_PUSH_RVA;
     const bool ok2 = patch_push_imm32_float(torso_pitch_speed_push, 0.15f,
                                             g_swing_fix_config.torso_pitch_speed,
                                             "torso_pitch_speed");
 
-    // patch 3: torso yaw swingSpeed dvar 0x301dd388, mov esi,ds:.. @0x4468, operand @0x446a.
-    // dvar read at 5 sites: torso @0x446a + legs @0x4495/0x44ee/0x4503/0x4513.
+    // patch 3: torso yaw swingSpeed dvar (CoD1 0x301dd388 / UO 0x3044ff08), `mov esi,ds:..`
+    // (CoD1 @0x4468, UO @0x46f8), operand at +2. The dvar is read at 5 sites, torso first,
+    // then the legs (UO 0x4726/0x4780/0x4796/0x47a5, CoD1 0x4495/0x44ee/0x4503/0x4513).
     // redirect TORSO ONLY: forcing legs to 1.0 snaps legs to walk dir, torso clamped to legs = aimwalk bug.
     bool ok3 = false;
     {
-        static const uintptr_t YAW_OPS[1] = {0x446a};
+        // CoD:UO port: was a literal {0x446a} - the CoD1 RVA - next to the header constant.
+        static const uintptr_t YAW_OPS[1] = {CGAME_SWING_TORSO_YAW_MOV_RVA + 2};
         const uint32_t expected = (uint32_t)(base + CGAME_SWING_TORSO_YAW_DVAR_RVA);
         const uint32_t ours     = (uint32_t)(uintptr_t)&g_torso_yaw_speed_live;
         int n = 0;
@@ -129,10 +131,11 @@ bool apply_swing_fix(HMODULE cgame_module) {
                      "-> notre var (=%.2f) [TORSE seul ; jambes=vanilla]", n, g_torso_yaw_speed_live);
     }
 
-    // patch 4: head/weapon lock - fmul ds:imm32 @0x444b, operand @0x444d -> our var (0=drop 0.3*movementYaw)
+    // patch 4: head/weapon lock - fmul ds:imm32 (CoD1 @0x444b, UO @0x46a9), operand at +2
+    // -> our var (0=drop 0.3*movementYaw)
     bool ok4 = false;
     {
-        const uintptr_t fmul_op = base + CGAME_SWING_TORSO_YAW_MOVEFRAC_FMUL_RVA; // 0x444d
+        const uintptr_t fmul_op = base + CGAME_SWING_TORSO_YAW_MOVEFRAC_FMUL_RVA;
         if (*(const uint16_t*)(fmul_op - 2) != 0x0dd8) {                          // fmul ds:imm32
             logger::logf("  swing_fix [torso_yaw_movefrac] : opcode inattendu @0x%08x "
                          "(pas 'fmul ds:imm32'). Patch annule.", (unsigned)(fmul_op - 2));
