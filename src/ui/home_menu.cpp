@@ -30,6 +30,7 @@
 #include "ui/gl_overlay.h"
 #include "features/settings_menu.h"   // CODMP_CVAR_FINDVAR_VA / CODMP_CBUF_EXECTEXT_VA
 #include "core/logger.h"
+#include "core/game.h"
 
 #include <cstdio>
 #include <cstdarg>
@@ -62,13 +63,13 @@ constexpr int EXEC_APPEND  = 2;
 constexpr int CV_INTEGER   = 0x20;
 
 int cv_int(const char* n, int fb) {
-    void* c = FindVar(n);
+    void* c = game_exe_ok() ? FindVar(n) : nullptr;  // see modern_menu.cpp
     return c ? *(int*)((char*)c + CV_INTEGER) : fb;
 }
 void cmdf(const char* fmt, ...) {
     char b[256]; va_list a; va_start(a, fmt);
     vsnprintf(b, sizeof(b), fmt, a); va_end(a);
-    Cbuf(EXEC_APPEND, b);
+    if (game_exe_ok()) Cbuf(EXEC_APPEND, b);
 }
 
 bool hit(float x, float y, float w, float h) {

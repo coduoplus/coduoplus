@@ -52,7 +52,7 @@ bool game_exe_ok();
 // applied: a CoD1 offset inside a UO module lands in unrelated code.
 // docs/PORTING.md has the per-feature status table.
 namespace port {
-constexpr bool ENGINE           = false;  // CoDUOMP.exe: cvar API, version, protocol, caps, mouse...
+constexpr bool ENGINE           = true;   // CoDUOMP.exe: cvar API, version, protocol, caps, mouse, frame limiter
 constexpr bool CGAME_FOV        = false;  // uo_cgame: cg_fov cheat flag + min clamp
 constexpr bool CGAME_WIDESCREEN = false;  // uo_cgame: CG_CalcFov Hor+/stretch hooks
 constexpr bool CGAME_SWING      = false;  // uo_cgame: torso/legs swing constants

@@ -10,20 +10,7 @@
 
 namespace patches {
 
-// Live systeminfo lookup. CL_SystemInfoChanged (CoDMP.exe 0x4176f0, RE 2026-09-16)
-// applies the server's systeminfo by walking its "\key\value" pairs and calling
-// Cvar_Set2(force) on EACH KEY PRESENT - a key the new server does not publish keeps
-// whatever the PREVIOUS server set. So "the cvar is non-empty" never meant "this
-// server publishes it": a player leaving a competitive server for a fun server kept the
-// spec, and would keep the ruleset id. The engine's own truth is the CS_SYSTEMINFO
-// configstring, which the gamestate parser rewrites for every server / map:
-//   cl.gameState.stringOffsets[1] @0x148dcc0  (int, into stringData)
-//   cl.gameState.stringData       @0x148fcbc  (MAX_GAMESTATE_CHARS = 16000)
-// Offset 0 = the shared empty string (cleared at disconnect) -> nothing published.
-constexpr uintptr_t CODMP_GS_SYSTEMINFO_OFF_VA = 0x0148dcc0;
-constexpr uintptr_t CODMP_GS_STRINGDATA_VA     = 0x0148fcbc;
-constexpr int       CODMP_MAX_GAMESTATE_CHARS  = 16000;
-
+// Live systeminfo lookup: see CODMP_GS_* in competitive.h for why and where.
 bool systeminfo_value(const char* key, char* out, int outsz) {
     if (outsz <= 0) return false;
     out[0] = 0;

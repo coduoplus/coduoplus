@@ -21,6 +21,7 @@
 #include "features/settings_menu.h"   // CODMP_CVAR_FINDVAR_VA
 #include "netcode/protocol_patch.h"   // CODMP_CVAR_COUNT_VA
 #include "core/logger.h"
+#include "core/game.h"
 #include "core/iat.h"
 
 namespace patches {
@@ -368,7 +369,7 @@ void gamma_fix_tick() {
     // the brightness setting applies WITHOUT vid_restart. Only when overbright is 0
     // (then a pure pow ramp is exactly what the engine would compute); with overbright
     // active we stay on the captured engine ramp (vid_restart re-captures it).
-    if (*(volatile int*)CODMP_CVAR_COUNT_VA > 0) {
+    if (game_exe_ok() && *(volatile int*)CODMP_CVAR_COUNT_VA > 0) {
         void* gv = cv_find("r_gamma");
         if (gv) {
             const float g = *(float*)((char*)gv + CVAR_OFF_VALUE);

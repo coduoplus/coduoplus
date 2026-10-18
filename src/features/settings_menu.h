@@ -38,12 +38,18 @@ constexpr int COD1X_FOV_MAX = 95;
 //   MINCLAMP : CG_GetEffectiveFov min-80 branch 'jp +0x0a' (7A 0A) -> 'jmp +0x0a' (EB 0A)
 constexpr uintptr_t CGAME_FOV_CVAR_FLAGS_RVA  = 0x000769ec;
 constexpr uintptr_t CGAME_FOV_MINCLAMP_JP_RVA = 0x000344e6;
-// CoDMP.exe R_Register: `push 0x43480000` (200.0f) = the r_displayRefresh Cvar_CheckRange max
-constexpr uintptr_t CODMP_REFRESH_CAP_IMM_VA   = 0x004be6d1;
+// CoDUOMP.exe 1.51 R_Register, right after ri.Cvar_Get("r_displayRefresh","0",0x20):
+//   4c4000  68 00 00 48 43   push 0x43480000   ; max 200.0f   <- imm patched
+//   4c4005  6a 00            push 0            ; min 0
+//   4c4007  b8 01 00 00 00   mov  eax,1        ; integral
+//   4c4012  e8 89 d2 ff ff   call R_CheckRange (0x4c12a0)
+constexpr uintptr_t CODMP_REFRESH_CAP_IMM_VA   = 0x004c4001;
 
-// CoDMP.exe (base 0x400000) engine fns not already declared in other headers.
-constexpr uintptr_t CODMP_CVAR_FINDVAR_VA  = 0x0043b790; // cvar_t* Cvar_FindVar(name)
-constexpr uintptr_t CODMP_CBUF_EXECTEXT_VA = 0x0042a180; // void Cbuf_ExecuteText(int when, const char* text)
+// CoDUOMP.exe 1.51 (base 0x400000) engine fns not already declared in other headers.
+constexpr uintptr_t CODMP_CVAR_FINDVAR_VA  = 0x0043d8f0; // cvar_t* Cvar_FindVar(name)
+// void Cbuf_ExecuteText(int when, const char* text): 0 EXEC_NOW, 1 INSERT, 2 APPEND
+// (switch at 42bcf4; anything else -> Com_Error "Cbuf_ExecuteText: bad exec_when")
+constexpr uintptr_t CODMP_CBUF_EXECTEXT_VA = 0x0042bcf0;
 
 void settings_menu_start();                        // DllMain: log enable state
 void settings_menu_apply_to_cgame(HMODULE cgame);  // FOV unlock (idempotent, safe to re-run)

@@ -23,6 +23,7 @@
 #include "ui/gl_overlay.h"
 #include "ui/player_preview.h"
 #include "core/logger.h"
+#include "core/game.h"
 #include "features/settings_menu.h"
 #include "features/pam_install.h"
 #include "video/display_probe.h"
@@ -50,18 +51,21 @@ constexpr int EXEC_APPEND = 2;
 // cvar_t layout (same RE as settings_menu.cpp)
 constexpr int CV_STRING = 0x04, CV_INTEGER = 0x20;
 
+// Every engine call in this file goes through these three helpers, so the
+// game_exe_ok() check here is what keeps the menu from calling CoD1 addresses
+// on an unrecognised exe (the menu still draws, with fallback values).
 int cv_int(const char* n, int fb) {
-    void* c = FindVar(n);
+    void* c = game_exe_ok() ? FindVar(n) : nullptr;
     return c ? *(int*)((char*)c + CV_INTEGER) : fb;
 }
 const char* cv_str(const char* n, const char* fb) {
-    void* c = FindVar(n);
+    void* c = game_exe_ok() ? FindVar(n) : nullptr;
     return c ? *(const char**)((char*)c + CV_STRING) : fb;
 }
 void cmdf(const char* fmt, ...) {
     char b[256]; va_list a; va_start(a, fmt);
     vsnprintf(b, sizeof(b), fmt, a); va_end(a);
-    Cbuf(EXEC_APPEND, b);
+    if (game_exe_ok()) Cbuf(EXEC_APPEND, b);
 }
 
 DWORD mixc(DWORD a, DWORD b, float t) {
