@@ -273,6 +273,12 @@ void check_engine_competitive() {
     // cl_maxpackets cap: cmp eax,100 ... push "100" ; push "cl_maxpackets"
     CHECK(g_exe.bytes_eq(CODMP_MAXPACKETS_CAP_VA - 2, {0x83, 0xf8, CODMP_MAXPACKETS_OLD}));
     CHECK(push_str(g_exe, CODMP_MAXPACKETS_CAP_VA + 5, "100"));
+    CHECK(CODMP_MAXPACKETS_RESET_PUSH_VA == CODMP_MAXPACKETS_CAP_VA + 5);
+    CHECK(g_exe.u32(CODMP_MAXPACKETS_RESET_PUSH_VA + 1) == CODMP_MAXPACKETS_RESET_STR_VA);
+    CHECK(is_call_to(g_exe, CODMP_MAXPACKETS_CAP_VA + 15, 0x43dc50));   // Cvar_Set2
+    // the gate right after: 1000 / cl_maxpackets->integer (cvar slot 0x4df969c)
+    CHECK(g_exe.bytes_eq(0x40cc48, {0x8b, 0x0d}) && g_exe.u32(0x40cc4a) == 0x4df969c);
+    CHECK(g_exe.bytes_eq(0x40cc5c, {0xb8, 0xe8, 0x03, 0x00, 0x00}));        // mov eax,1000
     CHECK(push_str(g_exe, CODMP_MAXPACKETS_CAP_VA + 10, "cl_maxpackets"));
     // live systeminfo: CL_SystemInfoChanged reads stringOffsets[1] + stringData
     CHECK(g_exe.bytes_eq(0x418b91, {0x8b, 0x35}) && g_exe.u32(0x418b93) == CODMP_GS_SYSTEMINFO_OFF_VA);

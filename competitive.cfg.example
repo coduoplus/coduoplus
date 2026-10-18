@@ -1,0 +1,46 @@
+# competitive.cfg - the netcode spec a CoDUO+ SERVER pushes to CoDUO+ clients.
+#
+# Copy this file as competitive.cfg next to mss32.dll on the machine that runs the
+# server (CoDUOMP.exe dedicated, or a listen server). The mod publishes it through
+# systeminfo (sv_competitive, sv_competitive2..4); CoDUO+ clients apply it while they
+# are connected and release it when they leave. Vanilla clients ignore it.
+# The file is re-read every second: edit it live, no restart.
+#
+# Format, one rule per line, comments on their OWN line:
+#   cvar value         locked on the client (read-only while connected)
+#   cvar min max       clamped into [min, max] (the player chooses inside)
+# Only letters, digits and _ . + - in names and values.
+#
+# Pair it with the SERVER settings (server.cfg / command line), which it cannot set:
+#   set sv_fps 40          snapshots only go out on server frames - see "snaps"
+#   set sv_maxRate 0       0 = no server cap; otherwise >= 90000 or "rate" below is cut
+# Full reasoning: docs/NETCODE.md.
+
+# ---- snapshots: MUST equal sv_fps ------------------------------------------------
+# The server sends a snapshot when nextSnapshotTime = now + 1000/snaps has passed, but
+# only on a server frame. snaps lower than sv_fps skips frames; higher gains nothing.
+# 40 needs the CoDUO+ server (vanilla caps snaps at 30, CoDUO+ lifts it to 40).
+snaps 40
+
+# ---- client -> server packets -----------------------------------------------------
+# 125 = the CoDUO+ cap. One packet per client frame at most, sent when 1000/125 = 8 ms
+# have passed: exactly 125 pps at com_maxfps 125 or 250 (with CoDUO+'s frame limiter).
+cl_maxpackets 125
+# 125 / 250 are the frame rates whose period divides 8 ms; other values in between
+# (e.g. 200) still work but send fewer packets (200 fps -> 100 pps).
+com_maxfps 125 250
+
+# ---- bandwidth ------------------------------------------------------------------
+# The next snapshot waits (size + 48) * 1000 / rate ms (SV_RateMsec, sizes counted up
+# to 1500). A full snapshot is ~1548 B: 40/s needs ~62 kB/s in a busy fight, and the
+# engine's own ceiling is 90000. Lower rates delay snapshots exactly when it matters.
+rate 90000
+# delta compression keeps snapshots small (it is also what keeps them under the rate)
+cl_nodelta 0
+
+# ---- loss and interpolation -----------------------------------------------------
+# each packet repeats the previous 1 (to 2) commands: a lost packet loses no input
+cl_packetdup 1 2
+# negative = render closer to the newest snapshot (less lead to aim with, a little
+# extrapolation); positive would only add delay
+cl_timenudge -20 0

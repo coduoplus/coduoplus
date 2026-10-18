@@ -26,7 +26,7 @@ against the stock binaries and on a running dedicated server. The client side
 | 🔒 **Same settings for everyone** | Frame pacing, input path, exclusive fullscreen at the display's max Hz are imposed (upstream 1.6.9's ini lock), so the borderless window is not available in release builds. Per-monitor gamma, instant minimize on alt-tab. |
 | 🔭 **FOV 80–95** | `cg_fov` unlocked within 80–95 ([note](docs/PORTING.md#fov-unlock-is-ported-as-is--read-this)). |
 | 🧍 **Swing fix** | Torso and legs follow your view without lag. Applied only on servers that run CoDUO+ and test the same pose, so what you see is always what the server hits ([why](docs/PORTING.md#swing-fix-only-where-the-server-mirrors-it)). |
-| 🌐 **40-tick ready** | snaps cap 30 → 40, cl_maxpackets 100 → 125; a server can push its fair-play cvar spec. |
+| 🌐 **40-tick** | snaps cap 30 → 40, cl_maxpackets 100 → 125. A CoDUO+ server pushes its `competitive.cfg` (snaps 40, 125 pps, rate 90000 …) to CoDUO+ clients. Setup and the hit-reg maths: [docs/NETCODE.md](docs/NETCODE.md). |
 | ⚙️ **Settings overlay** | Ctrl+M, or **CoDUO+ SETTINGS** in the main menu. |
 | 🧰 **Server side** | Running CoDUO+ on a dedicated server: swing mirror for its players, a version gate that turns away *outdated* CoDUO+ builds (vanilla players are always welcome), uncapped snaps. |
 | 🛡️ **Safe by construction** | Every patch checks the exact original bytes first; on any other exe or DLL build it patches nothing and says so in the log. |
@@ -83,6 +83,7 @@ Details in [BUILD.md](BUILD.md).
 
 | Document | What's in it |
 | --- | --- |
+| [docs/NETCODE.md](docs/NETCODE.md) | How a shot is registered, server/client setup for 40-tick, why sv_fps 40, what lag compensation would add |
 | [docs/PORTING.md](docs/PORTING.md) | How the port was done, every decision and why, feature status, what's left |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the DLL loads, the startup sequence, the watcher thread, safe patching, client↔server agreement |
 | [docs/ADDRESSES.md](docs/ADDRESSES.md) | Every address, CoD1 → UO, with the evidence |

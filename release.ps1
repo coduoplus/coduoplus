@@ -95,6 +95,7 @@ Set-Content (Join-Path $root "manifest.json") $manifest -Encoding ASCII
 $stage = Join-Path $dist "stage"
 New-Item -ItemType Directory -Force (Join-Path $stage "uo") | Out-Null
 Copy-Item (Join-Path $dist "mss32.dll"), (Join-Path $dist "coduoplus.ini"), (Join-Path $dist "README.txt") $stage
+Copy-Item (Join-Path $root "competitive.cfg.example") $stage   # for server admins (docs/NETCODE.md)
 Copy-Item (Join-Path $dist "zz_coduoplus_ui.pk3") (Join-Path $stage "uo")
 $zip = Join-Path $dist "coduoplus-$Version.zip"
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -Force

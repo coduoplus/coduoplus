@@ -42,6 +42,7 @@ set(COD1RELOADED_SOURCES
     src/netcode/version_patch.cpp
     src/netcode/protocol_patch.cpp
     src/netcode/competitive.cpp
+    src/netcode/competitive_sv.cpp
     src/features/pam_install.cpp
     src/netcode/version_gate.cpp
     src/video/window_patch.cpp
@@ -239,3 +240,11 @@ target_compile_options(test_ini_lock PRIVATE -Wall -Wextra -Wno-unused-parameter
 target_link_options(test_ini_lock PRIVATE -static -static-libgcc -static-libstdc++)
 add_test(NAME ini_lock COMMAND test_ini_lock "${CMAKE_SOURCE_DIR}/coduoplus.ini" "${CMAKE_BINARY_DIR}/testtmp")
 set_tests_properties(frame_limiter PROPERTIES TIMEOUT 120)
+
+# competitive.cfg -> sv_competitive* parsing and chunking, checked against the client's reading.
+add_executable(test_competitive_sv tests/test_competitive_sv.cpp
+               src/netcode/competitive_sv.cpp src/core/logger.cpp src/core/game.cpp)
+target_include_directories(test_competitive_sv PRIVATE src)
+target_compile_options(test_competitive_sv PRIVATE -Wall -Wextra -Wno-unused-parameter -O2)
+target_link_options(test_competitive_sv PRIVATE -static -static-libgcc -static-libstdc++)
+add_test(NAME competitive_sv COMMAND test_competitive_sv)

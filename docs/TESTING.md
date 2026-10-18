@@ -14,6 +14,7 @@ ctest
  ├─ doc_links          every relative link / #anchor in the docs resolves
  ├─ frame_limiter      the real wait inside a copy of the patched Com_Frame loop (~20 s)
  ├─ ini_lock           the imposed-keys rewrite over the shipped coduoplus.ini
+ ├─ competitive_sv     competitive.cfg -> sv_competitive*, checked against the client's reading
  └─ smoke_dedicated    (opt-in) run the real game with the mod as a server
 ```
 
@@ -124,13 +125,23 @@ locked values; that a player's edits to all seven are put back while the other
 deleted keys are re-appended under the header; that CRLF and LF files keep their
 line ending; and that the runtime values are forced.
 
-## 5. ui_pk3
+## 5. competitive_sv — the server spec publisher
+
+`tests/test_competitive_sv.cpp` parses `competitive.cfg` text into the spec and
+splits it into the four ≤220-char SYSTEMINFO parts. It checks the result against
+the client's own reading (join with a space, `name=value` / `name=min:max`): exact
+values and ranges, comments skipped, and malformed lines refused. Quotes, `;`,
+backslashes, inline comments and wrong token counts would break the
+`set "…"` command or the info string. A 30-rule file round-trips intact through
+the chunks; an over-long one is reported and only whole entries are published.
+
+## 6. ui_pk3
 
 Builds `dist/zz_coduoplus_ui.pk3` from the install's `uo/pakuo03.pk3`. It fails
 if UO's `main.menu` isn't the stock file, if the AUTO-UPDATE anchor is missing,
 or if the result loses CRLF or balanced braces.
 
-## 6. smoke_dedicated — the real game, running the mod
+## 7. smoke_dedicated — the real game, running the mod
 
 `tests/smoke_dedicated.py <game>`:
 
@@ -150,7 +161,11 @@ or if the result loses CRLF or balanced braces.
    | (vanilla) | `connectResponse` | vanilla players are let in |
    | `coduoplus=16` | `connectResponse` | current build |
 
-5. kills the server and reads `coduoplus.log`, which must contain every
+5. for the run, installs `competitive.cfg.example` as the server's
+   `competitive.cfg` (and removes it afterwards), and requires
+   `engine holds sv_competitive "snaps=40 cl_maxpackets=125 …" (SYSTEMINFO yes)`:
+   the spec really is in the cvar clients receive;
+6. kills the server and reads `coduoplus.log`, which must contain every
    ENGINE patch's "applied" line, the swing server mirror, the published
    `sv_coduoplus_swing 1`, the version gate installed and its rejection. It
    must contain **none** of the phrases a patch logs when it refuses
@@ -192,19 +207,22 @@ Run on the test install after `.\deploy.ps1` and
 5. **Vanilla server.** Join any public server. The log should show
    `swing_fix [client]: vanilla` (the swing fix stays off where the server
    doesn't mirror it).
-6. **FOV.** `/cg_fov 95` takes effect without `sv_cheats`; `/cg_fov 120` is
+6. **Competitive spec.** With `competitive.cfg.example` copied to
+   `competitive.cfg` before `/devmap mp_harbor`, `/snaps` and `/cl_maxpackets`
+   read 40 and 125 and refuse changes ("is read only"). Leaving releases them.
+7. **FOV.** `/cg_fov 95` takes effect without `sv_cheats`; `/cg_fov 120` is
    clamped back to 95.
-7. **GPU sync.** After a minute in game the log has no
+8. **GPU sync.** After a minute in game the log has no
    `gpu_sync: the GPU sets the frame rate` line on a machine that holds the fps
    cap (it should on any modern GPU at 250).
-8. **Frame rate.** `/com_maxfps 250`, `/cg_drawfps 1`: a steady 250 (not
+9. **Frame rate.** `/com_maxfps 250`, `/cg_drawfps 1`: a steady 250 (not
    240–248). `/com_maxfps 125`: 125. Input and network stay responsive (the
    limiter still runs `Com_EventLoop` every frame).
-9. **Raw input.** `/m_rinput 1`, move the mouse: aim works, `m_rinput_hz`
+10. **Raw input.** `/m_rinput 1`, move the mouse: aim works, `m_rinput_hz`
    reports a rate while moving.
-10. **Map change.** `/map mp_arnhem` from the devmap: the log shows the cgame
+11. **Map change.** `/map mp_arnhem` from the devmap: the log shows the cgame
    reload being re-patched (`uo_cgame_mp_x86.dll reloaded`), FOV still unlocked.
-11. **Alt-tab** in and out a few times; no freeze, gamma restored on the desktop.
-12. **Session line.** After a minute, and when quitting, the log has a line like
+12. **Alt-tab** in and out a few times; no freeze, gamma restored on the desktop.
+13. **Session line.** After a minute, and when quitting, the log has a line like
     `session 60 s: 250.0 fps (15000 frames, 0 late wakes, 0 long, max 4.3 ms) | GPU 0.50 ms …`.
     Paste it with any "it stutters" report.

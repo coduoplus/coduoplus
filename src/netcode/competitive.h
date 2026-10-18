@@ -41,6 +41,14 @@ constexpr uint8_t   CODMP_SNAPS_CAP_OLD    = 0x1e;     // 30
 // with the handicap default), so a value above 125 still snaps back to 100.
 constexpr uintptr_t CODMP_MAXPACKETS_CAP_VA = 0x40cc26; // imm of "cmp eax,0x64"
 constexpr uint8_t   CODMP_MAXPACKETS_OLD    = 0x64;     // 100
+// ...followed by the reset: 40cc29 6a 01 push 1 / 40cc2b 68 10 24 59 00 push "100" /
+// 40cc30 push "cl_maxpackets" / call Cvar_Set2. The push is repointed at "125".
+constexpr uintptr_t CODMP_MAXPACKETS_RESET_PUSH_VA = 0x40cc2b;
+constexpr uintptr_t CODMP_MAXPACKETS_RESET_STR_VA  = 0x592410; // "100" (shared, untouched)
+// The packet gate itself (CL_ReadyToSendPacket, after the clamp):
+//   if (cls.realtime - cl.outPackets[(cl.outPacketNum-1)&31].p_realtime < 1000/cl_maxpackets) wait
+// one packet per client frame at most, so 125 pps needs a frame period dividing 8 ms:
+// com_maxfps 125 or 250 (exact with the frame limiter's continuous clock).
 
 // cvar_t* __cdecl Cvar_Set(const char* name, const char* value): a force=1 thunk,
 //   43df58  6a 01  push 1 / push value / push name / call Cvar_Set2 (0x43dc50)
