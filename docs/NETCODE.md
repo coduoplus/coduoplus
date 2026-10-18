@@ -16,7 +16,7 @@ in [ADDRESSES.md](ADDRESSES.md).
 4. [Server setup](#server-setup)
 5. [Why sv_fps 40, and not more](#why-sv_fps-40-and-not-more)
 6. [Client setup](#client-setup)
-7. [What is still missing: lag compensation](#what-is-still-missing-lag-compensation)
+7. [Lag compensation](#lag-compensation)
 
 ---
 
@@ -64,8 +64,8 @@ At run speed (`g_speed` 190 u/s), 10 ms is about 1.9 units of target movement:
 | 100 | 175 ms / 33 u | 114 ms / 22 u |
 | 150 | 225 ms / 43 u | 164 ms / 31 u |
 
-Settings remove about **60 ms** of lead at every ping. The ping itself stays: see
-[lag compensation](#what-is-still-missing-lag-compensation).
+Settings remove about **60 ms** of lead at every ping. The ping itself is handled by
+[lag compensation](#lag-compensation).
 
 ## What CoDUO+ changes
 
@@ -178,34 +178,47 @@ Otherwise, or on any server running `sv_fps 40`:
 CoDUO+'s frame limiter, late mouse sampling and `gpu_sync` (all on, imposed) take
 care of the client's own share.
 
-## What is still missing: lag compensation
+## Lag compensation
 
 Everything above shrinks the *extra* delay to about 14 ms. The **ping** term
-stays: a 100 ms player still has to lead 100 ms of movement, because UO's
-server traces bullets against where targets are *now*. No tick rate removes
-that. "LAN-like hit registration over the internet" needs **lag compensation**:
-the server rewinds every other player to where the shooter saw them, traces,
-and puts them back.
+is a different problem: without help, a 100 ms player has to lead 100 ms of
+movement, because UO's server traces bullets against where targets are *now*.
+CoDUO+ servers compensate for it: the server rewinds every other player to
+where the shooter saw them, traces, and puts them back. Clients need nothing;
+vanilla players benefit too.
 
-CoDUO+ doesn't have it yet. COD1.6X's antilag is experimental and shipped
-disabled, so it wasn't ported. UO's notes already contain a design for it
-(`coduo-1.6/analysis/netcode.md` §4). The CoDUO+ version would be a server-side
-patch in `uo_game_mp_x86.dll`, with nothing changing on clients:
+| Cvar (server) | Default | |
+| --- | --- | --- |
+| `g_antilag` | `1` | `0` off, `1` on, `2` on and log every compensated shot (`[coduoplus] antilag: client 3 shot ... 87 ms back, 2 player(s) moved, max 31.4 units`) |
+| `g_antilagMaxMs` | `300` | the furthest back a shot is compensated. A 600 ms player is compensated 300 ms, so nobody gets shot "around a corner" from half a second ago |
 
-1. after every `G_RunFrame` (vmMain 12), record each player's hit state
-   (origin, angles, and the animation pose the hit boxes are built from) in a
-   ring buffer: 64 frames ≈ 1.6 s at 40 Hz;
-2. detour `Bullet_Fire` (`0x20056840`, one caller). Rewind each other live player
-   to the shooter's command time `cmd.serverTime`, capped (`g_antilagMaxMs`,
-   e.g. 250 ms) so high-ping players can't shoot around corners from the past.
-   Relink, fire, then restore;
-3. with that, players should run `cl_timenudge 0` (a rewind to an extrapolated
-   moment would miss).
+`g_antilag` is in serverinfo, so server browsers show it. Both cvars change
+live (`rcon g_antilag 0`). Their defaults come from `CODUOPLUS_ANTILAG` /
+`CODUOPLUS_ANTILAG_MAXMS` on Linux ([LINUX.md](LINUX.md)) and `antilag` /
+`antilag_max_ms` in `coduoplus.ini` on a Windows server
+([CONFIGURATION.md](CONFIGURATION.md)).
 
-Rewinding the origin alone is easy and removes most of the miss distance. The
-hard part is the **pose**: UO hit boxes come from the animated skeleton (stance,
-lean, view pitch), so the animation state must be rewound too, or a
-crouching or leaning target is tested in its current pose at its old position.
-That part needs new reverse engineering of UO's player animation state and live
-testing with several clients. It is the next big project if the goal is
-LAN-like hits.
+How it works (`src/shared/antilag_core.cpp`, the same code in the Windows mod and
+the Linux library):
+
+1. after every server frame (`G_RunFrame`), record each live player's
+   `r.currentOrigin` and `r.currentAngles` with the level time: 128 frames,
+   3.2 s at 40 Hz;
+2. on every root bullet call (Linux: `Bullet_Fire`, which every weapon, turret
+   and vehicle gun goes through; Windows: the five root calls of
+   `Bullet_Fire_Extended`), move every other live player to where they were at
+   the shooter's `usercmd.serverTime` (the time its client was drawing),
+   interpolated between the two recorded frames around it and capped by
+   `g_antilagMaxMs`. Relink them, run the shot (penetration, damage, kills),
+   then restore every moved player exactly.
+
+Why origin and angles are enough to move the hit boxes: the server places the
+posed skeleton in the world from exactly those two fields
+(`G_DObjGetWorldBoneIndexMatrix`). **Limitation:** the *pose* is the current
+frame's, so a stance change (crouch/prone) or lean inside the rewind window is
+tested in its new pose at the old position. Rewinding the animation state is
+the next step.
+
+With lag compensation on, players should keep `cl_timenudge` at 0 or slightly
+negative only: the rewind targets the moment the client drew, and a large
+negative nudge draws an extrapolated moment that never existed on the server.

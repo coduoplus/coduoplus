@@ -87,6 +87,9 @@ static const coduo_site_t LNX_EXE_SITES[] = {
 #define LNX_G_TRAP_CVAR_STRINGBUF     0x00073de4u   /* trap_Cvar_VariableStringBuffer          */
 #define LNX_G_TRAP_GETUSERINFO        0x00074004u   /* syscall 33 (clientNum, buf, size)       */
 #define LNX_G_BG_SWINGSPEED           0x0042f660u   /* vmCvar_t bg_swingSpeed, .value at +8    */
+#define LNX_G_BULLET_FIRE             0x0007a8afu   /* (attacker, spread, damage, wp, self)    */
+#define LNX_G_TRAP_LINKENTITY         0x0007457fu   /* syscall: SV_LinkEntity(gentity*)        */
+#define LNX_G_ENTITIES                0x0035b6a0u   /* gentity_t g_entities[1024], 0x34c each  */
 #define LNX_G_GOT                     0x000b3818u   /* DT_PLTGOT = what ebx holds in PIC code  */
 
 /* vmMain calls both through the PLT (`jmp [ebx+slot]`); repointing the GOT slot is the
@@ -96,6 +99,13 @@ static const coduo_site_t LNX_EXE_SITES[] = {
  *   56bca call G_RunFrame@plt    (18464: ff a3 48 07 00 00  jmp [ebx+0x748])        */
 #define LNX_G_GOT_CLIENTCONNECT       0x000b3ff8u   /* R_386_JUMP_SLOT ClientConnect */
 #define LNX_G_GOT_RUNFRAME            0x000b3f60u   /* R_386_JUMP_SLOT G_RunFrame    */
+
+/* Lag compensation: every bullet a player (or a turret/vehicle gunner) fires goes
+ * through Bullet_Fire@plt (FireWeapon 7be48, turret 5ab94, vehicles 8f44c 8fb8d 900c3);
+ * only Bullet_Fire itself calls Bullet_Fire_Extended, whose penetration recursion stays
+ * inside. So the Bullet_Fire GOT slot is the one root hook, same mechanism as above.
+ *   16e34  ff a3 bc 01 00 00  jmp [ebx+0x1bc]                                     */
+#define LNX_G_GOT_BULLET_FIRE         0x000b39d4u   /* R_386_JUMP_SLOT Bullet_Fire   */
 
 /* BG_PlayerAngles (static, ~0x1dc00): the four swing constants, the SAME four the
  * Windows mod changes in uo_cgame / uo_game (src/gameplay/swing_fix.h) and upstream
@@ -131,6 +141,8 @@ static const coduo_site_t LNX_GAME_SITES[] = {
     { "plt G_RunFrame",0x00018464, 6,  { 0xff, 0xa3, 0x48, 0x07, 0x00, 0x00 } },
     { "vmMain call CC",0x00056b43, 5,  { 0xe8, 0x7c, 0x1b, 0xfc, 0xff } },
     { "vmMain call RF",0x00056bca, 5,  { 0xe8, 0x95, 0x18, 0xfc, 0xff } },
+    { "plt Bullet_Fire",0x00016e34, 6, { 0xff, 0xa3, 0xbc, 0x01, 0x00, 0x00 } },
+    { "FireWeapon->BF",0x0007be48, 5,  { 0xe8, 0xe7, 0xaf, 0xf9, 0xff } },
 };
 
 #endif /* CODUOPLUS_SITES_151B_H */

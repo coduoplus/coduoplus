@@ -154,7 +154,9 @@ int main(int argc, char** argv) {
         {"vmMain", LNX_G_VMMAIN}, {"ClientConnect", LNX_G_CLIENTCONNECT}, {"G_RunFrame", LNX_G_RUNFRAME},
         {"trap_Cvar_Register", LNX_G_TRAP_CVAR_REGISTER}, {"trap_Cvar_Set", LNX_G_TRAP_CVAR_SET},
         {"trap_Cvar_VariableStringBuffer", LNX_G_TRAP_CVAR_STRINGBUF},
-        {"trap_GetUserinfo", LNX_G_TRAP_GETUSERINFO}, {"bg_swingSpeed", LNX_G_BG_SWINGSPEED},
+        {"trap_GetUserinfo", LNX_G_TRAP_GETUSERINFO},
+        {"Bullet_Fire", LNX_G_BULLET_FIRE}, {"trap_LinkEntity", LNX_G_TRAP_LINKENTITY},
+        {"g_entities", LNX_G_ENTITIES}, {"bg_swingSpeed", LNX_G_BG_SWINGSPEED},
     };
     for (auto& s : syms) {
         char what[96];
@@ -169,6 +171,21 @@ int main(int argc, char** argv) {
     // vmMain's calls go to those PLT stubs
     CHECK(game.call_target(0x00056b43) == 0x000186c4);
     CHECK(game.call_target(0x00056bca) == 0x00018464);
+    // antilag: Bullet_Fire's GOT slot, its PLT stub, FireWeapon's call through it, and
+    // trap_LinkEntity is syscall 53 (SV_LinkEntity)
+    CHECK(game.jump_slots.count("Bullet_Fire") && game.jump_slots.at("Bullet_Fire") == LNX_G_GOT_BULLET_FIRE);
+    CHECK(game.u32(0x00016e34 + 2) == LNX_G_GOT_BULLET_FIRE - LNX_G_GOT);
+    CHECK(game.call_target(0x0007be48) == 0x00016e34);
+    CHECK(game.eq(LNX_G_TRAP_LINKENTITY + 0x19, (const uint8_t*)"\xc7\x04\x24\x35\x00\x00\x00", 7));
+    // the entity fields antilag_core reads, at their anchors: inuse byte (G_InitGentity),
+    // r.currentAngles / r.currentOrigin (G_DObjGetWorldBoneIndexMatrix), pers.cmd
+    // (ClientThink), sessionState == SPECTATOR (ClientThink_real), health (G_Damage)
+    CHECK(game.eq(0x000796e3, (const uint8_t*)"\xc6\x80\x6c\x01\x00\x00\x01", 7));
+    CHECK(game.eq(0x000790e5, (const uint8_t*)"\x05\x48\x01\x00\x00", 5));
+    CHECK(game.eq(0x000790f5, (const uint8_t*)"\x8b\x80\x3c\x01\x00\x00", 6));
+    CHECK(game.eq(0x00041d9e, (const uint8_t*)"\x05\x24\x45\x00\x00", 5));
+    CHECK(game.eq(0x00040e63, (const uint8_t*)"\x83\xb8\x04\x45\x00\x00\x02", 7));
+    CHECK(game.eq(0x000501b5, (const uint8_t*)"\x8b\x80\x40\x02\x00\x00", 6));
     // the trap syscall numbers (mov [esp],N before the syscall pointer call)
     CHECK(game.eq(LNX_G_TRAP_CVAR_REGISTER + 0x2e, (const uint8_t*)"\xc7\x04\x24\x04\x00\x00\x00", 7));
     CHECK(game.eq(LNX_G_TRAP_CVAR_SET + 0x20, (const uint8_t*)"\xc7\x04\x24\x06\x00\x00\x00", 7));

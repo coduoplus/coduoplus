@@ -44,6 +44,7 @@ set(COD1RELOADED_SOURCES
     src/netcode/competitive.cpp
     src/netcode/competitive_sv.cpp
     src/shared/competitive_spec.cpp
+    src/shared/antilag_core.cpp
     src/features/pam_install.cpp
     src/netcode/version_gate.cpp
     src/video/window_patch.cpp
@@ -249,11 +250,18 @@ target_compile_options(test_competitive_sv PRIVATE -Wall -Wextra -Wno-unused-par
 target_link_options(test_competitive_sv PRIVATE -static -static-libgcc -static-libstdc++)
 add_test(NAME competitive_sv COMMAND test_competitive_sv)
 
+# The lag-compensation core (history, rewind, restore) on a fake entity array.
+add_executable(test_antilag tests/test_antilag.cpp src/shared/antilag_core.cpp)
+target_include_directories(test_antilag PRIVATE src)
+target_compile_options(test_antilag PRIVATE -Wall -Wextra -O2)
+target_link_options(test_antilag PRIVATE -static -static-libgcc -static-libstdc++)
+add_test(NAME antilag COMMAND test_antilag)
+
 # Test labels, for CI (.github/workflows/ci.yml):
 #   portable  - needs nothing but the build: runs on GitHub's hosted Windows runner
 #   game      - needs a CoD:UO 1.51 install (CODUO_GAME_DIR): self-hosted runner only
 #   timing    - wall-clock measurements: a quiet machine, not a shared hosted VM
-foreach(t doc_links ini_lock competitive_sv)
+foreach(t doc_links ini_lock competitive_sv antilag)
     if (TEST ${t})
         set_tests_properties(${t} PROPERTIES LABELS portable)
     endif()

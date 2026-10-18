@@ -415,16 +415,11 @@ void load_config(HMODULE self_module) {
     // decided how far the DRAWN enemy sat from the skeleton the server tests, which is
     // the definition of a setting a player must not own.
 
-    g_antilag_config.diag_enable = read_ini_bool(
-        ini_path, "antilag_diag_enable", g_antilag_config.diag_enable);
-    g_antilag_config.diag_log_count = read_ini_int(
-        ini_path, "antilag_diag_log_count", g_antilag_config.diag_log_count);
-    // antilag_fire_hook_enable / _capture_enable / _rewind_enable / _rewind_test_z /
-    // _rewind_test_self: NO LONGER READ FROM THE INI (1.6.5). These five change how shots
-    // are captured and rewound - i.e. whether a hit registers - and that is not something
-    // a player may set for himself in a text file. Their hardcoded defaults (all off)
-    // stand. The two diag_* keys above are kept: they only write to coduoplus.log and
-    // change nothing the game does.
+    // Hosting only: the DEFAULTS of the server cvars g_antilag / g_antilagMaxMs when this
+    // game runs a server. They decide hits for everyone on that server, which is the
+    // host's call (the same as any server cvar), and a +set or rcon value wins.
+    g_antilag_config.enable = read_ini_bool(ini_path, "antilag", g_antilag_config.enable);
+    g_antilag_config.max_ms = read_ini_int(ini_path, "antilag_max_ms", g_antilag_config.max_ms);
 
     // the keys the mod imposes: file brought in line, values forced (core/ini_lock.cpp)
     ini_lock_apply(ini_path);
@@ -472,14 +467,8 @@ void load_config(HMODULE self_module) {
     logger::logf("  discord_rpc: enable=%s client_id=%s",
                  g_discord_rpc_config.enable ? "true" : "false",
                  g_discord_rpc_config.client_id[0] ? g_discord_rpc_config.client_id : "(none)");
-    logger::logf("  antilag: diag=%s log_count=%d fire_hook=%s capture=%s rewind=%s (test_z=%d test_self=%s)",
-                 g_antilag_config.diag_enable ? "true" : "false",
-                 g_antilag_config.diag_log_count,
-                 g_antilag_config.fire_hook_enable ? "true" : "false",
-                 g_antilag_config.capture_enable ? "true" : "false",
-                 g_antilag_config.rewind_enable ? "true" : "false",
-                 g_antilag_config.rewind_test_z,
-                 g_antilag_config.rewind_test_self ? "true" : "false");
+    logger::logf("  antilag (hosting): enable=%s max_ms=%d",
+                 g_antilag_config.enable ? "true" : "false", g_antilag_config.max_ms);
 }
 
 }  // namespace patches

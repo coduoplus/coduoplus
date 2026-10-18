@@ -21,6 +21,9 @@
  *                                    EOVERFLOW on Windows drives under WSL / Docker
  *                                    Desktop and on big XFS/btrfs disks: it would find
  *                                    no pk3s at all)
+ *   7. lag compensation             (g_antilag: shots are traced against where the
+ *                                    other players were when the shooter saw them,
+ *                                    shared/antilag_core.cpp - same code as Windows)
  *
  * The values both sides must agree on come from src/shared/coduoplus_shared.h, the
  * spec builder from src/shared/competitive_spec.cpp - the same files the Windows DLL
@@ -34,6 +37,8 @@
  *   CODUOPLUS_SNAPS=0          keep the vanilla snaps cap of 30
  *   CODUOPLUS_COMPETITIVE_FILE path of competitive.cfg (default: ./competitive.cfg)
  *   CODUOPLUS_LFS=0            leave the engine's stat/readdir alone
+ *   CODUOPLUS_ANTILAG=0        default of g_antilag (1); `+set g_antilag` / rcon win
+ *   CODUOPLUS_ANTILAG_MAXMS=n  default of g_antilagMaxMs (300)
  */
 
 #ifndef _GNU_SOURCE
@@ -55,6 +60,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "shared/antilag_core.h"
 #include "shared/coduoplus_shared.h"
 #include "shared/competitive_spec.h"
 #include "sites_151b.h"
@@ -135,6 +141,8 @@ typedef void  (*trap_Cvar_Register_t)(void*, const char*, const char*, int);
 typedef void  (*trap_Cvar_Set_t)(const char*, const char*);
 typedef void  (*trap_Cvar_StringBuf_t)(const char*, char*, int);
 typedef void  (*trap_GetUserinfo_t)(int, char*, int);
+typedef void  (*Bullet_Fire_t)(void*, uint32_t, uint32_t, void*, void*);  // spread/damage passed through as raw bits
+typedef void  (*trap_LinkEntity_t)(void*);
 struct Game {
     uintptr_t             base = 0;
     ClientConnect_t       ClientConnect = nullptr;
@@ -143,6 +151,9 @@ struct Game {
     trap_Cvar_Set_t       Cvar_Set = nullptr;
     trap_Cvar_StringBuf_t Cvar_StringBuf = nullptr;
     trap_GetUserinfo_t    GetUserinfo = nullptr;
+    Bullet_Fire_t         Bullet_Fire = nullptr;
+    trap_LinkEntity_t     LinkEntity = nullptr;
+    uint8_t*              entities = nullptr;
     bool                  swing_mirrored = false;
     bool                  hooked = false;
     // per-load publishing state (reset on every load)
@@ -153,6 +164,9 @@ struct Game {
     bool                  cfg_first = true;
     std::string           published;
     int                   verify_frames = 0;
+    int                   antilag = 0;            // g_antilag, polled once a second
+    int                   antilag_max_ms = ANTILAG_MAXMS_DEFAULT;
+    long                  next_antilag_poll_ms = 0;
 } g;
 
 alignas(16) char g_vmcvar[1024];      // scratch vmCvar_t for trap_Cvar_Register
@@ -271,6 +285,46 @@ char* hk_ClientConnect(int clientNum, int firstTime) {
 }
 
 // ---------------------------------------------------------------------------------
+// 6. lag compensation (game thread: G_RunFrame records, Bullet_Fire rewinds)
+// ---------------------------------------------------------------------------------
+const char* env_or(const char* name, const char* dflt) {
+    const char* v = getenv(name);
+    return (v && v[0]) ? v : dflt;
+}
+
+void poll_antilag() {
+    const long now = now_ms();
+    if (now < g.next_antilag_poll_ms) return;
+    g.next_antilag_poll_ms = now + 1000;
+    char v[32] = "";
+    g.Cvar_StringBuf(ANTILAG_CVAR, v, sizeof(v));
+    const int mode = atoi(v);
+    g.Cvar_StringBuf(ANTILAG_MAXMS_CVAR, v, sizeof(v));
+    const int max_ms = atoi(v);
+    if (mode != g.antilag || max_ms != g.antilag_max_ms)
+        lg("antilag: %s=%d %s=%d%s", ANTILAG_CVAR, mode, ANTILAG_MAXMS_CVAR, max_ms,
+           mode ? "" : " (off: shots hit where players are now)");
+    g.antilag = mode;
+    g.antilag_max_ms = max_ms;
+}
+
+void hk_Bullet_Fire(void* attacker, uint32_t spread, uint32_t damage, void* wp, void* self) {
+    bool rewound = false;
+    if (g.antilag > 0 && !patches::antilag::active()) {
+        const int shooter = patches::antilag::shooter_of(g.entities, attacker, self);
+        patches::antilag::Shot s;
+        if (shooter >= 0) {
+            rewound = patches::antilag::rewind(g.entities, shooter, g.antilag_max_ms, g.LinkEntity, &s);
+            if (g.antilag >= 2)
+                lg("antilag: client %d shot, world at %d (cmd %d, %d ms back), %d player(s) moved, max %.1f units",
+                   shooter, s.target_time, s.cmd_time, s.now - s.target_time, s.moved, s.max_dist);
+        }
+    }
+    g.Bullet_Fire(attacker, spread, damage, wp, self);
+    if (rewound) patches::antilag::restore(g.entities, g.LinkEntity);
+}
+
+// ---------------------------------------------------------------------------------
 // 3 + 5. publishing (game thread: G_RunFrame)
 // ---------------------------------------------------------------------------------
 std::string cfg_path() {
@@ -333,14 +387,25 @@ void hk_G_RunFrame(int levelTime) {
         for (int i = 0; i < patches::COMP_SV_CHUNKS; ++i)
             g.Cvar_Register(g_vmcvar, patches::competitive_chunk_name(i).c_str(), "",
                             CODUOPLUS_CVAR_SYSTEMINFO);
+        // 6. lag compensation: serverinfo, so server browsers show it; a +set or rcon
+        // value wins over this default
+        char d[16];
+        snprintf(d, sizeof(d), "%d", ANTILAG_DEFAULT);
+        g.Cvar_Register(g_vmcvar, ANTILAG_CVAR, env_or("CODUOPLUS_ANTILAG", d), CODUOPLUS_CVAR_SERVERINFO);
+        snprintf(d, sizeof(d), "%d", ANTILAG_MAXMS_DEFAULT);
+        g.Cvar_Register(g_vmcvar, ANTILAG_MAXMS_CVAR, env_or("CODUOPLUS_ANTILAG_MAXMS", d), 0);
+        g.antilag = -1;                       // force the first poll to log the state
     }
     publish_competitive();
+    poll_antilag();
     if (g.verify_frames > 0 && --g.verify_frames == 0) {
         char v[256] = "";
         g.Cvar_StringBuf(COMP_SPEC_CVAR, v, sizeof(v));
         lg("competitive_sv: engine holds sv_competitive \"%s\"", v);
     }
     g.G_RunFrame(levelTime);
+    // after the frame: the positions the snapshot about to go out shows
+    patches::antilag::record(g.entities, levelTime, g.LinkEntity);
 }
 
 // ---------------------------------------------------------------------------------
@@ -371,6 +436,9 @@ void on_game_loaded(void* h, const char* file) {
     ng.Cvar_StringBuf = sym<trap_Cvar_StringBuf_t>(h, "trap_Cvar_VariableStringBuffer", base, LNX_G_TRAP_CVAR_STRINGBUF, &ok);
     ng.GetUserinfo    = sym<trap_GetUserinfo_t>(h, "trap_GetUserinfo", base, LNX_G_TRAP_GETUSERINFO, &ok);
     sym<void*>(h, "bg_swingSpeed", base, LNX_G_BG_SWINGSPEED, &ok);
+    ng.Bullet_Fire    = sym<Bullet_Fire_t>(h, "Bullet_Fire", base, LNX_G_BULLET_FIRE, &ok);
+    ng.LinkEntity     = sym<trap_LinkEntity_t>(h, "trap_LinkEntity", base, LNX_G_TRAP_LINKENTITY, &ok);
+    ng.entities       = sym<uint8_t*>(h, "g_entities", base, LNX_G_ENTITIES, &ok);
     ok = ok && sites_match(base, LNX_GAME_SITES, sizeof(LNX_GAME_SITES) / sizeof(LNX_GAME_SITES[0]), "game");
     if (!ok) {
         lg("game: %s at 0x%08x is not the 1.51b game module - no CoDUO+ features this map", file,
@@ -406,6 +474,13 @@ void on_game_loaded(void* h, const char* file) {
     // 4 + 5. hooks through the PLT slots vmMain uses
     const uintptr_t cc = (uintptr_t)&hk_ClientConnect, rf = (uintptr_t)&hk_G_RunFrame;
     ng.hooked = poke(base + LNX_G_GOT_CLIENTCONNECT, &cc, 4) && poke(base + LNX_G_GOT_RUNFRAME, &rf, 4);
+    // 6. lag compensation: the Bullet_Fire PLT slot every weapon goes through. A new
+    // module has new entities: no history carries over.
+    patches::antilag::reset();
+    const uintptr_t bf = (uintptr_t)&hk_Bullet_Fire;
+    const bool al = ng.hooked && poke(base + LNX_G_GOT_BULLET_FIRE, &bf, 4);
+    lg("antilag: Bullet_Fire hook %s (%s / %s control it)", al ? "installed" : "FAILED",
+       ANTILAG_CVAR, ANTILAG_MAXMS_CVAR);
     g = ng;
     snprintf(g_reject, sizeof(g_reject), "Update coduoplus to %s+ to join this server.", g_shortversion);
     lg("game: %s loaded at 0x%08x - ClientConnect gate %s, G_RunFrame hook %s (min coduoplus=%d)",

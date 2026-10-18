@@ -36,6 +36,8 @@
 #include "gameplay/swing_fix.h"
 #include "gameplay/stance_fix.h"
 #include "netcode/version_gate.h"
+#include "netcode/antilag.h"
+#include "shared/antilag_core.h"
 
 #include <cstdio>
 #include <cstring>
@@ -511,6 +513,63 @@ void check_game_version() {
           g_exe.cstr_eq(g_exe.u32(0x45f0da), "\x15" "SV_GetUserinfo: bufferSize == %i"));
 }
 
+// game: lag compensation hook sites (netcode/antilag.h), same build table idea
+void check_game_antilag() {
+    using namespace patches;
+    using namespace patches::antilag;
+    const uint32_t B = g_game.base;
+    const AntilagSites* b = nullptr;
+    for (const AntilagSites& v : ANTILAG_BUILDS)
+        if (v.timestamp == g_game.timestamp) b = &v;
+    CHECK_MSG(b != nullptr, "uo_game_mp_x86.dll is a build listed in ANTILAG_BUILDS");
+    if (!b) return;
+    // G_RunFrame: sub esp,0x410 then reads level.time; called once, from vmMain
+    const uint32_t rf = B + b->runframe;
+    CHECK(g_game.bytes_eq(rf, {0x81, 0xec, 0x10, 0x04, 0x00, 0x00}));
+    CHECK(contains_u32(g_game, rf, 0x20, 0x2030fcac));
+    const uint32_t vmmain = g_game.export_va("vmMain");
+    CHECK(is_call_to(g_game, B + b->runframe_site, rf));
+    CHECK(vmmain != 0 && B + b->runframe_site > vmmain && B + b->runframe_site - vmmain < 0x200);
+    // Bullet_Fire_Extended: sub esp,0x58 ; mov eax,[esp+0x70] (= arg 6, the depth) ;
+    // depth > 12 -> push "Bullet_Fire_Extended: Too many resursions..."
+    const uint32_t ext = B + b->extended;
+    CHECK(g_game.bytes_eq(ext, {0x83, 0xec, 0x58, 0x8b, 0x44, 0x24, 0x70}));
+    CHECK(push_str(g_game, ext + 0x15, "Bullet_Fire_Extended: Too many resursions, bullet aborted\n"));
+    // every call to it: the five root sites we redirect, plus its own two recursions
+    int roots = 0, inside = 0, total = 0;
+    for (const Image::Section& s : g_game.sections) {
+        if (!s.code) continue;
+        for (uint32_t va = B + s.rva; va + 5 <= B + s.rva + s.vsize; ++va) {
+            if (g_game.u8(va) != 0xe8 || g_game.call_target(va) != ext) continue;
+            ++total;
+            bool root = false;
+            for (uintptr_t r : b->shot_sites) root |= (va == B + r);
+            if (root) ++roots;
+            else if (va > ext && va < ext + 0xf40) ++inside;
+        }
+    }
+    CHECK(roots == 5 && inside == 2 && total == 7);
+    // (each root call passes depth 0; the shot hook re-checks arg 6 at run time and
+    // only rewinds a depth-0 call)
+    // g_entities: the array base the whole game indexes with stride 0x34c
+    int ent_refs = 0;
+    for (const Image::Section& s : g_game.sections) {
+        if (!s.code) continue;
+        for (uint32_t va = B + s.rva; va + 4 <= B + s.rva + s.vsize; ++va)
+            if (g_game.u32(va) == B + ANTILAG_ENTITIES_RVA) ++ent_refs;
+    }
+    CHECK_MSG(ent_refs > 50, "g_entities base referenced throughout uo_game");
+    CHECK(ENT_STRIDE == 0x34c && ENT_CLIENT == 0x160);
+    // syscall 53 is SV_LinkEntity: same two-level switch as syscall 33 above, and the
+    // target is the function that warns "Object %i touching 3 areas"
+    const uint32_t case53 = g_exe.u32(0x45e724 + 4 * g_exe.u8(0x45e988 + G_LINKENTITY));
+    bool calls_link = false;
+    for (uint32_t va = case53; va < case53 + 0x40; ++va) calls_link |= is_call_to(g_exe, va, 0x467050);
+    CHECK_MSG(calls_link, "syscall 53 dispatches to SV_LinkEntity (0x467050)");
+    const std::vector<uint32_t> obj = g_exe.find_cstr("Object %i touching 3 areas at %f %f %f\n");
+    CHECK(obj.size() == 1 && contains_u32(g_exe, 0x467050, 0x400, obj[0]));
+}
+
 struct Group {
     const char* name;
     bool enabled;
@@ -557,7 +616,7 @@ int main(int argc, char** argv) {
         {"game_swing", port::GAME_SWING, check_game_swing},
         {"game_viewheight", port::GAME_VIEWHEIGHT, nullptr},
         {"game_version", port::GAME_VERSION, check_game_version},
-        {"game_antilag", port::GAME_ANTILAG, nullptr},
+        {"game_antilag", port::GAME_ANTILAG, check_game_antilag},
     };
 
     for (const Group& g : groups) {

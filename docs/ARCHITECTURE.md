@@ -178,7 +178,7 @@ which a UO server running CoDUO+ could publish in the same way.
 | Folder | Contents |
 | --- | --- |
 | `src/core/` | `main.cpp` (DllMain, watcher), `game.*` (build identity, names, `port::` switches), `patches.cpp` (ini loading), logger, IAT hook helper, single-instance guard, toasts |
-| `src/netcode/` | protocol/master, competitive caps + server spec, version patch, server version gate, antilag (off) |
+| `src/netcode/` | protocol/master, competitive caps + server spec, version patch, server version gate, lag compensation glue (core in `src/shared/antilag_core.cpp`) |
 | `src/gameplay/` | swing (client + server), stance, lean (off), viewheight (off), anim clamp (reverted upstream) |
 | `src/video/` | Hor+/stretch FOV, borderless window, fullscreen default, display probe, mode guard, gamma |
 | `src/performance/` | frame limiter, 1 ms timer, CPU affinity, priority, working set, FSO |
