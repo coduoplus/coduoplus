@@ -16,6 +16,7 @@
 #include "video/window_patch.h"
 #include "features/settings_menu.h"   // refresh_rate "max", max_hz_native_res, menu_ini_writeback
 #include "core/logger.h"
+#include "core/game.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -60,7 +61,7 @@ bool read_config_mp(char** buf_out) {
     *(slash + 1) = '\0';
 
     char cfg_path[MAX_PATH];
-    if (snprintf(cfg_path, sizeof(cfg_path), "%smain\\config_mp.cfg", exe_path)
+    if (snprintf(cfg_path, sizeof(cfg_path), "%s%s\\%s", exe_path, GAME_BASE_DIR, GAME_CONFIG_MP)
         >= (int)sizeof(cfg_path)) return false;
 
     FILE* f = fopen(cfg_path, "rb");
@@ -131,7 +132,7 @@ void display_mode_guard() {
         gw = g_widescreen_config.width;
         gh = g_widescreen_config.height;
     } else if (!probe_config_resolution(&gw, &gh)) {
-        logger::logf("display_probe: no resolution in config_mp.cfg - leaving display "
+        logger::logf("display_probe: no resolution in uoconfig_mp.cfg - leaving display "
                      "settings as configured");
         return;
     }
@@ -234,13 +235,13 @@ void enforce_ini_fullscreen() {
     if (!slash) { free(buf); return; }
     *(slash + 1) = '\0';
     char cfg_path[MAX_PATH];
-    if (snprintf(cfg_path, sizeof(cfg_path), "%smain\\config_mp.cfg", exe_path)
+    if (snprintf(cfg_path, sizeof(cfg_path), "%s%s\\%s", exe_path, GAME_BASE_DIR, GAME_CONFIG_MP)
         >= (int)sizeof(cfg_path)) { free(buf); return; }
 
     const size_t total = strlen(buf);
     FILE* f = fopen(cfg_path, "wb");
     if (!f) {
-        logger::logf("display_probe: config_mp.cfg has r_fullscreen %d but the .ini says "
+        logger::logf("display_probe: uoconfig_mp.cfg has r_fullscreen %d but the .ini says "
                      "fullscreen = %s - cannot rewrite it (err=%lu)", have,
                      want ? "on" : "off", GetLastError());
         free(buf);
@@ -251,7 +252,7 @@ void enforce_ini_fullscreen() {
     fwrite(buf + pos + vlen, 1, total - (size_t)pos - (size_t)vlen, f);
     fclose(f);
     free(buf);
-    logger::logf("display_probe: config_mp.cfg had r_fullscreen %d but coduoplus.ini "
+    logger::logf("display_probe: uoconfig_mp.cfg had r_fullscreen %d but coduoplus.ini "
                  "says fullscreen = %s -> rewritten to %d (an older build left it there; "
                  "set the .ini key to what you want)", have, want ? "on" : "off", want);
 }
@@ -264,7 +265,7 @@ void enforce_ini_fullscreen() {
 // The engine asks 1440x1080 @ 200 -> BADMODE -> mode_guard falls back to the best the
 // driver lists there, 180. No API creates a driver mode, so the only way to the panel's
 // maximum is to RUN AT THE RESOLUTION THAT HAS IT and emulate the old look:
-//   * config_mp.cfg is rewritten to that resolution @ max Hz (before Com_Init reads it),
+//   * uoconfig_mp.cfg is rewritten to that resolution @ max Hz (before Com_Init reads it),
 //   * a 4:3 config on a 16:9 panel was a stretched setup (the monitor stretched it):
 //     view_mode = stretched makes the mod do that stretch instead - same 4:3 vertical
 //     FOV, same 640x480 HUD scaling, only sharper.
@@ -325,7 +326,7 @@ bool write_config_mp(const char* buf) {
     if (!slash) return false;
     *(slash + 1) = '\0';
     char cfg_path[MAX_PATH];
-    if (snprintf(cfg_path, sizeof(cfg_path), "%smain\\config_mp.cfg", exe_path) >= (int)sizeof(cfg_path)) return false;
+    if (snprintf(cfg_path, sizeof(cfg_path), "%s%s\\%s", exe_path, GAME_BASE_DIR, GAME_CONFIG_MP) >= (int)sizeof(cfg_path)) return false;
     FILE* f = fopen(cfg_path, "wb");
     if (!f) return false;
     const size_t n = strlen(buf);
@@ -371,7 +372,7 @@ void enforce_max_hz_native() {
             char v[16]; snprintf(v, sizeof(v), "%d", target);
             cfg_put(&buf, "r_displayRefresh", v);
             if (write_config_mp(buf))
-                logger::logf("display_probe: config_mp.cfg asked %d Hz, %dx%d is listed at %d Hz -> r_displayRefresh %d",
+                logger::logf("display_probe: uoconfig_mp.cfg asked %d Hz, %dx%d is listed at %d Hz -> r_displayRefresh %d",
                              have, gw, gh, target, target);
         }
         free(buf);
@@ -401,7 +402,7 @@ void enforce_max_hz_native() {
     free(buf);
     if (!written) {
         logger::logf("display_probe: %dx%d is listed up to %d Hz, the display does %d Hz at %dx%d - "
-                     "could not rewrite config_mp.cfg (err=%lu)", gw, gh, best_at_res, best_any, best_any_w, best_any_h, GetLastError());
+                     "could not rewrite uoconfig_mp.cfg (err=%lu)", gw, gh, best_at_res, best_any, best_any_w, best_any_h, GetLastError());
         return;
     }
     if (was_stretched) {
@@ -410,7 +411,7 @@ void enforce_max_hz_native() {
         menu_ini_writeback("view_mode", "stretched");
     }
     logger::logf("display_probe: %dx%d is listed up to %d Hz only, the display does %d Hz at %dx%d -> "
-                 "config_mp.cfg set to %dx%d @ %d Hz%s (max_hz_native_res = off in coduoplus.ini to keep the custom res)",
+                 "uoconfig_mp.cfg set to %dx%d @ %d Hz%s (max_hz_native_res = off in coduoplus.ini to keep the custom res)",
                  gw, gh, best_at_res, best_any, best_any_w, best_any_h, best_any_w, best_any_h, best_any,
                  was_stretched ? ", view_mode = stretched (the 4:3 stretch is now done by the mod, same look)" : "");
 }

@@ -4,6 +4,7 @@
 #include "features/demo_upload.h"
 #include "core/toast.h"
 #include "core/logger.h"
+#include "core/game.h"
 
 #include <wininet.h>
 #include <cstdio>
@@ -34,7 +35,7 @@ bool resolve_demos_dir(char* out_path, size_t out_size) {
     char* slash = strrchr(exe_path, '\\');
     if (!slash) return false;
     *slash = '\0';
-    int n = snprintf(out_path, out_size, "%s\\main\\demos", exe_path);
+    int n = snprintf(out_path, out_size, "%s\\%s\\demos", exe_path, GAME_BASE_DIR);
     return n > 0 && (size_t)n < out_size;
 }
 

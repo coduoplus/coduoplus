@@ -190,7 +190,7 @@ extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
             // which it can turn off for this launch.
             patches::display_mode_guard();
             // `fullscreen = on/off` in the .ini beats a stale `seta r_fullscreen` left in
-            // config_mp.cfg by an older build (players windowed without knowing why)
+            // uoconfig_mp.cfg by an older build (players windowed without knowing why)
             patches::enforce_ini_fullscreen();
             // refresh_rate = max: a custom res the driver lists below the panel's max Hz
             // is swapped for the res that has it (4:3 stretch emulated by the mod)

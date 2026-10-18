@@ -110,7 +110,7 @@ bool get_hud_png_path(const char* variant, char* out, size_t n) {
     char* slash = strrchr(exe, '\\');
     if (!slash) return false;
     *(slash + 1) = '\0';
-    int w = snprintf(out, n, "%smain\\hud\\hud-%s.png", exe, variant);
+    int w = snprintf(out, n, "%s%s\\hud\\hud-%s.png", exe, GAME_BASE_DIR, variant);
     return w > 0 && (size_t)w < n;
 }
 
@@ -775,13 +775,13 @@ bool prepare_target_dir(char* out_dir, size_t out_size) {
     char p[MAX_PATH];
     snprintf(p, sizeof(p), "%smain", exe);
     CreateDirectoryA(p, NULL);
-    snprintf(p, sizeof(p), "%smain\\textures", exe);
+    snprintf(p, sizeof(p), "%s%s\\textures", exe, GAME_BASE_DIR);
     CreateDirectoryA(p, NULL);
-    snprintf(p, sizeof(p), "%smain\\textures\\coduoplus", exe);
+    snprintf(p, sizeof(p), "%s%s\\textures\\coduoplus", exe, GAME_BASE_DIR);
     CreateDirectoryA(p, NULL);
 
     int written = snprintf(out_dir, out_size,
-                           "%smain\\textures\\coduoplus\\", exe);
+                           "%s%s\\textures\\coduoplus\\", exe, GAME_BASE_DIR);
     return written > 0 && (size_t)written < out_size;
 }
 
@@ -1036,7 +1036,7 @@ bool get_pk3_path(char* out, size_t out_size) {
     char* slash = strrchr(exe, '\\');
     if (!slash) return false;
     *(slash + 1) = '\0';
-    int n = snprintf(out, out_size, "%smain\\z_coduoplus.pk3", exe);
+    int n = snprintf(out, out_size, "%s%s\\z_coduoplus.pk3", exe, GAME_BASE_DIR);
     return n > 0 && (size_t)n < out_size;
 }
 

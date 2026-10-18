@@ -17,11 +17,11 @@ constexpr uintptr_t CODMP_RFULLSCREEN_PUSH_OPERAND_RVA = 0x000c3f43; // 4 bytes 
 constexpr uintptr_t CODMP_RFULLSCREEN_ORIGINAL_PTR     = 0x005924a4; // ptr to "1\0"
 
 struct FullscreenConfig {
-    // gotcha: CVAR_ARCHIVE seta in config_mp.cfg overrides this default
+    // gotcha: CVAR_ARCHIVE seta in uoconfig_mp.cfg overrides this default
     bool force_windowed_default;
     // true when coduoplus.ini spells out `fullscreen = on/off`: then the .ini is the
     // player's decision and display_probe rewrites a disagreeing seta r_fullscreen in
-    // config_mp.cfg (see enforce_ini_fullscreen). false = key absent, config wins.
+    // uoconfig_mp.cfg (see enforce_ini_fullscreen). false = key absent, config wins.
     bool ini_key_present;
 };
 
