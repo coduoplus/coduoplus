@@ -1,87 +1,107 @@
-# Build + packaging d'une release cod1reloaded prete a uploader sur GitHub.
+# Build + package a CoDUO+ release, ready to upload to GitHub.
 #
-# Usage :
-#   .\release.ps1                 (version lue depuis src/features/updater.h)
-#   .\release.ps1 -Version 1.0.1  (override)
+# Usage:
+#   .\release.ps1                                   (version read from src/features/updater.h)
+#   .\release.ps1 -Version 0.1.1                    (override)
+#   .\release.ps1 -Repo owner/name                  (repo the manifest's download_url points at)
+#   .\release.ps1 -Game "D:\Call of Duty - Copy"    (install the UI pk3 is generated from)
 #
-# Produit dans dist/ :
-#   - mss32.dll                  (a uploader sur la Release)
-#   - manifest.json              (a uploader sur la Release)
-#   - cod1reloaded-<ver>.zip     (paquet joueur : dll + ini + LISEZMOI)
-param([string]$Version = "")
+# Runs the tests first (ctest: site_check against the stock 1.51 binaries in -Game)
+# and refuses to package a build that fails them.
+#
+# Produces in dist/:
+#   - mss32.dll                   (upload to the Release)
+#   - manifest.json               (upload to the Release; the updater reads it)
+#   - zz_coduoplus_ui.pk3         (upload to the Release; generated, see ui_pk3/build_pk3.py)
+#   - coduoplus-<ver>.zip         (player package: mss32.dll, coduoplus.ini, uo\zz_coduoplus_ui.pk3, README)
+param(
+    [string]$Version = "",
+    [string]$Repo = "",
+    [string]$Game = "D:\Call of Duty - Copy"
+)
 
+$ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 
-# --- Version : source de verite = src/features/updater.h ---
+# --- Version: single source of truth = src/features/updater.h ---
 if (-not $Version) {
     $h = Get-Content (Join-Path $root "src\features\updater.h") -Raw
     if ($h -match 'COD1RELOADED_VERSION\s*=\s*"([0-9.]+)"') { $Version = $Matches[1] }
-    else { Write-Error "Version introuvable dans src/features/updater.h"; exit 1 }
+    else { Write-Error "Version not found in src/features/updater.h"; exit 1 }
 }
-Write-Host "=== Release cod1reloaded v$Version ===" -ForegroundColor Cyan
+Write-Host "=== CoDUO+ release v$Version ===" -ForegroundColor Cyan
 
-# --- Toolchain MinGW 32-bit ---
-$cands = @("$root\tools\mingw\bin", "C:\msys64\mingw32\bin", "C:\mingw32\bin")
-$mingw = $cands | Where-Object { Test-Path (Join-Path $_ "i686-w64-mingw32-g++.exe") } | Select-Object -First 1
-if (-not $mingw) { Write-Error "MinGW 32-bit introuvable"; exit 1 }
-$cmake = Join-Path $mingw "cmake.exe"; if (-not (Test-Path $cmake)) { $cmake = "cmake.exe" }
+# --- 32-bit MinGW toolchain (WinLibs i686 in C:\tools\mingw32, or MSYS2 mingw32) ---
+$cands = @("C:\tools\mingw32\bin", "$root\tools\mingw\bin", "C:\msys64\mingw32\bin", "C:\mingw32\bin")
+$mingw = $cands | Where-Object { Test-Path (Join-Path $_ "g++.exe") } | Select-Object -First 1
+if (-not $mingw) { Write-Error "32-bit MinGW not found (looked in: $($cands -join ', '))"; exit 1 }
 $env:PATH = "$mingw;$env:PATH"
 
-$build = Join-Path $root "build"
+$build = Join-Path $root "build-release"
+& cmake -S $root -B $build -G Ninja -DCMAKE_BUILD_TYPE=Release `
+    -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ "-DCODUO_GAME_DIR=$Game" | Out-Null
+if ($LASTEXITCODE) { Write-Error "CMake configure failed"; exit 1 }
 
-# --- Configure si besoin ---
-if (-not (Test-Path (Join-Path $build "CMakeCache.txt"))) {
-    Write-Host "Configuration CMake..."
-    $a = @("-S","$root","-B","$build","-G","MinGW Makefiles","-DCMAKE_BUILD_TYPE=Release",
-           "-DCMAKE_MAKE_PROGRAM=$mingw\mingw32-make.exe",
-           "-DCMAKE_C_COMPILER=$mingw\i686-w64-mingw32-gcc.exe",
-           "-DCMAKE_CXX_COMPILER=$mingw\i686-w64-mingw32-g++.exe")
-    Start-Process $cmake -ArgumentList $a -NoNewWindow -Wait | Out-Null
-}
-
-# --- Build Release ---
-Write-Host "Compilation..."
-$p = Start-Process $cmake -ArgumentList "--build","$build","--config","Release" -NoNewWindow -PassThru -Wait
+Write-Host "Building..."
+& cmake --build $build
+if ($LASTEXITCODE) { Write-Error "Build failed"; exit 1 }
 $dll = Join-Path $build "mss32.dll"
-if (-not (Test-Path $dll)) { Write-Error "Build echoue : build\mss32.dll introuvable (exit $($p.ExitCode))"; exit 1 }
+if (-not (Test-Path $dll)) { $dll = Join-Path $root "build\mss32.dll" }  # COD1RELOADED_OUTPUT_DIR
+if (-not (Test-Path $dll)) { Write-Error "mss32.dll not found after build"; exit 1 }
+
+Write-Host "Testing..."
+& ctest --test-dir $build --output-on-failure
+if ($LASTEXITCODE) { Write-Error "Tests failed - not packaging this build"; exit 1 }
 
 # --- dist/ ---
 $dist = Join-Path $root "dist"
 Remove-Item -Recurse -Force $dist -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $dist | Out-Null
 Copy-Item $dll (Join-Path $dist "mss32.dll")
-Copy-Item (Join-Path $root "cod1reloaded.ini") (Join-Path $dist "cod1reloaded.ini")
+Copy-Item (Join-Path $root "coduoplus.ini") (Join-Path $dist "coduoplus.ini")
+& python -I (Join-Path $root "ui_pk3\build_pk3.py") --game $Game
+if ($LASTEXITCODE) { Write-Error "UI pk3 build failed"; exit 1 }
 
 $readme = @"
-cod1reloaded $Version
+CoDUO+ $Version  -  Call of Duty: United Offensive 1.51 client mod
 
-Installation :
-1. Copier mss32.dll et cod1reloaded.ini dans le dossier de Call of Duty
-   (a cote de CoDMP.exe). Sauvegarder le mss32.dll d'origine au besoin.
-2. Lancer le jeu. Les mises a jour s'installent automatiquement.
+Install:
+1. In your game folder (the one with CoDUOMP.exe), rename mss32.dll to
+   mss32_original.dll. Do not skip this: the mod forwards all audio to it.
+2. Copy mss32.dll and coduoplus.ini next to CoDUOMP.exe.
+3. Copy uo\zz_coduoplus_ui.pk3 into the game's uo\ folder.
+4. Start CoDUOMP.exe as usual. coduoplus.log appears next to the DLL.
 
-Desinstallation : supprimer mss32.dll et cod1reloaded.ini.
+Uninstall: delete mss32.dll, coduoplus.ini and uo\zz_coduoplus_ui.pk3, then
+rename mss32_original.dll back to mss32.dll.
+
+Full documentation: README.md and docs\ in the source repository.
 "@
-Set-Content (Join-Path $dist "LISEZMOI.txt") $readme -Encoding ASCII
+Set-Content (Join-Path $dist "README.txt") $readme -Encoding ASCII
 
-# --- manifest.json (dist + racine repo) ---
+# --- manifest.json (dist + repo root) ---
+$url = if ($Repo) { "https://github.com/$Repo/releases/latest/download/mss32.dll" } else { "" }
 $manifest = @"
 {
   "version": "$Version",
-  "download_url": "https://github.com/cod1plus/client/releases/latest/download/mss32.dll",
-  "notes": "cod1reloaded $Version"
+  "download_url": "$url",
+  "notes": "CoDUO+ $Version - see CHANGELOG"
 }
 "@
 Set-Content (Join-Path $dist "manifest.json") $manifest -Encoding ASCII
 Set-Content (Join-Path $root "manifest.json") $manifest -Encoding ASCII
 
-# --- zip joueur ---
-$zip = Join-Path $dist "cod1reloaded-$Version.zip"
-Compress-Archive -Path (Join-Path $dist "mss32.dll"),(Join-Path $dist "cod1reloaded.ini"),(Join-Path $dist "LISEZMOI.txt") -DestinationPath $zip -Force
+# --- player zip, mirroring the game folder layout ---
+$stage = Join-Path $dist "stage"
+New-Item -ItemType Directory -Force (Join-Path $stage "uo") | Out-Null
+Copy-Item (Join-Path $dist "mss32.dll"), (Join-Path $dist "coduoplus.ini"), (Join-Path $dist "README.txt") $stage
+Copy-Item (Join-Path $dist "zz_coduoplus_ui.pk3") (Join-Path $stage "uo")
+$zip = Join-Path $dist "coduoplus-$Version.zip"
+Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -Force
+Remove-Item -Recurse -Force $stage
 
 Write-Host ""
 Write-Host "OK -> $dist" -ForegroundColor Green
-Write-Host "Cree la Release GitHub 'v$Version' et glisse :" -ForegroundColor Yellow
-Write-Host "  - mss32.dll"
-Write-Host "  - manifest.json"
-Write-Host "  - cod1reloaded-$Version.zip"
+Write-Host "Create the GitHub release 'v$Version' and attach:" -ForegroundColor Yellow
+Write-Host "  - mss32.dll, manifest.json, zz_coduoplus_ui.pk3, coduoplus-$Version.zip"
+if (-not $Repo) { Write-Host "  (manifest download_url is empty: pass -Repo owner/name to point the updater at it)" }

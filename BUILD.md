@@ -30,13 +30,13 @@ Un helper est aussi disponible pour les setups Windows ou le toolchain n'est pas
 dans le `PATH` :
 
 ```powershell
-.\build_cod1.ps1
+.\build.ps1
 ```
 
 Si PowerShell bloque l'execution des scripts, utilise :
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\build_cod1.ps1
+powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
 Le script cherche automatiquement un MinGW 32-bit dans :
@@ -49,8 +49,8 @@ Le script cherche automatiquement un MinGW 32-bit dans :
 Options utiles :
 
 ```powershell
-.\build_cod1.ps1 -Clean
-.\build_cod1.ps1 -Configuration Debug
+.\build.ps1 -Clean
+.\build.ps1 -Configuration Debug
 ```
 
 ## Test du proxy `mss32.dll`

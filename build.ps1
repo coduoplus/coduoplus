@@ -1,7 +1,8 @@
 param(
     [ValidateSet("Release", "Debug")]
     [string]$Configuration = "Release",
-    [switch]$Clean
+    [switch]$Clean,
+    [switch]$Test     # run ctest afterwards (needs the CoD:UO install, see docs/TESTING.md)
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,6 +26,7 @@ function Find-Tool {
 }
 
 $binCandidates = @(
+    "C:\tools\mingw32\bin",
     (Join-Path $repoRoot "tools\mingw\bin"),
     (Join-Path $repoRoot "cod2x\tools\mingw\bin"),
     "C:\msys64\mingw32\bin",
@@ -32,6 +34,7 @@ $binCandidates = @(
 )
 
 $cmakeCandidates = @(
+    "C:\tools\mingw32\bin\cmake.exe",
     (Join-Path $repoRoot "tools\mingw\bin\cmake.exe"),
     (Join-Path $repoRoot "cod2x\tools\mingw\bin\cmake.exe"),
     "C:\msys64\mingw32\bin\cmake.exe",
@@ -40,6 +43,7 @@ $cmakeCandidates = @(
 )
 
 $makeCandidates = @(
+    "C:\tools\mingw32\bin\mingw32-make.exe",
     (Join-Path $repoRoot "tools\mingw\bin\mingw32-make.exe"),
     (Join-Path $repoRoot "cod2x\tools\mingw\bin\mingw32-make.exe"),
     "C:\msys64\mingw32\bin\mingw32-make.exe",
@@ -101,10 +105,23 @@ if ($Clean -and (Test-Path $buildDir)) {
     Remove-Item -Recurse -Force $buildDir
 }
 
+# Generator: keep whatever an existing build dir was configured with (CMake refuses
+# to switch), else Ninja when the toolchain ships it (WinLibs does), else make.
+$generator = "MinGW Makefiles"
+$genArgs = @("-DCMAKE_MAKE_PROGRAM=$makeExe")
+$cache = Join-Path $buildDir "CMakeCache.txt"
+$ninjaExe = Join-Path $mingwBin "ninja.exe"
+if ((Test-Path $cache) -and ((Get-Content $cache -Raw) -match 'CMAKE_GENERATOR:INTERNAL=(.+)')) {
+    $generator = $Matches[1].Trim()
+} elseif (Test-Path $ninjaExe) {
+    $generator = "Ninja"
+}
+if ($generator -eq "Ninja") { $genArgs = @("-DCMAKE_MAKE_PROGRAM=$ninjaExe") }
+
 & $cmakeExe -S $repoRoot -B $buildDir `
-    -G "MinGW Makefiles" `
+    -G $generator `
     -DCMAKE_BUILD_TYPE=$Configuration `
-    -DCMAKE_MAKE_PROGRAM="$makeExe" `
+    @genArgs `
     -DCMAKE_C_COMPILER="$gccExe" `
     -DCMAKE_CXX_COMPILER="$gxxExe"
 
@@ -118,7 +135,13 @@ if ($LASTEXITCODE -ne 0) {
     throw "La compilation a echoue (code $LASTEXITCODE)."
 }
 
-$dllPath = Join-Path $buildDir "cod1reloaded.dll"
+if ($Test) {
+    $ctestExe = Join-Path (Split-Path -Parent $cmakeExe) "ctest.exe"
+    & $ctestExe --test-dir $buildDir --output-on-failure
+    if ($LASTEXITCODE -ne 0) { throw "Tests failed (code $LASTEXITCODE)." }
+}
+
+$dllPath = Join-Path $buildDir "coduoplus.dll"
 $proxyPath = Join-Path $buildDir "mss32.dll"
 
 if (-not (Test-Path $dllPath)) {
