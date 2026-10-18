@@ -248,3 +248,19 @@ target_include_directories(test_competitive_sv PRIVATE src)
 target_compile_options(test_competitive_sv PRIVATE -Wall -Wextra -Wno-unused-parameter -O2)
 target_link_options(test_competitive_sv PRIVATE -static -static-libgcc -static-libstdc++)
 add_test(NAME competitive_sv COMMAND test_competitive_sv)
+
+# Test labels, for CI (.github/workflows/ci.yml):
+#   portable  - needs nothing but the build: runs on GitHub's hosted Windows runner
+#   game      - needs a CoD:UO 1.51 install (CODUO_GAME_DIR): self-hosted runner only
+#   timing    - wall-clock measurements: a quiet machine, not a shared hosted VM
+foreach(t doc_links ini_lock competitive_sv)
+    if (TEST ${t})
+        set_tests_properties(${t} PROPERTIES LABELS portable)
+    endif()
+endforeach()
+foreach(t fetch_binaries site_check site_check_2005 ui_pk3 smoke_dedicated)
+    if (TEST ${t})
+        set_tests_properties(${t} PROPERTIES LABELS game)
+    endif()
+endforeach()
+set_tests_properties(frame_limiter PROPERTIES LABELS timing)

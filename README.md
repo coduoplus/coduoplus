@@ -87,6 +87,7 @@ Details in [BUILD.md](BUILD.md).
 | [docs/PORTING.md](docs/PORTING.md) | How the port was done, every decision and why, feature status, what's left |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the DLL loads, the startup sequence, the watcher thread, safe patching, client↔server agreement |
 | [docs/ADDRESSES.md](docs/ADDRESSES.md) | Every address, CoD1 → UO, with the evidence |
+| [docs/CI.md](docs/CI.md) | GitHub workflows, the self-hosted game runner, branch protection, cutting a release |
 | [docs/TESTING.md](docs/TESTING.md) | The test layers, how to run them, the manual client checklist |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every `coduoplus.ini` key |
 | [BUILD.md](BUILD.md) | Toolchain, build, deploy, release |

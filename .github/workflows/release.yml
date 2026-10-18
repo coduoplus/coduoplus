@@ -1,102 +1,186 @@
 name: Release
 
-# Builds mss32.dll and attaches the assets to the release automatically.
-#  - fires when you PUBLISH a release on GitHub (uses the release's tag), or
-#  - run it by hand (Actions tab -> Release -> Run workflow) on an existing tag.
+# Push a tag vX.Y.Z (matching COD1RELOADED_VERSION in src/features/updater.h) and this
+# builds, tests and publishes a GitHub release:
 #
-# Uses the stable Ubuntu i686-w64-mingw32 cross-compiler (the rolling msys2
-# toolchain on windows runners ships a bleeding-edge gcc that fails to
-# static-link, so cross-compile here).
+#   build     hosted Windows: mss32.dll + the no-rinput variant, portable tests
+#   game      self-hosted runner with the CoD:UO install: the full test suite against
+#             the stock binaries + the live dedicated-server smoke test, and the UI pk3
+#             (generated from the install's own pakuo03.pk3 - it cannot be built
+#             anywhere else, see ui_pk3/build_pk3.py)
+#   publish   only if both passed: player zip in the game folder layout, manifest.json
+#             for the updater, release notes from CHANGELOG.md
 #
-# CoD:UO port: the UI pk3 (zz_coduoplus_ui.pk3) is NOT built here. It is
-# generated from the player's own uo/pakuo03.pk3 (ui_pk3/build_pk3.py) so no
-# Activision file lives in the repo, and a CI runner has no game install.
-# release.ps1 builds it locally and can upload it to the same release.
+# Also runnable by hand (Actions -> Release -> Run workflow) on an existing tag.
+
 on:
-  release:
-    types: [published]
+  push:
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing release tag to build + attach assets to (e.g. 0.1.0)"
+        description: "Existing tag to (re)build and publish, e.g. v0.2.0"
         required: true
 
 permissions:
-  contents: write   # required for release upload with GITHUB_TOKEN
+  contents: write
+
+env:
+  WINLIBS_URL: https://github.com/brechtsanders/winlibs_mingw/releases/download/16.2.0posix-14.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-16.2.0-mingw-w64msvcrt-14.0.0-r2.zip
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
 
 jobs:
-  build-and-upload:
+  build:
+    name: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Tag matches the compiled version
+        shell: pwsh
+        run: |
+          $h = Get-Content src\features\updater.h -Raw
+          if ($h -notmatch 'COD1RELOADED_VERSION\s*=\s*"([0-9.]+)"') { throw "version not found" }
+          $v = $Matches[1]
+          if ("v$v" -ne $env:TAG -and $v -ne $env:TAG) {
+            throw "tag $env:TAG does not match COD1RELOADED_VERSION $v - bump updater.h first"
+          }
+          "VERSION=$v" >> $env:GITHUB_ENV
+
+      - name: Cache the toolchain
+        id: cache-mingw
+        uses: actions/cache@v4
+        with:
+          path: C:\tools\mingw32
+          key: winlibs-i686-16.2.0-r2
+
+      - name: Install WinLibs i686
+        if: steps.cache-mingw.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force C:\tools | Out-Null
+          Invoke-WebRequest $env:WINLIBS_URL -OutFile $env:RUNNER_TEMP\winlibs.zip
+          Expand-Archive $env:RUNNER_TEMP\winlibs.zip -DestinationPath C:\tools
+
+      - name: Build (standard + no-rinput)
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+          cmake --build build
+          cmake -S . -B build-norinput -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCOD1RELOADED_NO_RINPUT=ON
+          cmake --build build-norinput --target mss32
+          # the two must really differ: only the standard one carries the raw-input hook
+          if (-not (Select-String -Path build\mss32.dll -Pattern "GetCursorPos IAT hook installed" -SimpleMatch -Quiet)) { throw "standard DLL lacks the rinput hook" }
+          if (Select-String -Path build\norinput\mss32.dll -Pattern "GetCursorPos IAT hook installed" -SimpleMatch -Quiet) { throw "norinput DLL carries the rinput hook" }
+
+      - name: Portable tests
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
+          ctest --test-dir build -L portable --output-on-failure
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dlls
+          path: |
+            build/mss32.dll
+            build/norinput/mss32.dll
+
+  game:
+    name: game
+    runs-on: [self-hosted, windows, coduo-game]
+    concurrency:
+      group: coduo-game-install
+      cancel-in-progress: false
+    env:
+      CODUO_GAME_DIR: ${{ vars.CODUO_GAME_DIR || 'D:/Call of Duty - Copy' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ `
+                "-DCODUO_GAME_DIR=$env:CODUO_GAME_DIR" -DCODUO_SMOKE=ON
+          cmake --build build
+
+      - name: Deploy and run every test
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
+          .\deploy.ps1 -Game $env:CODUO_GAME_DIR
+          ctest --test-dir build --output-on-failure
+
+      - name: UI pk3
+        shell: pwsh
+        run: python -I ui_pk3\build_pk3.py --game "$env:CODUO_GAME_DIR"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-pk3
+          path: dist/zz_coduoplus_ui.pk3
+
+  publish:
+    name: publish
+    needs: [build, game]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
 
-      - name: Resolve version tag
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          [ -z "$TAG" ] && TAG="${{ github.event.inputs.tag }}"
-          TAG="${TAG#v}"   # strip a leading 'v' if present
-          echo "TAG=$TAG" >> "$GITHUB_ENV"
-          echo "Building CoDUO+ $TAG"
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-      - name: Install 32-bit MinGW (stable) + tools
+      - name: Package
         run: |
-          sudo apt-get update
-          sudo apt-get install -y g++-mingw-w64-i686 cmake zip
-          # match the local toolchain's POSIX threading model
-          sudo update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix || true
-          sudo update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix || true
-
-      - name: Build mss32.dll
-        run: |
-          # keep the compiled version in sync with the release tag
-          sed -i "s/COD1RELOADED_VERSION = \"[^\"]*\"/COD1RELOADED_VERSION = \"$TAG\"/" src/features/updater.h
-          cmake -S . -B build \
-            -DCMAKE_SYSTEM_NAME=Windows \
-            -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc \
-            -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ \
-            -DCMAKE_RC_COMPILER=i686-w64-mingw32-windres
-          cmake --build build --target mss32 -j
-          test -f build/mss32.dll
-
-      - name: Build mss32.dll (no-rinput variant)
-        run: |
-          # Same DLL without the raw-input GetCursorPos hook, for bisecting input
-          # problems. Separate output DIRECTORY (the file has to be called mss32.dll) -
-          # see the COD1RELOADED_OUTPUT_DIR block in CMakeLists.txt.
-          cmake -S . -B build-norinput \
-            -DCOD1RELOADED_NO_RINPUT=ON \
-            -DCMAKE_SYSTEM_NAME=Windows \
-            -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc \
-            -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ \
-            -DCMAKE_RC_COMPILER=i686-w64-mingw32-windres
-          cmake --build build-norinput --target mss32 -j
-          test -f build/norinput/mss32.dll
-          # Prove the two really differ before packaging: the standard one must
-          # carry the hook string, the other must not.
-          grep -q "GetCursorPos IAT hook installed" build/mss32.dll
-          ! grep -q "GetCursorPos IAT hook installed" build/norinput/mss32.dll
-
-      - name: Package assets
-        run: |
-          mkdir -p dist
-          cp build/mss32.dll coduoplus.ini dist/
+          set -e
+          VERSION="${TAG#v}"
+          mkdir -p dist/stage/uo dist/norinput-stage/uo
+          cp artifacts/dlls/mss32.dll dist/mss32.dll
+          cp artifacts/dlls/norinput/mss32.dll dist/mss32-norinput.dll
+          cp artifacts/ui-pk3/zz_coduoplus_ui.pk3 dist/
+          cp coduoplus.ini competitive.cfg.example dist/
           printf '{\n  "version": "%s",\n  "download_url": "https://github.com/%s/releases/latest/download/mss32.dll",\n  "notes": "CoDUO+ %s - see CHANGELOG"\n}\n' \
-            "$TAG" "$GITHUB_REPOSITORY" "$TAG" > dist/manifest.json
-          (cd dist && zip -q "coduoplus-$TAG.zip" mss32.dll coduoplus.ini)
-          cp build/norinput/mss32.dll dist/mss32-norinput.dll
-          mkdir -p dist/norinput && cp build/norinput/mss32.dll dist/norinput/mss32.dll
-          (cd dist/norinput && cp ../coduoplus.ini . && zip -q "../coduoplus-$TAG-norinput.zip" mss32.dll coduoplus.ini)
+            "$VERSION" "$GITHUB_REPOSITORY" "$VERSION" > dist/manifest.json
+          cat > dist/README.txt <<EOF
+          CoDUO+ $VERSION - Call of Duty: United Offensive 1.51 client mod
+
+          Install (game folder = the one with CoDUOMP.exe):
+          1. Rename the game's mss32.dll to mss32_original.dll (the mod forwards all sound to it).
+          2. Copy mss32.dll and coduoplus.ini next to CoDUOMP.exe.
+          3. Copy uo\zz_coduoplus_ui.pk3 into the game's uo\ folder.
+          Server admins: competitive.cfg.example -> competitive.cfg next to the server's mss32.dll.
+          Uninstall: delete those files, rename mss32_original.dll back to mss32.dll.
+          EOF
+          for s in stage norinput-stage; do
+            cp dist/coduoplus.ini dist/competitive.cfg.example dist/README.txt dist/$s/
+            cp dist/zz_coduoplus_ui.pk3 dist/$s/uo/
+          done
+          cp dist/mss32.dll dist/stage/mss32.dll
+          cp dist/mss32-norinput.dll dist/norinput-stage/mss32.dll
+          (cd dist/stage && zip -qr "../coduoplus-$VERSION.zip" .)
+          (cd dist/norinput-stage && zip -qr "../coduoplus-$VERSION-norinput.zip" .)
+          # release notes: this version's CHANGELOG section
+          awk -v v="## v$VERSION" 'index($0, v) == 1 {p = 1; print; next} p && /^## v/ {exit} p && /^# / {exit} p' CHANGELOG.md > dist/notes.md
           ls -l dist
 
-      - name: Upload to release
+      - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "$TAG" \
-            dist/mss32.dll \
-            dist/coduoplus.ini \
-            dist/manifest.json \
-            "dist/coduoplus-$TAG.zip" \
-            dist/mss32-norinput.dll \
-            "dist/coduoplus-$TAG-norinput.zip" \
-            --clobber
+          VERSION="${TAG#v}"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "CoDUO+ $VERSION" --notes-file dist/notes.md --verify-tag
+          fi
+          gh release upload "$TAG" --clobber \
+            dist/mss32.dll dist/mss32-norinput.dll dist/coduoplus.ini dist/competitive.cfg.example \
+            dist/zz_coduoplus_ui.pk3 dist/manifest.json \
+            "dist/coduoplus-$VERSION.zip" "dist/coduoplus-$VERSION-norinput.zip"

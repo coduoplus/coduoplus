@@ -77,9 +77,9 @@ exists.
 Builds in `build-release`, runs `ctest` and stops if anything fails, generates
 the UI pk3, and writes `dist\`: `mss32.dll`, `manifest.json`,
 `zz_coduoplus_ui.pk3`, and `coduoplus-<ver>.zip` laid out like the game folder.
-Publishing a GitHub release also triggers `.github/workflows/release.yml`,
-which cross-compiles and attaches the DLLs and ini. The UI pk3 can only be
-built where a game install exists, so it's attached from `release.ps1`'s output.
+Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`, which builds,
+runs the whole test suite (game tests on the self-hosted runner, which also
+builds the UI pk3) and publishes the release. See [docs/CI.md](docs/CI.md).
 
 The version lives in one place: `COD1RELOADED_VERSION` in
 `src/features/updater.h`.
