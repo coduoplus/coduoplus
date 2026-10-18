@@ -17,7 +17,11 @@
  *   4. version gate                 (ClientConnect refuses CoDUO+ clients older than
  *                                    CODUOPLUS_NET_VERSION; vanilla clients get in)
  *   5. competitive spec publisher   (competitive.cfg -> SYSTEMINFO sv_competitive*)
- *   6. lag compensation             (g_antilag: shots are traced against where the
+ *   6. large-inode file access      (the 2005 engine's 32-bit stat/readdir fail with
+ *                                    EOVERFLOW on Windows drives under WSL / Docker
+ *                                    Desktop and on big XFS/btrfs disks: it would find
+ *                                    no pk3s at all)
+ *   7. lag compensation             (g_antilag: shots are traced against where the
  *                                    other players were when the shooter saw them,
  *                                    shared/antilag_core.cpp - same code as Windows)
  *
@@ -32,6 +36,7 @@
  *   CODUOPLUS_VERSION_GATE=0   let every client in
  *   CODUOPLUS_SNAPS=0          keep the vanilla snaps cap of 30
  *   CODUOPLUS_COMPETITIVE_FILE path of competitive.cfg (default: ./competitive.cfg)
+ *   CODUOPLUS_LFS=0            leave the engine's stat/readdir alone
  *   CODUOPLUS_ANTILAG=0        default of g_antilag (1); `+set g_antilag` / rcon win
  *   CODUOPLUS_ANTILAG_MAXMS=n  default of g_antilagMaxMs (300)
  */
@@ -42,6 +47,8 @@
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <dirent.h>
+#include <errno.h>
 #include <unistd.h>
 #include <time.h>
 
@@ -50,6 +57,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "shared/antilag_core.h"
@@ -171,6 +179,70 @@ long now_ms() {
 }
 
 // ---------------------------------------------------------------------------------
+// 6. large inodes. The engine imports the non-LFS __xstat (32-bit struct stat) and
+// readdir (32-bit struct dirent); glibc fails both with EOVERFLOW as soon as an inode
+// number needs more than 32 bits. These replacements make the 64-bit calls and hand the
+// engine the 32-bit structs it was compiled against, with the inode folded to 32 bits
+// (the engine never looks at it). This file is built WITHOUT _FILE_OFFSET_BITS=64, so
+// `struct stat` / `struct dirent` here ARE the 32-bit layouts the engine uses.
+// ---------------------------------------------------------------------------------
+uint32_t fold_ino(uint64_t i) { return (uint32_t)(i ^ (i >> 32)); }
+
+int lfs_xstat(int /*ver: _STAT_VER, always 3 here*/, const char* path, struct stat* out) {
+    struct stat64 s;
+    if (stat64(path, &s) != 0) return -1;
+    if (s.st_size > 0x7fffffffLL) { errno = EOVERFLOW; return -1; }   // 32-bit off_t
+    memset(out, 0, sizeof(*out));
+    out->st_dev = s.st_dev;
+    out->st_ino = fold_ino(s.st_ino);
+    out->st_mode = s.st_mode;
+    out->st_nlink = s.st_nlink;
+    out->st_uid = s.st_uid;
+    out->st_gid = s.st_gid;
+    out->st_rdev = s.st_rdev;
+    out->st_size = (off_t)s.st_size;
+    out->st_blksize = s.st_blksize;
+    out->st_blocks = (blkcnt_t)s.st_blocks;
+    out->st_atim = s.st_atim;
+    out->st_mtim = s.st_mtim;
+    out->st_ctim = s.st_ctim;
+    return 0;
+}
+
+// readdir's result must stay valid until the next readdir on the SAME stream - and the
+// engine's file listing recurses into subdirectories and then reads d_name of the outer
+// entry again - so one buffer per open DIR*, dropped on closedir. Node-based map:
+// references survive rehashing. Spinlock: no pthread dependency, calls are rare.
+struct DirSlots {
+    std::unordered_map<DIR*, struct dirent> map;
+    int lock = 0;
+    void acquire() { while (__atomic_exchange_n(&lock, 1, __ATOMIC_ACQUIRE)) {} }
+    void release() { __atomic_store_n(&lock, 0, __ATOMIC_RELEASE); }
+};
+DirSlots* g_dirs = new DirSlots;   // never destroyed: the engine may list files at exit
+
+struct dirent* lfs_readdir(DIR* d) {
+    struct dirent64* e = readdir64(d);
+    if (!e) return nullptr;
+    g_dirs->acquire();
+    struct dirent& o = g_dirs->map[d];
+    g_dirs->release();
+    o.d_ino = fold_ino(e->d_ino);
+    o.d_off = (__off_t)e->d_off;
+    o.d_reclen = sizeof(o);
+    o.d_type = e->d_type;
+    snprintf(o.d_name, sizeof(o.d_name), "%s", e->d_name);
+    return &o;
+}
+
+int lfs_closedir(DIR* d) {
+    g_dirs->acquire();
+    g_dirs->map.erase(d);
+    g_dirs->release();
+    return closedir(d);
+}
+
+// ---------------------------------------------------------------------------------
 // 4. version gate
 // ---------------------------------------------------------------------------------
 int info_value_int(const char* info, const char* key) {
@@ -266,9 +338,10 @@ void publish_competitive() {
     g.next_cfg_check_ms = now + 1000;
 
     const std::string path = cfg_path();
-    struct stat st;
-    const bool have = stat(path.c_str(), &st) == 0;
+    struct stat64 st;   // 64-bit: the file may well sit on a big-inode filesystem
+    const bool have = stat64(path.c_str(), &st) == 0;
     if (!g.cfg_first && have == g.cfg_have && (!have || st.st_mtime == g.cfg_mtime)) return;
+    const bool first = g.cfg_first;
     g.cfg_first = false;
     g.cfg_have = have;
     g.cfg_mtime = have ? st.st_mtime : 0;
@@ -291,7 +364,7 @@ void publish_competitive() {
     if (!patches::competitive_chunk_spec(spec, parts))
         lg("competitive_sv: competitive.cfg too long (max ~%d chars) - tail dropped",
            patches::COMP_SV_CHUNK_MAX * patches::COMP_SV_CHUNKS);
-    if (spec == g.published) return;
+    if (spec == g.published && !first) return;   // the first result is always logged
     g.published = spec;
     for (int i = 0; i < patches::COMP_SV_CHUNKS; ++i)
         g.Cvar_Set(patches::competitive_chunk_name(i).c_str(), parts[i].c_str());
@@ -445,6 +518,14 @@ __attribute__((constructor)) void coduoplus_init() {
         const uint32_t p = (uint32_t)(uintptr_t)g_shortversion;
         const bool ok = poke(LNX_SHORTVERSION_OPERAND, &p, 4);
         lg("version_patch: shortversion -> \"%s\" %s", g_shortversion, ok ? "applied" : "FAILED");
+    }
+    // 6. large inodes
+    if (!env_off("CODUOPLUS_LFS")) {
+        const uintptr_t xs = (uintptr_t)&lfs_xstat, rd = (uintptr_t)&lfs_readdir, cd = (uintptr_t)&lfs_closedir;
+        const bool ok = poke(LNX_EXE_GOT_XSTAT, &xs, 4) && poke(LNX_EXE_GOT_READDIR, &rd, 4) &&
+                        poke(LNX_EXE_GOT_CLOSEDIR, &cd, 4);
+        lg("lfs: engine stat/readdir -> 64-bit wrappers %s (any filesystem, any inode size)",
+           ok ? "installed" : "FAILED");
     }
     // game module loads. NOT dlsym(RTLD_DEFAULT, "dlopen"): coduo_lnxded is a non-PIE
     // executable, which exports its own PLT stub (0x8049f1c) as the canonical address of

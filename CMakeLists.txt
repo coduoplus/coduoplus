@@ -284,14 +284,14 @@ target_link_options(site_check_linux PRIVATE -static -static-libgcc -static-libs
 add_test(NAME site_check_linux COMMAND site_check_linux "${CODUO_LINUX_DIR}")
 set_tests_properties(site_check_linux PROPERTIES LABELS game)
 
-# Opt-in: the Linux server library on the real coduo_lnxded, in Docker under WSL
-# (tests/smoke_linux.py). Needs WSL with Docker and the paks volume
-# (server/linux/make_game_volume.sh). -DCODUO_LINUX_SMOKE=ON.
+# Opt-in: the Linux server IMAGE (server/linux/Dockerfile) on the real coduo_lnxded, in
+# Docker under WSL, against the game install in CODUO_GAME_DIR (tests/smoke_linux.py).
+# Needs WSL with Docker. -DCODUO_LINUX_SMOKE=ON.
 option(CODUO_LINUX_SMOKE "Register the Linux server smoke test (WSL + Docker)" OFF)
 set(CODUO_WSL_DISTRO "Ubuntu" CACHE STRING "WSL distribution with Docker")
 if (CODUO_LINUX_SMOKE)
     # WSL paths for the repo and the Linux binaries (C:/x -> /mnt/c/x)
-    foreach(v CMAKE_SOURCE_DIR CODUO_LINUX_DIR)
+    foreach(v CMAKE_SOURCE_DIR CODUO_LINUX_DIR CODUO_GAME_DIR)
         file(TO_CMAKE_PATH "${${v}}" _p)                # C:/Users/...
         string(SUBSTRING "${_p}" 0 1 _drive)
         string(TOLOWER "${_drive}" _drive)
@@ -299,6 +299,6 @@ if (CODUO_LINUX_SMOKE)
         set(WSL_${v} "/mnt/${_drive}${_rest}")
     endforeach()
     add_test(NAME smoke_linux
-             COMMAND wsl -d ${CODUO_WSL_DISTRO} --cd "${WSL_CMAKE_SOURCE_DIR}" -- python3 tests/smoke_linux.py "${WSL_CODUO_LINUX_DIR}")
+             COMMAND wsl -d ${CODUO_WSL_DISTRO} --cd "${WSL_CMAKE_SOURCE_DIR}" -- python3 tests/smoke_linux.py "${WSL_CODUO_LINUX_DIR}" "${WSL_CODUO_GAME_DIR}")
     set_tests_properties(smoke_linux PROPERTIES TIMEOUT 600 LABELS game)
 endif()

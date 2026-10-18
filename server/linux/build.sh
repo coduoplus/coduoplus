@@ -1,8 +1,8 @@
 #!/bin/sh
-# Build coduoplus_sv.so. Run inside the image from server/linux/Dockerfile:
+# Build coduoplus_sv.so. Runs in the `build` stage of server/linux/Dockerfile; to get
+# just the library from a checkout:
 #
-#   docker build -t coduoplus-linux server/linux
-#   docker run --rm -v "$PWD":/src coduoplus-linux sh server/linux/build.sh
+#   docker build -f server/linux/Dockerfile --target artifact --output type=local,dest=build/linux .
 #
 # -> build/linux/coduoplus_sv.so
 #

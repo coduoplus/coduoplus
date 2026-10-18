@@ -136,6 +136,17 @@ int main(int argc, char** argv) {
     // the dlopen PLT stub jumps through the relocation's slot
     CHECK(exe.jump_slots.count("dlopen") && exe.jump_slots.at("dlopen") == LNX_EXE_GOT_DLOPEN);
     CHECK(exe.u32(0x08049f1c + 2) == LNX_EXE_GOT_DLOPEN);
+    // same for the large-inode wrappers: slot = relocation = what the PLT stub jumps through
+    CHECK(exe.jump_slots.count("__xstat") && exe.jump_slots.at("__xstat") == LNX_EXE_GOT_XSTAT);
+    CHECK(exe.jump_slots.count("readdir") && exe.jump_slots.at("readdir") == LNX_EXE_GOT_READDIR);
+    CHECK(exe.jump_slots.count("closedir") && exe.jump_slots.at("closedir") == LNX_EXE_GOT_CLOSEDIR);
+    CHECK(exe.u32(0x08049a8c + 2) == LNX_EXE_GOT_XSTAT);
+    CHECK(exe.u32(0x08049e9c + 2) == LNX_EXE_GOT_READDIR);
+    CHECK(exe.u32(0x08049cac + 2) == LNX_EXE_GOT_CLOSEDIR);
+    // ...and they are the only inode-sensitive file calls it imports (no stat64, lstat,
+    // fstat, scandir, glob ... that would still fail on a big-inode filesystem)
+    for (const char* f : {"__lxstat", "__fxstat", "stat", "lstat", "fstat", "scandir", "glob", "readdir_r"})
+        check(!exe.jump_slots.count(f), (std::string("engine does not import ") + f).c_str());
 
     // ---- game module -------------------------------------------------------------
     check_sites(game, 0, LNX_GAME_SITES, sizeof(LNX_GAME_SITES) / sizeof(LNX_GAME_SITES[0]));

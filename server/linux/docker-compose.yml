@@ -1,0 +1,51 @@
+# Example: a CoDUO+ Linux server with docker compose. docs/DOCKER.md.
+#
+#   cd server/linux
+#   cp .env.example .env              # then edit: where the game files are, port, ...
+#   mkdir -p config && cp ../../competitive.cfg.example config/competitive.cfg
+#   cp server.cfg.example config/server.cfg      # and edit it
+#   docker compose up -d --build      # build from this checkout (or: image only, no --build)
+#   docker compose logs -f
+#
+# Two servers (e.g. public + match) = two services with their own PORT, config and data.
+
+services:
+  coduo:
+    image: ${CODUOPLUS_IMAGE:-ghcr.io/coduoplus/coduoplus-server:latest}
+    build:
+      context: ../..                    # the repository root
+      dockerfile: server/linux/Dockerfile
+    container_name: coduoplus
+    restart: unless-stopped
+    stop_grace_period: 10s
+    # stdin open: coduo_lnxded reads its console from stdin - `docker attach coduoplus`
+    # gives you the server console (detach with Ctrl-P Ctrl-Q, NOT Ctrl-C)
+    stdin_open: true
+    tty: true
+    ports:
+      - "${PORT:-28960}:${PORT:-28960}/udp"
+    environment:
+      PORT: ${PORT:-28960}
+      DEDICATED: ${DEDICATED:-2}                 # 2 = listed on the master server, 1 = LAN only
+      CODUOPLUS_SWING: ${CODUOPLUS_SWING:-1}     # 0 = no swing-fix mirror
+      CODUOPLUS_VERSION_GATE: ${CODUOPLUS_VERSION_GATE:-1}
+      CODUOPLUS_SNAPS: ${CODUOPLUS_SNAPS:-1}     # 0 = vanilla snaps cap of 30
+      CODUOPLUS_ANTILAG: ${CODUOPLUS_ANTILAG:-1} # g_antilag default: 0 off, 2 = log each shot
+      CODUOPLUS_ANTILAG_MAXMS: ${CODUOPLUS_ANTILAG_MAXMS:-300}
+    volumes:
+      # main/ (or Main/) + uo/ with the pk3s; the 1.51b Linux binaries (coduo_lnxded,
+      # uo/game.mp.uo.i386.so) either in here too or in CODUO_BINS_DIR
+      - ${CODUO_GAME_DIR:-./game}:/game:ro
+      - ${CODUO_BINS_DIR:-./bins}:/bins:ro
+      # server.cfg, competitive.cfg (re-read live when it changes), other *.cfg
+      - ./config:/config:ro
+      # logs, games_mp.log - everything the server writes
+      - coduo-data:/data
+    # the default command; anything here replaces it (engine arguments)
+    command: ["+exec", "server.cfg", "+map_rotate"]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  coduo-data:
