@@ -1,0 +1,116 @@
+name: CI
+
+# Every push to main and every pull request into main. Both jobs are REQUIRED status
+# checks on main (branch protection), so nothing merges unless all tests pass.
+#
+#   portable  GitHub-hosted Windows: builds everything (DLLs + test programs) with the
+#             pinned WinLibs i686 toolchain and runs the tests that need nothing else
+#             (ctest -L portable).
+#   game      self-hosted Windows runner (labels: self-hosted, windows, coduo-game) on the
+#             machine with the CoD:UO 1.51 install: deploys the build into that install
+#             and runs every other test - site_check against the stock binaries, the UI
+#             pk3, the frame limiter timing test and the dedicated-server smoke test
+#             (which LAUNCHES the game as a dedicated server: console window only).
+#             The game binaries are Activision's: they stay on that machine, never in
+#             the repo or in a hosted runner.
+#
+# SECURITY: a self-hosted runner executes whatever the workflow runs. The game job
+# therefore only runs for pushes and for pull requests from branches of THIS repo,
+# never for forks. See docs/CI.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WINLIBS_URL: https://github.com/brechtsanders/winlibs_mingw/releases/download/16.2.0posix-14.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-16.2.0-mingw-w64msvcrt-14.0.0-r2.zip
+
+jobs:
+  portable:
+    name: portable
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache the toolchain
+        id: cache-mingw
+        uses: actions/cache@v4
+        with:
+          path: C:\tools\mingw32
+          key: winlibs-i686-16.2.0-r2
+
+      - name: Install WinLibs i686 (gcc, cmake, ninja)
+        if: steps.cache-mingw.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force C:\tools | Out-Null
+          Invoke-WebRequest $env:WINLIBS_URL -OutFile $env:RUNNER_TEMP\winlibs.zip
+          Expand-Archive $env:RUNNER_TEMP\winlibs.zip -DestinationPath C:\tools
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+          cmake --build build
+          if (-not (Test-Path build\mss32.dll)) { throw "build\mss32.dll missing" }
+
+      - name: Portable tests
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
+          ctest --test-dir build -L portable --output-on-failure
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mss32-${{ github.sha }}
+          path: |
+            build/mss32.dll
+            build/coduoplus.dll
+
+  game:
+    name: game
+    runs-on: [self-hosted, windows, coduo-game]
+    # never for pull requests from forks (see SECURITY above)
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    concurrency:
+      group: coduo-game-install   # one run at a time: they share the game install
+      cancel-in-progress: false
+    env:
+      # the CoD:UO 1.51 install on the runner machine (repository variable, see docs/CI.md)
+      CODUO_GAME_DIR: ${{ vars.CODUO_GAME_DIR || 'D:/Call of Duty - Copy' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ `
+                "-DCODUO_GAME_DIR=$env:CODUO_GAME_DIR" -DCODUO_SMOKE=ON
+          cmake --build build
+
+      - name: Deploy into the test install
+        shell: pwsh
+        run: .\deploy.ps1 -Game $env:CODUO_GAME_DIR
+
+      - name: All tests (game, timing, portable)
+        shell: pwsh
+        run: |
+          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
+          ctest --test-dir build --output-on-failure
+
+      - name: Keep the mod's log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coduoplus-log-${{ github.sha }}
+          path: ${{ env.CODUO_GAME_DIR }}/coduoplus.log
+          if-no-files-found: ignore

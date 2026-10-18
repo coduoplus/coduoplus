@@ -19,6 +19,15 @@ PunkBuster ruleset, ported onto 0.1.0. Upstream's 1.6.8/1.6.9 line starts from
 - The 1 ms timer is kept while the window is occluded (Windows 11).
 - Working-set sizes computed in 64 bits (5000 MB no longer wraps to 904 MB).
 
+### Netcode (40-tick)
+- **CoDUO+ servers push their netcode spec.** `competitive.cfg` next to the
+  server's `mss32.dll` (example shipped) is published to CoDUO+ clients, which lock
+  or clamp the named cvars while connected. Until now nothing on a UO server
+  published it, so clients never actually ran `snaps 40` / `cl_maxpackets 125`.
+- An over-cap `cl_maxpackets` resets to 125 instead of vanilla's 100.
+- [docs/NETCODE.md](docs/NETCODE.md): how a shot is registered, server/client
+  setup, why `sv_fps 40`, and what lag compensation would add.
+
 ### Display
 - A `r_fullscreen 1` in `uoconfig_mp.cfg` is the player's choice and is never
   rewritten to 0; a minimized window is never restyled.
