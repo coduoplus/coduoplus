@@ -11,7 +11,11 @@ query, then checks:
   - coduoplus.log has the line every ENGINE patch writes when it applies;
   - coduoplus.log has none of the lines a patch writes when it refuses
     (byte mismatch, abort, skip);
-  - nothing was restyled: a dedicated server has no game window.
+  - nothing was restyled: a dedicated server has no game window;
+  - the server-side ClientConnect hook (version gate) really decides: a real
+    connect handshake (tools/re/q3connect.py) claiming an old CoDUO+ build is
+    refused with our message, while a vanilla client and a current one get
+    connectResponse.
 
 A dedicated server opens only a console window, so this can run while someone
 is using the PC. It does NOT cover the renderer, input or cgame - those need a
@@ -24,6 +28,7 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools', 're'))
 from q3query import query  # noqa: E402
+from q3connect import connect  # noqa: E402
 
 MUST_LOG = [
     'DLL_PROCESS_ATTACH',
@@ -40,6 +45,8 @@ MUST_LOG = [
     # server half of the swing fix: uo_game patched and the flag published
     'swing_fix [server]: ON in 0x',
     'swing_fix: server publishes sv_coduoplus_swing 1',
+    'version_gate: ClientConnect gate installed in ',
+    'version_gate: reject client ',
 ]
 # Phrases the patches log when they refuse to write (wrong bytes, wrong build).
 MUST_NOT_LOG = ['abort', 'SKIPPED', 'annule', 'PARTIAL', 'expected 0x', 'inattendu',
@@ -87,6 +94,14 @@ def main():
                 failures.append('shortversion is %r, expected "CoDUO+ ..."' % info.get('shortversion'))
             if info.get('mapname') != 'mp_harbor':
                 failures.append('mapname is %r' % info.get('mapname'))
+            # version gate, end to end: (userinfo extra, expected reply prefix)
+            for extra, want in (({'coduoplus': '5'}, 'error\nUpdate coduoplus'),
+                                ({}, 'connectResponse'),
+                                ({'coduoplus': '16'}, 'connectResponse')):
+                got = connect('127.0.0.1', port, extra)
+                print('connect %-18s -> %s' % (extra or 'vanilla', got.strip().replace('\n', ' | ')))
+                if not got.startswith(want):
+                    failures.append('connect %r: got %r, expected %r...' % (extra, got, want))
     finally:
         if '--keep' not in sys.argv and proc.poll() is None:
             proc.kill()

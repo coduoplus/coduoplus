@@ -54,6 +54,9 @@ struct Image {
     std::vector<std::string> imports_of(const char* dll) const;
     // VA of the IAT slot for dll!func, 0 if not imported.
     uint32_t iat_slot(const char* dll, const char* func) const;
+    // VA of an exported function by name, 0 if not exported.
+    uint32_t export_va(const char* name) const;
+    uint32_t export_dir_rva = 0;
 
     bool is_code(uint32_t va) const;
 };

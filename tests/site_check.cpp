@@ -33,6 +33,7 @@
 #include "video/widescreen_fix.h"
 #include "gameplay/swing_fix.h"
 #include "gameplay/stance_fix.h"
+#include "netcode/version_gate.h"
 
 #include <cstdio>
 #include <cstring>
@@ -423,6 +424,54 @@ void check_cgame_stance() {
     CHECK(is_call_to(g_cgame, imm - 0x15, 0x30003a40) && is_call_to(g_cgame, imm - 0x1e, 0x30003a40));
 }
 
+// ---------------------------------------------------------------------------
+// game: uo_game_mp_x86.dll - whichever known build the binaries dir holds
+// ---------------------------------------------------------------------------
+void check_game_version() {
+    using namespace patches;
+    const uint32_t B = g_game.base;
+    const VersionGateSites* b = nullptr;
+    for (const VersionGateSites& v : VERSION_GATE_BUILDS)
+        if (v.timestamp == g_game.timestamp) b = &v;
+    CHECK_MSG(b != nullptr, "uo_game_mp_x86.dll is a build listed in VERSION_GATE_BUILDS");
+    if (!b) return;
+    printf("  (uo_game build: %s)\n", b->label);
+    // ClientConnect: the function that refuses a wrong password
+    const uint32_t cc = B + b->clientconnect;
+    CHECK(g_game.bytes_eq(cc, {0x81, 0xec, 0x08, 0x04, 0x00, 0x00}));  // sub esp,0x408
+    const std::vector<uint32_t> pw = g_game.find_cstr("GAME_INVALIDPASSWORD");
+    CHECK(pw.size() == 1 && contains_u32(g_game, cc, 0x200, pw[0]));
+    // exactly one caller, the vmMain site we redirect
+    CHECK(is_call_to(g_game, B + b->cc_callsite, cc));
+    int callers = 0;
+    for (const Image::Section& s : g_game.sections) {
+        if (!s.code) continue;
+        for (uint32_t va = B + s.rva; va + 5 <= B + s.rva + s.vsize; ++va)
+            if (g_game.u8(va) == 0xe8 && g_game.call_target(va) == cc) ++callers;
+    }
+    CHECK(callers == 1);
+    // the call site is inside vmMain (exported), within its switch
+    const uint32_t vmmain = g_game.export_va("vmMain");
+    CHECK(vmmain != 0 && B + b->cc_callsite > vmmain && B + b->cc_callsite - vmmain < 0x200);
+    // dllEntry stores the engine's syscall pointer where the wrapper reads it
+    const uint32_t de = g_game.export_va("dllEntry");
+    CHECK(g_game.bytes_eq(de, {0x8b, 0x44, 0x24, 0x04, 0xa3}) &&
+          g_game.u32(de + 5) == B + VERSION_GATE_SYSCALL_PTR_RVA);
+    // syscall 33 is SV_GetUserinfo in the engine. SV_GameSystemCalls (0x45d820) is a
+    // two-level switch: movzx ecx,[n + 0x45e988] ; jmp [ecx*4 + 0x45e724]. Follow
+    // case 33 and require that block to call the function whose error is
+    // "SV_GetUserinfo: bufferSize == %i".
+    CHECK(g_exe.bytes_eq(0x45d836, {0x0f, 0xb6, 0x88}) && g_exe.u32(0x45d839) == 0x45e988);
+    CHECK(g_exe.bytes_eq(0x45d83d, {0xff, 0x24, 0x8d}) && g_exe.u32(0x45d840) == 0x45e724);
+    const uint32_t case33 = g_exe.u32(0x45e724 + 4 * g_exe.u8(0x45e988 + G_GET_USERINFO));
+    bool calls_getuserinfo = false;
+    for (uint32_t va = case33; va < case33 + 0x40; ++va)
+        calls_getuserinfo |= is_call_to(g_exe, va, 0x45f0d0);
+    CHECK_MSG(calls_getuserinfo, "syscall 33 dispatches to SV_GetUserinfo (0x45f0d0)");
+    CHECK(g_exe.bytes_eq(0x45f0d9, {0x68}) &&
+          g_exe.cstr_eq(g_exe.u32(0x45f0da), "\x15" "SV_GetUserinfo: bufferSize == %i"));
+}
+
 struct Group {
     const char* name;
     bool enabled;
@@ -468,7 +517,7 @@ int main(int argc, char** argv) {
         {"cgame_draw2d", port::CGAME_DRAW2D, nullptr},
         {"game_swing", port::GAME_SWING, check_game_swing},
         {"game_viewheight", port::GAME_VIEWHEIGHT, nullptr},
-        {"game_version", port::GAME_VERSION, nullptr},
+        {"game_version", port::GAME_VERSION, check_game_version},
         {"game_antilag", port::GAME_ANTILAG, nullptr},
     };
 
