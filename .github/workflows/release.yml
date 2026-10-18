@@ -7,7 +7,8 @@ name: Release
 #   linux     hosted Ubuntu: coduoplus_sv.so for Linux servers
 #   image     only if both passed: the server image -> ghcr.io/<owner>/coduoplus-server
 #   publish   only if both passed: player zip in the game folder layout, manifest.json
-#             for the updater, release notes from CHANGELOG.md
+#             for the updater, release notes = the version's whole CHANGELOG.md
+#             section + every merged PR since the previous tag + the compare link
 #
 # Hosted runners only (no self-hosted runner). The tests against the real game run
 # locally before tagging (docs/CI.md). The UI pk3
@@ -179,8 +180,12 @@ jobs:
           cp dist/mss32-norinput.dll dist/norinput-stage/mss32.dll
           (cd dist/stage && zip -qr "../coduoplus-$VERSION.zip" .)
           (cd dist/norinput-stage && zip -qr "../coduoplus-$VERSION-norinput.zip" .)
-          # release notes: this version's CHANGELOG section
-          awk -v v="## v$VERSION" 'index($0, v) == 1 {p = 1; print; next} p && /^## v/ {exit} p && /^# / {exit} p' CHANGELOG.md > dist/notes.md
+          # release notes, part 1: this version's whole CHANGELOG section. Its links are
+          # relative to the repo root; on the release page they must point into the tree
+          # at this tag.
+          awk -v v="## v$VERSION" 'index($0, v) == 1 {p = 1; print; next} p && /^## v/ {exit} p && /^# / {exit} p' CHANGELOG.md \
+            | sed -E "s#\]\(([^)#:][^):]*)\)#](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/\1)#g" > dist/notes.md
+          grep -q . dist/notes.md || { echo "CHANGELOG.md has no '## v$VERSION' section"; exit 1; }
           ls -l dist
 
       - name: Create or update the release
@@ -188,7 +193,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${TAG#v}"
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
+          # release notes, part 2: GitHub's list of every PR merged since the previous
+          # release (newest other published release - not any tag: a clone may carry
+          # upstream's), ending with the "Full Changelog" compare link
+          PREV=$(gh release list --exclude-drafts --limit 50 --json tagName -q '[.[].tagName | select(. != env.TAG)][0] // empty')
+          ARGS=(-f tag_name="$TAG")
+          [ -n "$PREV" ] && ARGS+=(-f previous_tag_name="$PREV")
+          { echo; echo '---'; echo; gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${ARGS[@]}" -q .body; } >> dist/notes.md
+          # created once; a re-run (Actions -> Release -> Run workflow) refreshes the notes too
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file dist/notes.md
+          else
             gh release create "$TAG" --title "CoDUO+ $VERSION" --notes-file dist/notes.md --verify-tag
           fi
           gh release upload "$TAG" --clobber \
