@@ -420,6 +420,7 @@ void load_config(HMODULE self_module) {
     // host's call (the same as any server cvar), and a +set or rcon value wins.
     g_antilag_config.enable = read_ini_bool(ini_path, "antilag", g_antilag_config.enable);
     g_antilag_config.max_ms = read_ini_int(ini_path, "antilag_max_ms", g_antilag_config.max_ms);
+    g_antilag_config.pose = read_ini_bool(ini_path, "antilag_pose", g_antilag_config.pose);
 
     // the keys the mod imposes: file brought in line, values forced (core/ini_lock.cpp)
     ini_lock_apply(ini_path);
@@ -467,8 +468,9 @@ void load_config(HMODULE self_module) {
     logger::logf("  discord_rpc: enable=%s client_id=%s",
                  g_discord_rpc_config.enable ? "true" : "false",
                  g_discord_rpc_config.client_id[0] ? g_discord_rpc_config.client_id : "(none)");
-    logger::logf("  antilag (hosting): enable=%s max_ms=%d",
-                 g_antilag_config.enable ? "true" : "false", g_antilag_config.max_ms);
+    logger::logf("  antilag (hosting): enable=%s max_ms=%d pose=%s",
+                 g_antilag_config.enable ? "true" : "false", g_antilag_config.max_ms,
+                 g_antilag_config.pose ? "true" : "false");
 }
 
 }  // namespace patches

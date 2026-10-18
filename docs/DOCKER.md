@@ -70,6 +70,7 @@ though: see [systeminfo is full](LINUX.md#systeminfo-is-full-on-stock-uo-servers
 | `CODUOPLUS_SNAPS` | `1` | `0` = vanilla snaps cap of 30 |
 | `CODUOPLUS_ANTILAG` | `1` | default of `g_antilag` ([lag compensation](NETCODE.md#lag-compensation)): `0` off, `2` logs every compensated shot; rcon changes it live |
 | `CODUOPLUS_ANTILAG_MAXMS` | `300` | default of `g_antilagMaxMs` |
+| `CODUOPLUS_ANTILAG_POSE` | `1` | default of `g_antilagPose`: `0` = rewind position only, not the pose |
 | `CODUOPLUS_LFS` | `1` | `0` = don't wrap the engine's stat/readdir ([why](#game-files-on-any-filesystem)) |
 | `CODUOPLUS_COMPETITIVE_FILE` | `/config/competitive.cfg` | the netcode spec pushed to CoDUO+ clients |
 

@@ -58,6 +58,36 @@ void run_frames(int frames, int t0 = 0) {
     }
 }
 
+// ---- fake engine skeleton cache (PoseSource) -------------------------------------
+// Each entity's "skeleton" is a block whose bytes all equal the anim value the entity
+// had when it was posed; g_frame mimics the engine's per-frame cache: a new frame
+// drops every block, calc_pose rebuilds it from the entity's current anim value.
+int      g_anim[MAX_CLIENTS];          // the "animation state" right now
+uint32_t g_bones[MAX_CLIENTS];
+bool     g_dobj[MAX_CLIENTS];
+std::vector<uint8_t> g_skel[MAX_CLIENTS];
+int      g_skel_frame[MAX_CLIENTS];
+int      g_frame = 1;
+int      g_calcs = 0;
+
+int num_of(void* ent) { return (int)(((uint8_t*)ent - g_ents.data()) / ENT_STRIDE); }
+bool fake_has(int n) { return g_dobj[n]; }
+void fake_calc(void* ent) {
+    const int n = num_of(ent);
+    if (g_skel_frame[n] == g_frame) return;          // cached this frame
+    ++g_calcs;
+    g_skel[n].assign(0x30 + g_bones[n] * 96, (uint8_t)g_anim[n]);
+    g_skel_frame[n] = g_frame;
+}
+uint8_t* fake_skel(int n, uint32_t* size) {
+    if (g_skel_frame[n] != g_frame) return nullptr;
+    *size = (uint32_t)g_skel[n].size();
+    return g_skel[n].data();
+}
+const PoseSource k_fake = { fake_has, fake_calc, fake_skel };
+
+void frame(int t) { ++g_frame; record(g_ents.data(), t, fake_link); }
+
 }  // namespace
 
 int main() {
@@ -161,6 +191,55 @@ int main() {
     // no history at all: nothing to do
     reset();
     CHECK(!rewind(g_ents.data(), 0, 300, fake_link, &s));
+
+    // ---- poses: the old skeleton for the length of the shot, then the current one ---
+    reset_world();
+    set_pose_source(&k_fake);
+    for (int i = 0; i < 3; ++i) { make_player(i); g_dobj[i] = true; g_bones[i] = 70; }
+    for (int f = 0; f < 8; ++f) {                       // t = 0..175; anim = frame number
+        for (int i = 0; i < 3; ++i) g_anim[i] = 10 + f;
+        wr3(ent(1) + ENT_MAXS, 15, 15, f < 4 ? 70.0f : 30.0f);   // stands, then goes prone
+        frame(f * 25);
+    }
+    ++g_frame;                                          // shot lands between frames
+    wr_int(cl(0) + CL_CMD_SERVERTIME, 60);              // nearest frame: f2 (50) .. f3 (75) -> f2
+    CHECK(rewind(g_ents.data(), 0, 300, fake_link, &s));
+    CHECK(s.moved == 2 && s.posed == 2);
+    uint32_t sz = 0;
+    uint8_t* sk = fake_skel(1, &sz);
+    CHECK(sk && sz == 0x30 + 70 * 96 && sk[0] == 12 && sk[sz - 1] == 12);   // f2's pose
+    CHECK(near(rd(ent(1) + ENT_MAXS, 2), 70.0f));       // standing box at f2
+    CHECK(fake_skel(0, &sz) == nullptr);                // shooter not posed
+    restore(g_ents.data(), fake_link);
+    sk = fake_skel(1, &sz);
+    CHECK(sk && sk[0] == 17 && sk[sz - 1] == 17);       // the current pose is back
+    CHECK(near(rd(ent(1) + ENT_MAXS, 2), 30.0f));
+    // another model (bone count changed): position still rewound, pose not
+    g_bones[2] = 71;
+    ++g_frame;
+    CHECK(rewind(g_ents.data(), 0, 300, fake_link, &s));
+    CHECK(s.moved == 2 && s.posed == 1);
+    sk = fake_skel(2, &sz);
+    CHECK(sk && sk[0] == 17);
+    restore(g_ents.data(), fake_link);
+    // no DObj: never posed, never asked to calc
+    g_dobj[1] = false;
+    const int calcs = g_calcs;
+    ++g_frame;
+    rewind(g_ents.data(), 0, 300, fake_link, &s);
+    CHECK(s.moved == 2 && s.posed == 0);                // 1: no DObj; 2: still 71 bones
+    CHECK(fake_skel(1, &sz) == nullptr);
+    restore(g_ents.data(), fake_link);
+    CHECK(g_calcs == calcs + 1);                        // only 2 was asked to pose
+    // older than the pose history (POSE_SLOTS frames): placement only
+    g_dobj[1] = true; g_bones[2] = 70;
+    for (int f = 8; f < 8 + POSE_SLOTS + 2; ++f) { for (int i = 0; i < 3; ++i) g_anim[i] = 10 + f; frame(f * 25); }
+    ++g_frame;
+    wr_int(cl(0) + CL_CMD_SERVERTIME, 50);              // 22 frames back: ring has it, poses don't
+    CHECK(rewind(g_ents.data(), 0, 1000, fake_link, &s));
+    CHECK(s.moved == 2 && s.posed == 0);
+    restore(g_ents.data(), fake_link);
+    set_pose_source(nullptr);
 
     printf("antilag: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;

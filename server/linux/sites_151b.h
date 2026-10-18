@@ -52,6 +52,18 @@ typedef struct {
  *   8049f1c  ff 25 cc e1 0f 08  jmp [0x80fe1cc]     (R_386_JUMP_SLOT dlopen@GLIBC_2.1) */
 #define LNX_EXE_GOT_DLOPEN 0x080fe1ccu
 
+/* Server DObj skeleton cache (lag compensation rewinds poses through it). Same
+ * structure as CoDUOMP.exe (0x968918 / 0x969228 / 0x4927eb0), see
+ * shared/antilag_core.h. The game's DObj syscalls look an entity up with
+ *   80725cb  ... movsx eax,WORD PTR [eax+eax*1+0x8252d00] ; imul eax,eax,0x5c ;
+ *            add eax,0x823b300                    (entnum -> DObj info, 0 = none)
+ * and syscall 111 (CreateSkelForBones, 808ea25) checks the skeleton against
+ *   808ea39  a1 04 87 48 08   mov eax,ds:0x8488704   (the frame counter)
+ * allocating 0x30 + 96 * info[0x17] bytes when it is stale (80c6a29 movzx [eax+0x17]). */
+#define LNX_DOBJ_INDEX                0x08252d00u   /* short[] entnum -> info index       */
+#define LNX_DOBJ_INFO                 0x0823b300u   /* info[], 0x5c each: +4 skel +8 frame */
+#define LNX_DOBJ_FRAME                0x08488704u   /* skeleton frame counter              */
+
 /* The engine's only inode-sensitive file APIs, both the 2005 non-LFS (32-bit) ones:
  * glibc fails them with EOVERFLOW when an inode number needs more than 32 bits (drvfs /
  * 9p Windows drives under WSL or Docker Desktop, big XFS/btrfs disks), and the engine
@@ -75,6 +87,11 @@ static const coduo_site_t LNX_EXE_SITES[] = {
     { "shortversion", 0x080719c9, 16, { 0xc7, 0x44, 0x24, 0x08, 0x44, 0x00, 0x00, 0x00,
                                         0xc7, 0x44, 0x24, 0x04, 0x9a, 0xed, 0x0d, 0x08 } },
     { "1.51 string",  0x080ded9a, 5,  { '1', '.', '5', '1', 0 } },
+    { "dobj lookup",  0x080725d4, 16, { 0x66, 0x83, 0xbc, 0x00, 0x00, 0x2d, 0x25, 0x08,
+                                        0x00, 0x74, 0x18, 0x8b, 0x45, 0x08, 0x0f, 0xbf } },
+    { "dobj info",    0x080725ea, 8,  { 0x6b, 0xc0, 0x5c, 0x05, 0x00, 0xb3, 0x23, 0x08 } },
+    { "skel frame",   0x0808ea39, 5,  { 0xa1, 0x04, 0x87, 0x48, 0x08 } },
+    { "skel bones",   0x080c6a2d, 4,  { 0x0f, 0xb6, 0x40, 0x17 } },
 };
 
 /* ============================ game.mp.uo.i386.so ============================ */
@@ -90,6 +107,7 @@ static const coduo_site_t LNX_EXE_SITES[] = {
 #define LNX_G_BULLET_FIRE             0x0007a8afu   /* (attacker, spread, damage, wp, self)    */
 #define LNX_G_TRAP_LINKENTITY         0x0007457fu   /* syscall: SV_LinkEntity(gentity*)        */
 #define LNX_G_ENTITIES                0x0035b6a0u   /* gentity_t g_entities[1024], 0x34c each  */
+#define LNX_G_DOBJCALCPOSE            0x00078f4fu   /* G_DObjCalcPose(gentity*): every bone    */
 #define LNX_G_GOT                     0x000b3818u   /* DT_PLTGOT = what ebx holds in PIC code  */
 
 /* vmMain calls both through the PLT (`jmp [ebx+slot]`); repointing the GOT slot is the

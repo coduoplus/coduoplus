@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
         {"trap_Cvar_VariableStringBuffer", LNX_G_TRAP_CVAR_STRINGBUF},
         {"trap_GetUserinfo", LNX_G_TRAP_GETUSERINFO},
         {"Bullet_Fire", LNX_G_BULLET_FIRE}, {"trap_LinkEntity", LNX_G_TRAP_LINKENTITY},
-        {"g_entities", LNX_G_ENTITIES}, {"bg_swingSpeed", LNX_G_BG_SWINGSPEED},
+        {"g_entities", LNX_G_ENTITIES}, {"G_DObjCalcPose", LNX_G_DOBJCALCPOSE}, {"bg_swingSpeed", LNX_G_BG_SWINGSPEED},
     };
     for (auto& s : syms) {
         char what[96];

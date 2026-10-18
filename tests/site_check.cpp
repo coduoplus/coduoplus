@@ -568,6 +568,30 @@ void check_game_antilag() {
     CHECK_MSG(calls_link, "syscall 53 dispatches to SV_LinkEntity (0x467050)");
     const std::vector<uint32_t> obj = g_exe.find_cstr("Object %i touching 3 areas at %f %f %f\n");
     CHECK(obj.size() == 1 && contains_u32(g_exe, 0x467050, 0x400, obj[0]));
+
+    // pose rewind. Engine: syscall 111 (CreateSkelForBones) tail-jumps to 0x45cfe0, which
+    // looks the entity up in the DObj index (short) -> info (0x5c) table, compares info+8
+    // with the frame counter and sizes a fresh skeleton as 0x30 + 96 * info[0x17]
+    const uint32_t case111 = g_exe.u32(0x45e724 + 4 * g_exe.u8(0x45e988 + G_DOBJ_CREATESKEL));
+    bool to_handler = false;
+    for (uint32_t va = case111; va < case111 + 0x10; ++va)
+        to_handler |= g_exe.u8(va) == 0xe9 && g_exe.call_target(va) == 0x45cfe0;
+    CHECK_MSG(to_handler, "syscall 111 dispatches to the skeleton-cache handler (0x45cfe0)");
+    CHECK(g_exe.bytes_eq(0x45cfe0, {0x66, 0x8b, 0x04, 0x45}) && g_exe.u32(0x45cfe4) == CODMP_DOBJ_INDEX_VA);
+    CHECK(g_exe.bytes_eq(0x45cff4, {0x6b, 0xf6, 0x5c, 0x81, 0xc6}) && g_exe.u32(0x45cff9) == CODMP_DOBJ_INFO_VA);
+    CHECK(g_exe.bytes_eq(0x45d001, {0xa1}) && g_exe.u32(0x45d002) == CODMP_DOBJ_FRAME_VA);
+    CHECK(g_exe.bytes_eq(0x45d006, {0x39, 0x46, 0x08}));                     // cmp [esi+8],eax
+    CHECK(g_exe.bytes_eq(0x45d02c, {0x0f, 0xb6, 0x46, 0x17, 0x8d, 0x04, 0x40, 0xc1, 0xe0, 0x05,
+                                    0x83, 0xc0, 0x30}));                       // 0x30 + 96*bones
+    // game: G_DObjCalcPose is exactly the sequence pose_calc() redoes - 111, then 115,
+    // the ent+0x230 controllers callback (ent, mask), 116
+    const uint32_t cp = B + (b->runframe == 0x2cf30 ? 0x52800 : 0x52810);
+    CHECK(g_game.bytes_eq(cp, {0x83, 0xec, 0x10, 0x8b, 0x16}));
+    CHECK(g_game.bytes_eq(cp + 0x18, {0x6a, G_DOBJ_CREATESKEL}));
+    CHECK(g_game.bytes_eq(cp + 0x32, {0x6a, G_DOBJ_CALCANIM}));
+    CHECK(g_game.bytes_eq(cp + 0x3a, {0x8b, 0x86}) && g_game.u32(cp + 0x3c) == ENT_CONTROLLERS);
+    CHECK(g_game.bytes_eq(cp + 0x4a, {0x52, 0x56, 0xff, 0xd0}));              // push mask, ent; call
+    CHECK(g_game.bytes_eq(cp + 0x58, {0x6a, G_DOBJ_CALCSKEL}));
 }
 
 struct Group {

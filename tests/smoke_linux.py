@@ -45,6 +45,7 @@ MUST_LOG = [
     'version_gate: reject client ',
     'antilag: Bullet_Fire hook installed',
     'antilag: g_antilag=1 g_antilagMaxMs=300',
+    'antilag: g_antilagPose=1 (poses rewound too',
 ]
 MUST_NOT_LOG = ['does not match', 'unknown build', 'FAILED', 'left vanilla', 'not hooking',
                 'line refused', 'too long', 'Segmentation']

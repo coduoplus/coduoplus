@@ -66,6 +66,7 @@ ten years. `coduo_lnxded` itself still needs `libstdc++.so.5`, see its README.
 | `CODUOPLUS_SNAPS=0` | keep the vanilla snaps cap of 30 |
 | `CODUOPLUS_ANTILAG=0` | default of `g_antilag` ([lag compensation](NETCODE.md#lag-compensation)); `+set` / rcon still win |
 | `CODUOPLUS_ANTILAG_MAXMS=n` | default of `g_antilagMaxMs` (300) |
+| `CODUOPLUS_ANTILAG_POSE=0` | default of `g_antilagPose` (1): rewind position only, not the pose |
 | `CODUOPLUS_COMPETITIVE_FILE` | path of `competitive.cfg` (default: the server's working directory) |
 | `CODUOPLUS_LFS=0` | leave the engine's 32-bit `stat`/`readdir` alone (see below) |
 

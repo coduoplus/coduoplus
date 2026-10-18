@@ -9,7 +9,8 @@
  *
  * How a shot is compensated:
  *   - end of every server frame (G_RunFrame): record()   every live player's
- *     r.currentOrigin + r.currentAngles, stamped with level.time;
+ *     r.currentOrigin, r.currentAngles, r.mins/maxs and - with a PoseSource - the
+ *     posed skeleton (the hit boxes), stamped with level.time;
  *   - a bullet is fired (root Bullet_Fire* call): rewind() moves every OTHER live player
  *     to where they were at the shooter's usercmd serverTime - the time the shooter's
  *     client was drawing - interpolated between the two recorded frames around it,
@@ -17,12 +18,17 @@
  *   - the trace (and its penetrations, damage, death) runs against that world;
  *   - restore() puts every moved player back, exactly, and relinks.
  *
- * Why origin + angles are enough for the hitboxes: the server poses a player's DObj
- * per frame (G_DObjCalcPose: anim tree -> controllers -> skeleton, cached), and places
- * the skeleton in the world from r.currentAngles (ent+0x148, AnglesToAxis) and
- * r.currentOrigin (ent+0x13c) - G_DObjGetWorldBoneIndexMatrix, game.mp.uo.i386.so
- * 0x790b4. So moving those two fields moves every hitbox; the POSE stays the current
- * frame's (a stance change inside the rewind window is not rewound).
+ * Hit boxes = pose + placement. The server places a player's skeleton in the world
+ * from r.currentAngles (ent+0x148) and r.currentOrigin (ent+0x13c)
+ * (G_DObjGetWorldBoneIndexMatrix, game.mp.uo.i386.so 0x790b4). The skeleton itself is
+ * computed by G_DObjCalcPose (anim tree -> controllers -> bones) into an engine-side
+ * block cached per server frame: DObj info +4 = skeleton, +8 = the frame it belongs to,
+ * block = 0x30 bytes of "bone computed" masks + 96 bytes per bone, bone count at info
+ * +0x17 (CoDUOMP.exe 0x45cfe0 / coduo_lnxded 0x808ea25, syscall 111). A trace that
+ * needs hit locations reuses that block when its masks say the bones are done. So
+ * recording the block after each frame and copying an old one over the current one
+ * for the length of a shot rewinds the pose - stance, lean, aim pitch - exactly as the
+ * server computed it then. Without a PoseSource only placement is rewound.
  */
 #ifndef CODUOPLUS_ANTILAG_CORE_H
 #define CODUOPLUS_ANTILAG_CORE_H
@@ -51,7 +57,18 @@ constexpr int MAX_CLIENTS = 64;
 constexpr int SLOTS       = 128;               // 3.2 s at sv_fps 40, 6.4 s at 20
 constexpr float TELEPORT_DIST = 256.0f;        // more than this between two frames: no lerp
 
+constexpr uint32_t ENT_MINS          = 0x108;   // r.mins (vec3): prone/crouch boxes are lower
+constexpr uint32_t ENT_MAXS          = 0x114;   // r.maxs (vec3)
+constexpr int POSE_SLOTS  = 16;                // poses kept: 400 ms at sv_fps 40, 800 ms at 20
+
 typedef void (*LinkFn)(void* ent);             // trap_LinkEntity
+
+// Engine side of the pose, per platform (src/netcode/antilag.cpp, server/linux).
+struct PoseSource {
+    bool     (*has_dobj)(int entnum);                     // a DObj to pose at all
+    void     (*calc_pose)(void* ent);                     // G_DObjCalcPose, every bone
+    uint8_t* (*skeleton)(int entnum, uint32_t* size);     // this frame's block, or null
+};
 
 struct Shot {
     int   shooter;      // client number
@@ -59,8 +76,15 @@ struct Shot {
     int   cmd_time;     // shooter's usercmd serverTime
     int   target_time;  // what the world was rewound to (cmd_time, capped)
     int   moved;        // players moved
+    int   posed;        // of those, how many also got their old pose
     float max_dist;     // largest displacement, units
 };
+
+// Pose rewind on (source given) or off (null). Set once per game-module load.
+void set_pose_source(const PoseSource* src);
+
+// First client with a recorded pose, and that skeleton's size (for the log). -1 = none.
+int recorded_pose(uint32_t* size);
 
 // A new game module (map load / restart): forget the history.
 void reset();
