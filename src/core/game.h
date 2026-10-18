@@ -24,6 +24,16 @@ constexpr const char* GAME_CGAME_DLL  = "uo_cgame_mp_x86.dll";
 constexpr const char* GAME_GAME_DLL   = "uo_game_mp_x86.dll";
 constexpr const char* GAME_UI_DLL     = "uo_ui_mp_x86.dll";
 
+// Base game folder and the engine's archived-cvar file. UO registers
+// fs_basegame with default "uo" (FS_Startup, decompile line 27988) and
+// Com_WriteConfiguration writes "uoconfig_mp.cfg" ("exec uoconfig_mp.cfg" in
+// Com_Init) into it. CoD1 uses Main\config_mp.cfg - and a UO install usually
+// sits in the same folder as CoD1, so upstream's paths would read and REWRITE
+// CoD1's config instead of UO's. Demos, screenshots and configs/ live under
+// <basepath>\uo too.
+constexpr const char* GAME_BASE_DIR  = "uo";
+constexpr const char* GAME_CONFIG_MP = "uoconfig_mp.cfg";
+
 // Main window class, registered in GLW_CreateWindow (CoDUOMP.exe decompile
 // "CoD:United Offensive Multiplayer"). CoD1's is plain "CoDMP".
 constexpr const char* GAME_WINDOW_CLASS = "CoD:United Offensive Multiplayer";

@@ -1,6 +1,6 @@
 // In-game 1.6X settings menu bridge.
 //
-// The menu itself is a stock idTech3 ui_mp/cod1x_settings.menu shipped in a Main/ pk3;
+// The menu itself is a stock idTech3 ui_mp/cod1x_settings.menu shipped in a uo/ pk3;
 // it binds: FOV slider -> cg_fov, View mode -> cod1x_widescreen, Aspect ratio -> cod1x_aspect.
 // This module makes those bindings do something: registers the cod1x_* cvars (seeded from the
 // .ini), unlocks cg_fov so it isn't cheat-locked to 80, opens the menu on a hotkey (runtime
@@ -147,7 +147,7 @@ bool game_main_path(char* out, size_t cap, const char* sub) {
     char* slash = strrchr(path, '\\');
     if (!slash) return false;
     slash[1] = '\0';
-    if (snprintf(out, cap, "%sMain\\%s", path, sub) >= (int)cap) return false;
+    if (snprintf(out, cap, "%s%s\\%s", path, GAME_BASE_DIR, sub) >= (int)cap) return false;
     return true;
 }
 
@@ -187,7 +187,7 @@ int scan_dir(const char* sub, const char* pattern, FoundFile* out, int cap,
 }
 
 bool accept_cfg_mainroot(const char* n) {
-    // skip the engine-managed configs; everything else in Main/ is a player config
+    // skip the engine-managed configs; everything else in uo/ is a player config
     static const char* SKIP[] = { "config_mp.cfg", "config.cfg", "default_mp.cfg", "default.cfg",
                                   "uoconfig_mp.cfg", "uoconfig.cfg" };
     for (const char* s : SKIP)
@@ -236,7 +236,7 @@ void append_slots(char* buf, size_t cap, const char* prefix, const FoundFile* fi
 }
 
 void publish_files() {
-    // make sure Main/configs exists so writeconfig + the convention have a home
+    // make sure uo/configs exists so writeconfig + the convention have a home
     char cfgdir[MAX_PATH];
     if (game_main_path(cfgdir, sizeof(cfgdir), "configs"))
         CreateDirectoryA(cfgdir, NULL);
@@ -259,7 +259,7 @@ void publish_files() {
     logger::logf("settings_menu: published file slots (%d configs, %d demos)", nc, nd);
 }
 
-// SAVE AS: menu sets cod1x_files_save 1; we writeconfig Main/configs/<cod1x_savename>.cfg
+// SAVE AS: menu sets cod1x_files_save 1; we writeconfig uo/configs/<cod1x_savename>.cfg
 void do_save_config() {
     char name[64] = {0};
     void* cv = Cvar_FindVar("cod1x_savename");
@@ -284,7 +284,7 @@ void do_save_config() {
         snprintf(cmd, sizeof(cmd),
                  "writeconfig configs/%s.cfg\nset cod1x_files_save 0\nset cod1x_files_scan 1\n",
                  clean);
-        logger::logf("settings_menu: save config -> Main/configs/%s.cfg", clean);
+        logger::logf("settings_menu: save config -> %s/configs/%s.cfg", GAME_BASE_DIR, clean);
     } else {
         snprintf(cmd, sizeof(cmd), "set cod1x_files_save 0\n");
     }
@@ -382,7 +382,7 @@ void settings_menu_tick() {
 
     // (1) register the menu cvars once, seeded from the current (ini) state. Non-archive:
     // the .ini is the persistent home, so we re-seed from it each launch and never let
-    // config_mp.cfg shadow these.
+    // uoconfig_mp.cfg shadow these.
     //   cod1x_viewmode : 0 = classic zoomed, 1 = widescreen, 2 = stretched
     //   cod1x_aspect   : "auto"/"4:3"/"16:9"/"16:10"/"21:9" or a number like "1.6"
     static bool registered = false;
@@ -424,7 +424,7 @@ void settings_menu_tick() {
                 if (!once) { once = true; logger::logf("settings_menu: cleared cg_fov CHEAT flag (live)"); }
             }
             // (2b) the mod's own range, whatever the source of the value (slider, console,
-            // config_mp.cfg, a server spec wider than ours): COD1X_FOV_MIN..COD1X_FOV_MAX.
+            // uoconfig_mp.cfg, a server spec wider than ours): COD1X_FOV_MIN..COD1X_FOV_MAX.
             const float fv = *(float*)((char*)cv + CVAR_OFF_VALUE);
             if (fv > (float)COD1X_FOV_MAX || fv < (float)COD1X_FOV_MIN) {
                 char cmd[48];

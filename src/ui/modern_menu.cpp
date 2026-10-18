@@ -113,7 +113,7 @@ void scan_dir(const char* sub, const char* pat, std::vector<std::string>& out) {
     char base[MAX_PATH];
     if (!game_root(base, sizeof(base))) return;
     char q[MAX_PATH];
-    snprintf(q, sizeof(q), "%sMain/%s/%s", base, sub, pat);
+    snprintf(q, sizeof(q), "%s%s/%s/%s", base, GAME_BASE_DIR, sub, pat);
     WIN32_FIND_DATAA fd; HANDLE h = FindFirstFileA(q, &fd);
     if (h == INVALID_HANDLE_VALUE) return;
     do { if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) out.push_back(fd.cFileName); }
@@ -168,8 +168,8 @@ void scan_demos() {
     // Main first, then mods; newest (highest demo number) first within each dir
     std::sort(g_demo_ents.begin(), g_demo_ents.end(),
               [](const DemoEnt& a, const DemoEnt& b) {
-                  int md = _stricmp(a.dir.c_str(), "Main") == 0 ? 0 : 1;
-                  int nd = _stricmp(b.dir.c_str(), "Main") == 0 ? 0 : 1;
+                  int md = _stricmp(a.dir.c_str(), GAME_BASE_DIR) == 0 ? 0 : 1;
+                  int nd = _stricmp(b.dir.c_str(), GAME_BASE_DIR) == 0 ? 0 : 1;
                   if (md != nd) return md < nd;
                   if (a.dir != b.dir) return a.dir < b.dir;
                   return a.name > b.name;
@@ -244,11 +244,11 @@ void parse_binds() {
     char path[MAX_PATH];
     FILE* f = nullptr;
     if (fsg && fsg[0]) {
-        snprintf(path, sizeof(path), "%s%s/config_mp.cfg", base, fsg);
+        snprintf(path, sizeof(path), "%s%s/%s", base, fsg, GAME_CONFIG_MP);
         f = fopen(path, "r");
     }
     if (!f) {
-        snprintf(path, sizeof(path), "%sMain/config_mp.cfg", base);
+        snprintf(path, sizeof(path), "%s%s/%s", base, GAME_BASE_DIR, GAME_CONFIG_MP);
         f = fopen(path, "r");
     }
     if (!f) return;
@@ -1037,7 +1037,7 @@ void modern_menu_draw(float sw, float sh) {
                 const char* kn = keyname_from_vk(vkin);
                 if (kn) {
                     cmdf("bind %s \"%s\"\n", kn, g_cap_act->cmd);
-                    cmdf("writeconfig config_mp.cfg\n");
+                    cmdf("writeconfig %s\n", GAME_CONFIG_MP);
                     // optimistic local update so the row refreshes this frame;
                     // the file re-parse (2 s) then confirms the engine's truth
                     for (auto& b : g_binds)
@@ -1089,7 +1089,7 @@ void modern_menu_draw(float sw, float sh) {
         }
         float endy = col_y[0] > col_y[1] ? col_y[0] : col_y[1];
         hint(cx, endy, "Keys, mouse buttons and the wheel all bind. Binding a key that is in use");
-        hint(cx, endy + 20, "steals it from the old action. Written to config_mp.cfg immediately.");
+        hint(cx, endy + 20, "steals it from the old action. Written to uoconfig_mp.cfg immediately.");
     } else if (g_tab == 3) {
         float cy2 = cy;                       // right column runs in parallel
         section(cx, cy, colw, "FRAMERATE CAP"); cy += 24;
@@ -1275,7 +1275,7 @@ void modern_menu_draw(float sw, float sh) {
                 if (over && ui_input().clicked) {
                     std::string nm = v[idx].name;
                     size_t p = nm.rfind('.'); if (p != std::string::npos) nm.resize(p);
-                    bool sw = _stricmp(v[idx].dir.c_str(), "Main") != 0 &&
+                    bool sw = _stricmp(v[idx].dir.c_str(), GAME_BASE_DIR) != 0 &&
                               _stricmp(v[idx].dir.c_str(), fsg) != 0;
                     if (sw)
                         cmdf("seta fs_game %s\nvid_restart\ndemo %s\n",
@@ -1295,7 +1295,7 @@ void modern_menu_draw(float sw, float sh) {
             }
         }
         hint(cx, ly + vis * rh + 10,
-             "Configs from Main/configs. Demos from every folder's demos/ - playing a mod's");
+             "Configs from uo/configs. Demos from every folder's demos/ - playing a mod's");
         hint(cx, ly + vis * rh + 30,
              "demo loads that mod first (fs_game + renderer restart), then plays it.");
     } else {

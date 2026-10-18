@@ -27,7 +27,7 @@ extern SettingsMenuConfig g_settings_menu_config;
 void menu_ini_writeback(const char* key, const char* value);   // settings_menu.cpp, same .ini rules
 
 // The FOV the mod allows, everywhere: the 1.6X menu slider, and a live clamp on
-// cg_fov itself (console / config_mp.cfg cannot get around the slider). The cgame's
+// cg_fov itself (console / uoconfig_mp.cfg cannot get around the slider). The cgame's
 // own ceiling stays at 160 - never reached. Competitive policy (enzo, 2026-09-17):
 // 95 is the max, same as the servers' competitive.cfg range.
 constexpr int COD1X_FOV_MIN = 80;
