@@ -13,6 +13,7 @@ ctest
  ├─ ui_pk3             generate the UO main-menu pk3 from the install
  ├─ doc_links          every relative link / #anchor in the docs resolves
  ├─ frame_limiter      the real wait inside a copy of the patched Com_Frame loop (~20 s)
+ ├─ ini_lock           the imposed-keys rewrite over the shipped coduoplus.ini
  └─ smoke_dedicated    (opt-in) run the real game with the mod as a server
 ```
 
@@ -114,13 +115,22 @@ it checks:
 - with `com_maxfps 0` and on a dedicated server, the vanilla loop: `minMsec` 1,
   the engine's own clock, no late mouse.
 
-## 4. ui_pk3
+## 4. ini_lock — the imposed-keys rewrite
+
+`tests/test_ini_lock.cpp` (after upstream's) runs `ini_lock_apply()` on copies of
+the shipped `coduoplus.ini`. It checks that the shipped file already holds the
+locked values; that a player's edits to all seven are put back while the other
+119 lines stay identical and in place; that a second pass changes nothing; that
+deleted keys are re-appended under the header; that CRLF and LF files keep their
+line ending; and that the runtime values are forced.
+
+## 5. ui_pk3
 
 Builds `dist/zz_coduoplus_ui.pk3` from the install's `uo/pakuo03.pk3`. It fails
 if UO's `main.menu` isn't the stock file, if the AUTO-UPDATE anchor is missing,
 or if the result loses CRLF or balanced braces.
 
-## 5. smoke_dedicated — the real game, running the mod
+## 6. smoke_dedicated — the real game, running the mod
 
 `tests/smoke_dedicated.py <game>`:
 

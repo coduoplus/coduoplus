@@ -26,6 +26,7 @@
 #include "performance/frame_limiter.h"
 #include "performance/gpu_sync.h"
 #include "core/session_report.h"
+#include "core/ini_lock.h"
 #include "features/updater.h"
 #include "features/demo_upload.h"
 #include "core/toast.h"
@@ -118,6 +119,7 @@ DWORD WINAPI patch_watcher_thread(LPVOID) {
             patches::settings_menu_tick();       // register/poll cod1x_* cvars + cg_fov unlock + hotkey
             patches::rinput_tick();              // follow m_rinput, publish m_rinput_hz
             patches::session_report_tick();      // one 'session' line a minute in the log
+            patches::ini_lock_tick();            // r_fullscreen read-only, r_displayRefresh at max
             patches::netmode_tick();             // follow cod1x_masterlist (1.6 <-> legacy 1.5)
         }
         patches::swing_server_tick();            // hosting: mirror swing into uo_game, publish it
@@ -146,8 +148,14 @@ extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
             // apply pending update (rename .new -> .dll) before file gets locked
             patches::updater_apply_pending();
             logger::init(hModule);
-            logger::logf("coduoplus DLL_PROCESS_ATTACH (loaded as 0x%08x, version %s)",
-                         (unsigned)(uintptr_t)hModule, patches::COD1RELOADED_VERSION);
+            logger::logf("coduoplus DLL_PROCESS_ATTACH (loaded as 0x%08x, version %s%s)",
+                         (unsigned)(uintptr_t)hModule, patches::COD1RELOADED_VERSION,
+#ifdef COD1RELOADED_DEV_UNLOCK
+                         " DEV UNLOCK build - ini lock off, do not ship"
+#else
+                         ""
+#endif
+                         );
             patches::load_config(hModule);
 
             // must run before FS_InitFilesystem so the first pak scan picks it up (~150ms sync on cache miss)

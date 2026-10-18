@@ -18,6 +18,30 @@ the protocol and master server, the rate caps (snaps 40, cl_maxpackets 125), and
 the FOV range (80–95). To change one, rebuild. The reasons for each value are
 in [PORTING.md](PORTING.md).
 
+### Keys the mod imposes (ini lock, upstream 1.6.9)
+
+Seven keys are **rewritten to fixed values at every launch**, so everybody plays
+with the same frame pacing, input path and presentation. An edited one is put
+back in place; a deleted one is re-appended under
+`; ----- IMPOSED BY THE MOD …`. Every other line of the file is kept byte for byte.
+The values used at runtime are these, whatever the file says:
+
+| Key | Imposed value |
+| --- | --- |
+| `fullscreen` | `on`, and `r_fullscreen` is held at 1, **read-only** (console and overlay can't change it) |
+| `refresh_rate` | `max`, and `r_displayRefresh` is re-asserted at the display's highest listed Hz |
+| `frame_limiter_enable` | `on` |
+| `force_1ms_timer` | `on` |
+| `gpu_sync` | `auto` |
+| `input_late_sampling` | `on` |
+| `smoothness_cpu_cores` | `0` (no CPU affinity) |
+
+Consequences: the **borderless window and the overlay's "Borderless" display mode
+can't take effect** (`r_fullscreen` is locked at 1), and with `refresh_rate = max`
+the 1.6.6 `max_hz_native_res` rule applies (below). Upstream 1.6.10 ships the
+same combination. A test DLL without the lock: build with
+`-DCOD1RELOADED_DEV_UNLOCK=ON` (output in `build\devunlock\`, never ship it).
+
 > `fov_unlock` is still listed in the shipped ini but **is not read** (upstream
 > stopped reading it in 1.6.5). The unlock is compiled in as on. See
 > [PORTING.md → FOV unlock](PORTING.md#fov-unlock-is-ported-as-is--read-this).

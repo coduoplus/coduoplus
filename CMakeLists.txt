@@ -52,6 +52,7 @@ set(COD1RELOADED_SOURCES
     src/performance/frame_limiter.cpp
     src/performance/gpu_sync.cpp
     src/core/session_report.cpp
+    src/core/ini_lock.cpp
     src/features/updater.cpp
     src/features/demo_upload.cpp
     src/core/toast.cpp
@@ -107,6 +108,20 @@ if (COD1RELOADED_NO_RINPUT)
     set(COD1RELOADED_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/build/norinput")
     message(STATUS "cod1reloaded: raw input DISABLED at compile time (no GetCursorPos hook)")
     message(STATUS "cod1reloaded: output -> ${COD1RELOADED_OUTPUT_DIR}")
+endif()
+
+# Dev builds only: core/ini_lock.cpp imposes nothing - the seven locked keys are taken as
+# written in coduoplus.ini (e.g. gpu_sync = on to force the sync instead of auto) and
+# r_fullscreen / r_displayRefresh are left to the engine. The log says so at every launch.
+# Never ship this: the whole point of the lock is that everybody plays the same.
+#     cmake -S . -B build-devunlock -DCOD1RELOADED_DEV_UNLOCK=ON ...   (upstream 1.6.10)
+option(COD1RELOADED_DEV_UNLOCK "ini_lock imposes nothing: the .ini is taken as written (dev only)" OFF)
+if (COD1RELOADED_DEV_UNLOCK)
+    target_compile_definitions(cod1reloaded PRIVATE COD1RELOADED_DEV_UNLOCK=1)
+    target_compile_definitions(mss32 PRIVATE COD1RELOADED_DEV_UNLOCK=1)
+    set(COD1RELOADED_OUTPUT_DIR "${COD1RELOADED_OUTPUT_DIR}/devunlock")
+    message(STATUS "coduoplus: DEV UNLOCK - ini_lock imposes nothing (do not ship)")
+    message(STATUS "coduoplus: output -> ${COD1RELOADED_OUTPUT_DIR}")
 endif()
 
 target_compile_options(cod1reloaded PRIVATE
@@ -213,4 +228,14 @@ target_compile_options(test_frame_limiter PRIVATE -Wall -Wextra -Wno-unused-para
 target_link_options(test_frame_limiter PRIVATE -static -static-libgcc -static-libstdc++)
 target_link_libraries(test_frame_limiter PRIVATE winmm)
 add_test(NAME frame_limiter COMMAND test_frame_limiter)
+
+# The ini lock's file rewrite against the shipped coduoplus.ini (upstream 1.6.9's
+# tools/test_ini_lock.cpp): locked values in place, every other line byte for byte,
+# idempotent, deleted keys re-appended, CRLF and LF kept, runtime values forced.
+add_executable(test_ini_lock tests/test_ini_lock.cpp
+               src/core/ini_lock.cpp src/core/logger.cpp src/core/game.cpp)
+target_include_directories(test_ini_lock PRIVATE src)
+target_compile_options(test_ini_lock PRIVATE -Wall -Wextra -Wno-unused-parameter -O2)
+target_link_options(test_ini_lock PRIVATE -static -static-libgcc -static-libstdc++)
+add_test(NAME ini_lock COMMAND test_ini_lock "${CMAKE_SOURCE_DIR}/coduoplus.ini" "${CMAKE_BINARY_DIR}/testtmp")
 set_tests_properties(frame_limiter PROPERTIES TIMEOUT 120)

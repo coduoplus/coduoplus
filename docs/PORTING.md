@@ -128,6 +128,8 @@ checks compare against relocated values.
 | Version string in menus (`version_patch`) | ✅ ported | Shows `CoDUO+ 0.1.0`. |
 | Protocol / master / browser (`protocol_patch`) | ✅ ported, **vanilla values** | [Decision](#protocol-and-master-server-stay-vanilla). |
 | 40-tick caps: snaps 40, cl_maxpackets 125 (`competitive`) | ✅ ported | Server-pushed competitive spec + ROM lock work unchanged. |
+| Imposed ini keys (`ini_lock`, 1.6.9) | ✅ ported | [Decision](#ini-lock-imposed-settings). |
+| Session report (`session_report`, 1.6.9) | ✅ ported | One `session` line a minute in the log. |
 | PunkBuster-replacement ruleset + cheat-cvar scan (`ruleset*`, `cheat_scan`) | 🗑️ removed | [Why](#punkbuster-code-removed). |
 | Frame limiter (`frame_limiter`) | ✅ ported, **reworked**, 1.6.9 | Continuous engine-epoch clock and late mouse from 1.6.9. [Decision](#frame-limiter). |
 | 1 ms timer, CPU affinity, priority, working set, FSO (`performance/*`) | ✅ ported | Win32 only. 1.6.9: the timer request survives an occluded window (Windows 11), working-set sizes no longer wrap in 32 bits. |
@@ -342,6 +344,26 @@ Porting it "for real" to `uo_game` would introduce a movement change upstream
 never shipped. Because pmove runs on both sides, client prediction and server
 would also disagree unless both were patched. Not ported; noted in
 `core/main.cpp`.
+
+### Ini lock (imposed settings)
+
+Upstream 1.6.9 rewrites seven ini keys at every launch and locks `r_fullscreen`
+read-only at 1 (`core/ini_lock.cpp`, upstream `b2bb8f4`). It's ported as is,
+including 1.6.10's `COD1RELOADED_DEV_UNLOCK` test build. Two things in this tree
+change behaviour because of it, exactly as in upstream 1.6.10, which carries
+both the lock and the 1.6.6-era display code:
+
+- the **borderless window** (`window_patch`) and the Ctrl+M overlay's
+  "Borderless" mode can no longer take effect;
+- `refresh_rate = max` activates 1.6.6's `max_hz_native_res`, which was on by
+  default but idle while the shipped ini said `refresh_rate = 0`: a custom
+  resolution that is only listed below the panel's maximum Hz is swapped for
+  one that reaches it, and the 4:3 stretch is done by the mod.
+
+Upstream enforces the lock through its server refusing older builds. A UO
+server running CoDUO+ does the same through the version gate. On vanilla
+servers it's a client-side default players can't edit. `tests/test_ini_lock.cpp`
+runs the rewrite over the shipped `coduoplus.ini`.
 
 ### PunkBuster code removed
 
