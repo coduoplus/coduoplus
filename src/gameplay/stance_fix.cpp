@@ -1,6 +1,7 @@
 // Sync the 3rd-person model stance blend with the 1st-person stance time (see header).
 
 #include "gameplay/stance_fix.h"
+#include "core/game.h"
 #include "core/logger.h"
 
 namespace patches {
@@ -44,7 +45,8 @@ bool apply_stance_fix(HMODULE cgame_module) {
 }
 
 void stance_fix_hot_repoke() {
-    HMODULE cg = GetModuleHandleA("cgame_mp_x86.dll");
+    if (!port::CGAME_STANCE) return;
+    HMODULE cg = GetModuleHandleA(GAME_CGAME_DLL);
     if (!cg) return;
     const uint32_t want = g_stance_fix_config.enable
                         ? clamp_ms(g_stance_fix_config.blend_ms)

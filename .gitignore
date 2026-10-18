@@ -7,6 +7,7 @@
 
 # --- Sortie de compilation (généré) ---
 /build/
+/build-*/
 /dist/
 *.o
 *.obj
@@ -46,7 +47,9 @@ desktop.ini
 .DS_Store
 
 # --- Dev / non distribué ---
-/tools/
+# tools/re/ holds the CoD:UO reverse-engineering helpers - tracked on purpose.
+/tools/*
+!/tools/re/
 /FEATURES.md
 /scoreboard-clean*.png
 /TODO.md
@@ -64,3 +67,5 @@ desktop.ini
 /ui_pk3/fonts/
 /ui_pk3/ui/
 /build-norinput/
+# --- CoD:UO port: Python caches from tools/re ---
+__pycache__/

@@ -177,7 +177,7 @@ void discord_rpc_start() {
     }
     if (g_discord_rpc_config.client_id[0] == '\0') {
         logger::logf("discord_rpc: aucun client_id -> desactive "
-                     "(voir discord_rpc_client_id dans cod1reloaded.ini)");
+                     "(voir discord_rpc_client_id dans coduoplus.ini)");
         return;
     }
     InterlockedExchange(&g_stop, 0);

@@ -1,6 +1,7 @@
 // antilag (g_antilag), CoD1 server module. docs/lag_compensation_cod1_plan.md
 
 #include "netcode/antilag.h"
+#include "core/game.h"
 #include "core/logger.h"
 
 #include <windows.h>
@@ -410,7 +411,7 @@ void antilag_install_frame_hook(uintptr_t base) {
 DWORD WINAPI antilag_watch(LPVOID) {
     // game_mp_x86.dll loads only when a hosted match starts
     HMODULE gm = nullptr;
-    for (;;) { gm = GetModuleHandleA("game_mp_x86.dll"); if (gm) break; Sleep(20); }
+    for (;;) { gm = GetModuleHandleA(GAME_GAME_DLL); if (gm) break; Sleep(20); }
 
     const uintptr_t base = (uintptr_t)gm;
     g_antilag_game_base = base;
@@ -459,6 +460,7 @@ DWORD WINAPI antilag_watch(LPVOID) {
 }  // namespace
 
 void antilag_start() {
+    if (!port::GAME_ANTILAG) return;  // CoD:UO port: uo_game offsets not mapped yet
     if (!g_antilag_config.diag_enable && !g_antilag_config.fire_hook_enable &&
         !g_antilag_config.capture_enable && !g_antilag_config.rewind_enable) return;
     if (HANDLE h = CreateThread(NULL, 0, antilag_watch, NULL, 0, NULL)) CloseHandle(h);

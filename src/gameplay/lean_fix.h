@@ -91,7 +91,7 @@ struct LeanFixConfig {
     int   ctrl_smooth_time;   // ms
 
     // Controller-buffer dump: max samples per client, 0 = off. Diagnostic only, it
-    // changes nothing about the pose. Read from cod1reloaded.ini (key ctrl_dump) because
+    // changes nothing about the pose. Read from coduoplus.ini (key ctrl_dump) because
     // the environment-variable route failed twice in a row: a shortcut or a double-click
     // on CoDMP.exe does not inherit a variable set in some other shell, and there is no
     // way to tell from inside the game that it was meant to be set. The ini is read and

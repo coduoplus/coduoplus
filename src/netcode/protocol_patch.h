@@ -56,7 +56,7 @@ constexpr int       CVAR_USERINFO       = 0x02;
 constexpr int       CVAR_ROM            = 0x40;
 
 bool apply_protocol_patch();        // protocol bump + master repoint in CoDMP.exe
-void register_client_version_cvar(); // register USERINFO "cod1reloaded" cvar (once, after Com_Init)
+void register_client_version_cvar(); // register USERINFO "coduoplus" cvar (once, after Com_Init)
 void netmode_tick();                // watcher: follow cod1x_masterlist, re-poke on change
 int  netmode_current();             // 0 = 1.6, 1 = legacy 1.5
 

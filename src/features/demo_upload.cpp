@@ -79,7 +79,7 @@ bool http_post_file(const char* url, const char* file_path,
         return false;
     }
 
-    HINTERNET h_inet = InternetOpenA("cod1reloaded demo upload",
+    HINTERNET h_inet = InternetOpenA("coduoplus demo upload",
                                      INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!h_inet) {
         fclose(fp);

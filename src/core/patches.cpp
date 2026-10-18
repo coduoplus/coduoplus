@@ -45,14 +45,14 @@ bool get_config_path(HMODULE self_module, char* out, size_t out_size) {
     if (!slash) return false;
     *(slash + 1) = '\0';
 
-    int written = snprintf(out, out_size, "%scod1reloaded.ini", dll_path);
+    int written = snprintf(out, out_size, "%scoduoplus.ini", dll_path);
     return written > 0 && (size_t)written < out_size;
 }
 
 float read_ini_float(const char* path, const char* key, float fallback) {
     char buf[64];
     DWORD n = GetPrivateProfileStringA(
-        "cod1reloaded", key, "", buf, sizeof(buf), path);
+        "coduoplus", key, "", buf, sizeof(buf), path);
     if (n == 0) return fallback;
     char* end = nullptr;
     float v = strtof(buf, &end);
@@ -63,7 +63,7 @@ float read_ini_float(const char* path, const char* key, float fallback) {
 bool read_ini_bool(const char* path, const char* key, bool fallback) {
     char buf[16];
     DWORD n = GetPrivateProfileStringA(
-        "cod1reloaded", key, "", buf, sizeof(buf), path);
+        "coduoplus", key, "", buf, sizeof(buf), path);
     if (n == 0) return fallback;
     if (!_stricmp(buf, "true") || !_stricmp(buf, "1") || !_stricmp(buf, "yes") ||
         !_stricmp(buf, "on") || !_stricmp(buf, "enabled")) return true;
@@ -75,7 +75,7 @@ bool read_ini_bool(const char* path, const char* key, bool fallback) {
 int read_ini_int(const char* path, const char* key, int fallback) {
     char buf[32];
     DWORD n = GetPrivateProfileStringA(
-        "cod1reloaded", key, "", buf, sizeof(buf), path);
+        "coduoplus", key, "", buf, sizeof(buf), path);
     if (n == 0) return fallback;
     char* end = nullptr;
     long v = strtol(buf, &end, 10);
@@ -86,7 +86,7 @@ int read_ini_int(const char* path, const char* key, int fallback) {
 void read_ini_string(const char* path, const char* key,
                      char* out, size_t out_size, const char* fallback) {
     DWORD n = GetPrivateProfileStringA(
-        "cod1reloaded", key, fallback, out, (DWORD)out_size, path);
+        "coduoplus", key, fallback, out, (DWORD)out_size, path);
     (void)n;
 }
 
@@ -107,7 +107,7 @@ void load_config(HMODULE self_module) {
     strncpy(g_ini_path_cache, ini_path, sizeof(g_ini_path_cache) - 1);
     g_ini_path_cache[sizeof(g_ini_path_cache) - 1] = '\0';
 
-    // Sanity: every key lives under [cod1reloaded]. Without that section header the Win32
+    // Sanity: every key lives under [coduoplus]. Without that section header the Win32
     // profile API silently returns the fallback for EVERY key, so the file looks fine but
     // nothing in it applies (this actually shipped once). Detect and shout in the log.
     {
@@ -116,17 +116,17 @@ void load_config(HMODULE self_module) {
         // good ini started reporting itself as ignored on every launch. Any key can be
         // deleted by a player or by us; the section either has content or it does not.
         char section[64];
-        if (GetPrivateProfileSectionA("cod1reloaded", section, sizeof(section),
+        if (GetPrivateProfileSectionA("coduoplus", section, sizeof(section),
                                       ini_path) == 0) {
-            logger::logf("*** cod1reloaded.ini: section [cod1reloaded] is MISSING or empty "
+            logger::logf("*** coduoplus.ini: section [coduoplus] is MISSING or empty "
                          "-> the whole file is being IGNORED and compiled defaults are used. "
-                         "Add a line [cod1reloaded] above the settings.");
+                         "Add a line [coduoplus] above the settings.");
         }
     }
 
     // -----------------------------------------------------------------------------
     // COMPETITIVE RELEASE: gameplay + netcode + ecosystem settings are HARDCODED in
-    // the DLL (baked into their config initializers), NOT read from cod1reloaded.ini,
+    // the DLL (baked into their config initializers), NOT read from coduoplus.ini,
     // so a player cannot edit the ini to gain an advantage. Locked here: viewheight,
     // lean_*, move_diag_*, diag_*, ctrl_smooth_*, body_*, swing_*, stance_*,
     // competitive_*, protocol/net/master/version_gate/short_version. Only VISUAL
@@ -136,16 +136,16 @@ void load_config(HMODULE self_module) {
     {
         char buf[16];
         DWORD n = GetPrivateProfileStringA(
-            "cod1reloaded", "smoothness_cpu_cores", "", buf, sizeof(buf), ini_path);
+            "coduoplus", "smoothness_cpu_cores", "", buf, sizeof(buf), ini_path);
         if (n > 0) g_cpu_affinity_config.cores_count = atoi(buf);
         n = GetPrivateProfileStringA(
-            "cod1reloaded", "smoothness_cpu_first_core", "", buf, sizeof(buf), ini_path);
+            "coduoplus", "smoothness_cpu_first_core", "", buf, sizeof(buf), ini_path);
         if (n > 0) g_cpu_affinity_config.first_core = atoi(buf);
     }
     {
         char buf[32];
         DWORD n = GetPrivateProfileStringA(
-            "cod1reloaded", "smoothness_process_priority", "", buf, sizeof(buf), ini_path);
+            "coduoplus", "smoothness_process_priority", "", buf, sizeof(buf), ini_path);
         if (n > 0) {
             if      (!_stricmp(buf, "normal"))       g_process_priority_config.process_priority = ProcessPriorityLevel::Normal;
             else if (!_stricmp(buf, "above_normal")) g_process_priority_config.process_priority = ProcessPriorityLevel::AboveNormal;
@@ -154,7 +154,7 @@ void load_config(HMODULE self_module) {
             else if (!_stricmp(buf, "default"))      g_process_priority_config.process_priority = ProcessPriorityLevel::Default;
         }
         n = GetPrivateProfileStringA(
-            "cod1reloaded", "smoothness_main_thread_priority", "", buf, sizeof(buf), ini_path);
+            "coduoplus", "smoothness_main_thread_priority", "", buf, sizeof(buf), ini_path);
         if (n > 0) {
             if      (!_stricmp(buf, "normal"))        g_process_priority_config.main_thread_priority = ThreadPriorityLevel::Normal;
             else if (!_stricmp(buf, "above_normal"))  g_process_priority_config.main_thread_priority = ThreadPriorityLevel::AboveNormal;
@@ -171,10 +171,10 @@ void load_config(HMODULE self_module) {
     {
         char buf[16];
         DWORD n = GetPrivateProfileStringA(
-            "cod1reloaded", "smoothness_working_set_min_mb", "", buf, sizeof(buf), ini_path);
+            "coduoplus", "smoothness_working_set_min_mb", "", buf, sizeof(buf), ini_path);
         if (n > 0) g_working_set_config.min_mb = (size_t)atoi(buf);
         n = GetPrivateProfileStringA(
-            "cod1reloaded", "smoothness_working_set_max_mb", "", buf, sizeof(buf), ini_path);
+            "coduoplus", "smoothness_working_set_max_mb", "", buf, sizeof(buf), ini_path);
         if (n > 0) g_working_set_config.max_mb = (size_t)atoi(buf);
     }
     g_fso_disable_config.enable = read_ini_bool(
@@ -189,13 +189,13 @@ void load_config(HMODULE self_module) {
     g_demo_upload_config.show_toasts = read_ini_bool(
         ini_path, "demo_upload_show_toasts", g_demo_upload_config.show_toasts);
     GetPrivateProfileStringA(
-        "cod1reloaded", "demo_upload_url", "",
+        "coduoplus", "demo_upload_url", "",
         g_demo_upload_config.upload_url, sizeof(g_demo_upload_config.upload_url),
         ini_path);
     {
         char buf[16];
         DWORD n = GetPrivateProfileStringA(
-            "cod1reloaded", "demo_upload_poll_sec", "", buf, sizeof(buf), ini_path);
+            "coduoplus", "demo_upload_poll_sec", "", buf, sizeof(buf), ini_path);
         if (n > 0) g_demo_upload_config.poll_interval_sec = atoi(buf);
     }
     g_updater_config.enable = read_ini_bool(
@@ -205,7 +205,7 @@ void load_config(HMODULE self_module) {
     g_updater_config.show_dialog = read_ini_bool(
         ini_path, "updater_show_dialog", g_updater_config.show_dialog);
     GetPrivateProfileStringA(
-        "cod1reloaded", "updater_manifest_url", "",
+        "coduoplus", "updater_manifest_url", "",
         g_updater_config.manifest_url, sizeof(g_updater_config.manifest_url),
         ini_path);
     g_ruleset_fetch_config.enable = read_ini_bool(
@@ -213,7 +213,7 @@ void load_config(HMODULE self_module) {
     {
         char buf[256];
         DWORD n = GetPrivateProfileStringA(
-            "cod1reloaded", "ruleset_url", "", buf, sizeof(buf), ini_path);
+            "coduoplus", "ruleset_url", "", buf, sizeof(buf), ini_path);
         if (n > 0) snprintf(g_ruleset_fetch_config.base_url, sizeof(g_ruleset_fetch_config.base_url), "%s", buf);
     }
     g_pam_install_config.enable = read_ini_bool(
@@ -221,7 +221,7 @@ void load_config(HMODULE self_module) {
     {
         char buf[256];
         DWORD n = GetPrivateProfileStringA(
-            "cod1reloaded", "pam_manifest_url", "", buf, sizeof(buf), ini_path);
+            "coduoplus", "pam_manifest_url", "", buf, sizeof(buf), ini_path);
         if (n > 0) snprintf(g_pam_install_config.manifest_url, sizeof(g_pam_install_config.manifest_url), "%s", buf);
     }
     g_frame_limiter_config.enable = read_ini_bool(
@@ -229,7 +229,7 @@ void load_config(HMODULE self_module) {
     {
         char buf[16];
         DWORD n = GetPrivateProfileStringA(
-            "cod1reloaded", "frame_limiter_bias_us", "", buf, sizeof(buf), ini_path);
+            "coduoplus", "frame_limiter_bias_us", "", buf, sizeof(buf), ini_path);
         if (n > 0) g_frame_limiter_config.deadline_bias_us = atoi(buf);
     }
     {
@@ -239,7 +239,7 @@ void load_config(HMODULE self_module) {
                                       g_fullscreen_config.force_windowed_default);
         char probe[16];
         g_fullscreen_config.ini_key_present = false;
-        if (GetPrivateProfileStringA("cod1reloaded", "fullscreen", "",
+        if (GetPrivateProfileStringA("coduoplus", "fullscreen", "",
                                      probe, sizeof(probe), ini_path) > 0) {
             windowed = !read_ini_bool(ini_path, "fullscreen", !windowed);
             g_fullscreen_config.ini_key_present = true;
@@ -260,10 +260,10 @@ void load_config(HMODULE self_module) {
         char buf[16];
         // friendly "window_monitor" with back-compat "window_monitor_index"
         DWORD n = GetPrivateProfileStringA(
-            "cod1reloaded", "window_monitor", "", buf, sizeof(buf), ini_path);
+            "coduoplus", "window_monitor", "", buf, sizeof(buf), ini_path);
         if (n == 0)
             n = GetPrivateProfileStringA(
-                "cod1reloaded", "window_monitor_index", "", buf, sizeof(buf), ini_path);
+                "coduoplus", "window_monitor_index", "", buf, sizeof(buf), ini_path);
         if (n > 0) g_window_config.preferred_monitor_index = atoi(buf);
     }
     // lean_diag_log_count: HARDCODED to 0 (release, no diag logging)
@@ -421,7 +421,7 @@ void load_config(HMODULE self_module) {
     // _rewind_test_self: NO LONGER READ FROM THE INI (1.6.5). These five change how shots
     // are captured and rewound - i.e. whether a hit registers - and that is not something
     // a player may set for himself in a text file. Their hardcoded defaults (all off)
-    // stand. The two diag_* keys above are kept: they only write to cod1reloaded.log and
+    // stand. The two diag_* keys above are kept: they only write to coduoplus.log and
     // change nothing the game does.
 
     logger::logf("config loaded from %s", ini_path);

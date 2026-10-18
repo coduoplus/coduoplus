@@ -1,8 +1,9 @@
 // Server-side client version gate. The connect protocol is already bumped to 10
 // (protocol_patch) so only cod1reloaded clients reach ClientConnect; this enforces
-// a MINIMUM client version via the "cod1reloaded" userinfo cvar.
+// a MINIMUM client version via the "coduoplus" userinfo cvar.
 
 #include "netcode/version_gate.h"
+#include "core/game.h"
 #include "netcode/protocol_patch.h"  // g_net_version
 #include "netcode/version_patch.h"   // g_short_version_buffer
 #include "core/logger.h"
@@ -26,7 +27,7 @@ constexpr int       G_GET_USERINFO    = 0x21;
 
 uintptr_t g_game_base = 0;
 char* (__cdecl *g_clientconnect_orig)(int, int) = nullptr;
-char g_reject_msg[160] = "This server requires a newer cod1reloaded.";
+char g_reject_msg[160] = "This server requires a newer coduoplus.";
 
 // userinfo = "\key\val\key\val..."; return atoi of key's value, 0 if absent.
 int info_value_int(const char* info, const char* key) {
@@ -61,10 +62,10 @@ char* __cdecl clientconnect_wrapper(int clientNum, int firstTime) {
     if (G_syscall)
         G_syscall(G_GET_USERINFO, clientNum, (int)(uintptr_t)userinfo, (int)sizeof(userinfo));
 
-    const int cver = info_value_int(userinfo, "cod1reloaded");
+    const int cver = info_value_int(userinfo, "coduoplus");
     const bool unversioned = (cver == 0);
     if (cver < g_net_version && !(unversioned && g_version_gate_config.allow_unversioned)) {
-        logger::logf("version_gate: reject client %d (cod1reloaded=%d < %d)",
+        logger::logf("version_gate: reject client %d (coduoplus=%d < %d)",
                      clientNum, cver, g_net_version);
         return g_reject_msg;
     }
@@ -97,20 +98,24 @@ bool install_callsite_redirect(uintptr_t base) {
 
 DWORD WINAPI watch(LPVOID) {
     HMODULE gm = nullptr;
-    for (;;) { gm = GetModuleHandleA("game_mp_x86.dll"); if (gm) break; Sleep(20); }
+    for (;;) { gm = GetModuleHandleA(GAME_GAME_DLL); if (gm) break; Sleep(20); }
     g_game_base = (uintptr_t)gm;
 
     snprintf(g_reject_msg, sizeof(g_reject_msg),
-             "Update cod1reloaded to %s+ to join this server.", g_short_version_buffer);
+             "Update coduoplus to %s+ to join this server.", g_short_version_buffer);
 
     if (install_callsite_redirect(g_game_base))
-        logger::logf("version_gate: ClientConnect gate installed (min cod1reloaded=%d)", g_net_version);
+        logger::logf("version_gate: ClientConnect gate installed (min coduoplus=%d)", g_net_version);
     return 0;
 }
 
 }  // namespace
 
 void version_gate_start() {
+    if (!port::GAME_VERSION) {
+        logger::logf("version_gate: not ported to UO yet - off");
+        return;
+    }
     if (!g_version_gate_config.enable) {
         logger::logf("version_gate: disabled");
         return;

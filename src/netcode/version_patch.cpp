@@ -3,6 +3,7 @@
 
 #include "netcode/version_patch.h"
 #include "core/logger.h"
+#include "core/game.h"
 #include "features/updater.h"   // COD1RELOADED_VERSION - single source of truth
 
 #include <cstdio>
@@ -22,6 +23,10 @@ bool g_applied = false;
 
 bool apply_short_version_patch() {
     if (g_applied) return true;
+    if (!game_exe_ok()) {
+        logger::logf("version_patch: not CoDUOMP.exe 1.51 - skipped");
+        return false;
+    }
 
     HMODULE exe = GetModuleHandleA(NULL);
     if (!exe) {
@@ -29,10 +34,10 @@ bool apply_short_version_patch() {
         return false;
     }
 
-    // "COD1.6X 1.6.2" - brand plus the full build. Vanilla shows "1.5" here and the mod
+    // "CoDUO+ 1.6.2" - brand plus the full build. Vanilla shows "1.5" here and the mod
     // previously showed "1.5 reloaded", so a string of this length is known to fit.
     snprintf(g_short_version_buffer, sizeof(g_short_version_buffer),
-             "COD1.6X %s", COD1RELOADED_VERSION);
+             "CoDUO+ %s", COD1RELOADED_VERSION);
 
     const uintptr_t exe_base = (uintptr_t)exe;
     const uintptr_t opcode_addr  = exe_base + CODMP_SHORTVERSION_PUSH_OPCODE_RVA;

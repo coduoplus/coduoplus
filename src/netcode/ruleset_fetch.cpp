@@ -116,7 +116,7 @@ RuleList* make_list(const char* base, const char* source, const std::string& tex
 }
 
 bool http_get(const char* url, std::string& out) {
-    HINTERNET hi = InternetOpenA("cod1reloaded ruleset", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+    HINTERNET hi = InternetOpenA("coduoplus ruleset", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
     if (!hi) return false;
     DWORD tmo = 8000;
     InternetSetOptionA(hi, INTERNET_OPTION_CONNECT_TIMEOUT, &tmo, sizeof(tmo));

@@ -1,4 +1,5 @@
 #include "netcode/protocol_patch.h"
+#include "core/game.h"
 #include "core/logger.h"
 #include "features/updater.h"        // COD1RELOADED_VERSION - the single source of truth
 #include "features/settings_menu.h"  // CODMP_CVAR_FINDVAR_VA, CODMP_CBUF_EXECTEXT_VA
@@ -95,9 +96,8 @@ void poke_netmode(int proto, const char* master) {
 int netmode_current() { return g_netmode; }
 
 bool apply_protocol_patch() {
-    const uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
-    if (base != 0x400000) {
-        logger::logf("  protocol_patch: CoDMP.exe base 0x%08x != 0x400000, abort", (unsigned)base);
+    if (!game_exe_ok()) {
+        logger::logf("  protocol_patch: not CoDUOMP.exe 1.51, abort");
         return false;
     }
 
@@ -118,7 +118,7 @@ bool apply_protocol_patch() {
 // competitive client must come back on the 1.6 list every launch, or a player who
 // browsed 1.5 once would find the match servers gone and not know why.
 void netmode_tick() {
-    if ((uintptr_t)GetModuleHandleA(NULL) != 0x400000) return;
+    if (!game_exe_ok()) return;
     if (*(volatile int*)CODMP_CVAR_COUNT_VA <= 0) return;
 
     typedef void* (__cdecl *Cvar_Get_t)(const char*, const char*, int);
@@ -183,21 +183,21 @@ static int build_number_from(const char* v) {
 void register_client_version_cvar() {
     static bool done = false;
     if (done) return;
-    if ((uintptr_t)GetModuleHandleA(NULL) != 0x400000) return;
+    if (!game_exe_ok()) return;
 
     typedef void* (__cdecl *Cvar_Get_t)(const char*, const char*, int);
     Cvar_Get_t Cvar_Get = (Cvar_Get_t)CODMP_CVAR_GET_VA;
 
     char ver[16];
     snprintf(ver, sizeof(ver), "%d", g_net_version);
-    Cvar_Get("cod1reloaded", ver, CVAR_USERINFO | CVAR_ROM);
+    Cvar_Get("coduoplus", ver, CVAR_USERINFO | CVAR_ROM);
 
     char build[16];
     snprintf(build, sizeof(build), "%d", build_number_from(COD1RELOADED_VERSION));
     Cvar_Get("cod1x_build", build, CVAR_USERINFO | CVAR_ROM);
 
     done = true;
-    logger::logf("  version_gate: client userinfo cod1reloaded=%s cod1x_build=%s (%s)",
+    logger::logf("  version_gate: client userinfo coduoplus=%s cod1x_build=%s (%s)",
                  ver, build, COD1RELOADED_VERSION);
 }
 

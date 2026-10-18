@@ -116,7 +116,7 @@ void ramp_file_path(char* out, size_t n) {
     GetModuleFileNameA(NULL, base, MAX_PATH);
     char* sl = strrchr(base, 92);          // backslash
     if (sl) sl[1] = 0;
-    snprintf(out, n, "%scod1reloaded.gammadesk", base);
+    snprintf(out, n, "%scoduoplus.gammadesk", base);
 }
 
 void persist_desktop_ramp_locked() {

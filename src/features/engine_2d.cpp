@@ -1,6 +1,7 @@
 // 2D draw via cgame_mp_x86.dll renderer primitives. RVAs in engine_2d.h.
 
 #include "features/engine_2d.h"
+#include "core/game.h"
 #include "core/logger.h"
 
 #include <cstdint>
@@ -58,9 +59,9 @@ void cg_draw2d_hook_trampoline() {
 }
 
 qhandle_t engine_2d_register_shader(const char* name, int flags) {
-    if (!name) return 0;
+    if (!port::CGAME_DRAW2D || !name) return 0;
     // fcn.300322a0 wrapper. safe ONLY inside CG_RegisterCgameShaders flow
-    HMODULE cgame = GetModuleHandleA("cgame_mp_x86.dll");
+    HMODULE cgame = GetModuleHandleA(GAME_CGAME_DLL);
     if (cgame) {
         typedef qhandle_t (*RegShaderWrap_t)(const char*, int);
         RegShaderWrap_t wrap = (RegShaderWrap_t)
@@ -177,6 +178,7 @@ void engine_2d_force_register_shaders() {
 }
 
 bool engine_2d_install_hook(HMODULE cgame_module) {
+    if (!port::CGAME_DRAW2D) return false;  // CoD:UO port: CG_Draw2D sites not mapped yet
     if (g_hook_installed) return true;
     if (!cgame_module) return false;
 

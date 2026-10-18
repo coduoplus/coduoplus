@@ -2,6 +2,7 @@
 
 #include "video/fullscreen_patch.h"
 #include "core/logger.h"
+#include "core/game.h"
 
 namespace patches {
 
@@ -20,6 +21,10 @@ bool g_applied = false;
 
 bool apply_fullscreen_patch() {
     if (g_applied) return true;
+    if (!game_exe_ok()) {
+        logger::logf("fullscreen_patch: not CoDUOMP.exe 1.51 - skipped");
+        return false;
+    }
     if (!g_fullscreen_config.force_windowed_default) {
         logger::logf("fullscreen_patch: disabled in config, skipping");
         return true;

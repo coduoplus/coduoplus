@@ -3,6 +3,7 @@
 // a pk3 -> R_RegisterShader -> RE_DrawStretchPic each frame after vanilla HUD.
 
 #include "features/avatar_overlay.h"
+#include "core/game.h"
 #include "features/engine_2d.h"
 #include "video/window_patch.h"
 #include "core/logger.h"
@@ -41,30 +42,30 @@ static const char* const g_avatar_urls[NUM_AVATARS] = {
 };
 
 static const char* const g_ui_tga_names[] = {
-    "textures/cod1reloaded/ui_panel.tga",
-    "textures/cod1reloaded/ui_card.tga",
-    "textures/cod1reloaded/ui_chip_blue.tga",
-    "textures/cod1reloaded/ui_chip_red.tga",
-    "textures/cod1reloaded/ui_shadow.tga",
-    "textures/cod1reloaded/ui_scrim.tga",
-    "textures/cod1reloaded/ui_glow.tga",
-    "textures/cod1reloaded/ui_dot.tga",
-    "textures/cod1reloaded/ui_box.tga",
-    "textures/cod1reloaded/ui_frame.tga",
-    "textures/cod1reloaded/ui_tri.tga",
+    "textures/coduoplus/ui_panel.tga",
+    "textures/coduoplus/ui_card.tga",
+    "textures/coduoplus/ui_chip_blue.tga",
+    "textures/coduoplus/ui_chip_red.tga",
+    "textures/coduoplus/ui_shadow.tga",
+    "textures/coduoplus/ui_scrim.tga",
+    "textures/coduoplus/ui_glow.tga",
+    "textures/coduoplus/ui_dot.tga",
+    "textures/coduoplus/ui_box.tga",
+    "textures/coduoplus/ui_frame.tga",
+    "textures/coduoplus/ui_tri.tga",
 };
 static const char* const g_ui_shader_names[] = {
-    "textures/cod1reloaded/ui_panel",
-    "textures/cod1reloaded/ui_card",
-    "textures/cod1reloaded/ui_chip_blue",
-    "textures/cod1reloaded/ui_chip_red",
-    "textures/cod1reloaded/ui_shadow",
-    "textures/cod1reloaded/ui_scrim",
-    "textures/cod1reloaded/ui_glow",
-    "textures/cod1reloaded/ui_dot",
-    "textures/cod1reloaded/ui_box",
-    "textures/cod1reloaded/ui_frame",
-    "textures/cod1reloaded/ui_tri",
+    "textures/coduoplus/ui_panel",
+    "textures/coduoplus/ui_card",
+    "textures/coduoplus/ui_chip_blue",
+    "textures/coduoplus/ui_chip_red",
+    "textures/coduoplus/ui_shadow",
+    "textures/coduoplus/ui_scrim",
+    "textures/coduoplus/ui_glow",
+    "textures/coduoplus/ui_dot",
+    "textures/coduoplus/ui_box",
+    "textures/coduoplus/ui_frame",
+    "textures/coduoplus/ui_tri",
 };
 constexpr int NUM_UI_SHADERS = 11;
 enum { UI_PANEL = 0, UI_CARD = 1, UI_CHIP_BLUE = 2, UI_CHIP_RED = 3,
@@ -115,13 +116,13 @@ bool get_hud_png_path(const char* variant, char* out, size_t n) {
 
 void glyph_name(int i, char* out, size_t n, bool with_ext) {
     if (i == COLON_IDX)
-        snprintf(out, n, "textures/cod1reloaded/glyph_colon%s", with_ext ? ".tga" : "");
+        snprintf(out, n, "textures/coduoplus/glyph_colon%s", with_ext ? ".tga" : "");
     else
-        snprintf(out, n, "textures/cod1reloaded/glyph_%d%s", i, with_ext ? ".tga" : "");
+        snprintf(out, n, "textures/coduoplus/glyph_%d%s", i, with_ext ? ".tga" : "");
 }
 
 void player_name_tex(int i, char* out, size_t n, bool with_ext) {
-    snprintf(out, n, "textures/cod1reloaded/name_%02d%s", i, with_ext ? ".tga" : "");
+    snprintf(out, n, "textures/coduoplus/name_%02d%s", i, with_ext ? ".tga" : "");
 }
 
 ULONG_PTR  g_gdiplus_token       = 0;
@@ -141,7 +142,7 @@ bool init_gdiplus() {
 }
 
 bool download_url_to_file(const char* url, const char* path) {
-    HINTERNET hi = InternetOpenA("cod1reloaded/0.2",
+    HINTERNET hi = InternetOpenA("coduoplus/0.2",
                                   INTERNET_OPEN_TYPE_PRECONFIG,
                                   nullptr, nullptr, 0);
     if (!hi) return false;
@@ -776,11 +777,11 @@ bool prepare_target_dir(char* out_dir, size_t out_size) {
     CreateDirectoryA(p, NULL);
     snprintf(p, sizeof(p), "%smain\\textures", exe);
     CreateDirectoryA(p, NULL);
-    snprintf(p, sizeof(p), "%smain\\textures\\cod1reloaded", exe);
+    snprintf(p, sizeof(p), "%smain\\textures\\coduoplus", exe);
     CreateDirectoryA(p, NULL);
 
     int written = snprintf(out_dir, out_size,
-                           "%smain\\textures\\cod1reloaded\\", exe);
+                           "%smain\\textures\\coduoplus\\", exe);
     return written > 0 && (size_t)written < out_size;
 }
 
@@ -800,7 +801,7 @@ void on_post_register_shaders() {
     if (g_avatar_shaders_count > 0) return;  // idempotent
     for (int i = 0; i < NUM_AVATARS; i++) {
         char name[64];
-        snprintf(name, sizeof(name), "textures/cod1reloaded/avatar_%02d", i + 1);
+        snprintf(name, sizeof(name), "textures/coduoplus/avatar_%02d", i + 1);
         qhandle_t h = engine_2d_register_shader(name, 5);
         g_avatar_shaders[i] = h;
         if (h > 0) g_avatar_shaders_count++;
@@ -843,7 +844,7 @@ void on_post_register_shaders() {
 
     for (int i = 0; i < NUM_HUD; i++) {
         char nm[80];
-        snprintf(nm, sizeof(nm), "textures/cod1reloaded/hud_%s", g_hud_variants[i]);
+        snprintf(nm, sizeof(nm), "textures/coduoplus/hud_%s", g_hud_variants[i]);
         g_hud_handles[i] = engine_2d_register_shader(nm, 5);
     }
     logger::logf("avatar_overlay: hud bar registered = %d", g_hud_handles[0]);
@@ -916,11 +917,11 @@ void draw_number(const char* s, float cx, float top, float glyph_h,
 
 // engine_2d calls this each frame after the vanilla HUD; 2D state is ready
 void on_post_hud_draw() {
-    if (!g_avatar_overlay_config.enable) return;
+    if (!port::CGAME_DRAW2D || !g_avatar_overlay_config.enable) return;
 
     // pre-registered handles from cgame globals (CG_RegisterCgameShaders)
     if (!g_shader_ready && g_setup_done) {
-        HMODULE cgame = GetModuleHandleA("cgame_mp_x86.dll");
+        HMODULE cgame = GetModuleHandleA(GAME_CGAME_DLL);
         if (cgame) {
             const uintptr_t base = (uintptr_t)cgame;
             qhandle_t h_backtile  = *(qhandle_t*)(base + 0x1d9650);
@@ -1035,7 +1036,7 @@ bool get_pk3_path(char* out, size_t out_size) {
     char* slash = strrchr(exe, '\\');
     if (!slash) return false;
     *(slash + 1) = '\0';
-    int n = snprintf(out, out_size, "%smain\\z_cod1reloaded.pk3", exe);
+    int n = snprintf(out, out_size, "%smain\\z_coduoplus.pk3", exe);
     return n > 0 && (size_t)n < out_size;
 }
 
@@ -1118,7 +1119,7 @@ DWORD WINAPI prepare_pk3_worker(LPVOID) {
         DeleteFileA(tmp_path);
 
         snprintf(entries[num_entries].name, sizeof(entries[num_entries].name),
-                 "textures/cod1reloaded/avatar_%02d.tga", i + 1);
+                 "textures/coduoplus/avatar_%02d.tga", i + 1);
         entries[num_entries].data = tga_buf;
         entries[num_entries].size = tga_size;
         num_entries++;
@@ -1207,7 +1208,7 @@ DWORD WINAPI prepare_pk3_worker(LPVOID) {
             continue;
         }
         snprintf(entries[num_entries].name, sizeof(entries[num_entries].name),
-                 "textures/cod1reloaded/hud_%s.tga", g_hud_variants[i]);
+                 "textures/coduoplus/hud_%s.tga", g_hud_variants[i]);
         entries[num_entries].data = tga_buf;
         entries[num_entries].size = tga_size;
         num_entries++;
@@ -1254,10 +1255,10 @@ void avatar_overlay_prepare_pk3_blocking() {
 }
 
 void avatar_overlay_show_test() {
-    if (!g_avatar_overlay_config.enable) return;
+    if (!port::CGAME_DRAW2D || !g_avatar_overlay_config.enable) return;
     if (g_setup_done) return;  // once per process
 
-    HMODULE cgame = GetModuleHandleA("cgame_mp_x86.dll");
+    HMODULE cgame = GetModuleHandleA(GAME_CGAME_DLL);
     if (!cgame) {
         logger::logf("avatar_overlay: cgame not loaded, cannot install hook");
         return;

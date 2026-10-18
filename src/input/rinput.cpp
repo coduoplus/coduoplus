@@ -9,6 +9,7 @@
 // This is also what the original RInput.dll does, for the same reason.
 
 #include "input/rinput.h"
+#include "core/game.h"
 
 #include "core/iat.h"
 #include "core/logger.h"
@@ -65,7 +66,7 @@ HWND   g_rin_hwnd = NULL;
 HANDLE g_thread   = NULL;
 DWORD  g_tid      = 0;
 
-bool at_preferred_base() { return (uintptr_t)GetModuleHandleA(NULL) == 0x400000; }
+bool at_preferred_base() { return game_exe_ok(); }
 
 bool engine_ready() {
     return at_preferred_base() && *(volatile int*)CODMP_CVAR_COUNT_VA > 0;
@@ -349,7 +350,7 @@ void rinput_start() {
         g_lock_ready = true;
     }
     if (!at_preferred_base()) {
-        logger::logf("rinput: CoDMP.exe is not at 0x400000 - raw input disabled");
+        logger::logf("rinput: not CoDUOMP.exe 1.51 - raw input disabled");
         return;
     }
     void* real = iat_hook("user32.dll", "GetCursorPos", (void*)hk_GetCursorPos);

@@ -15,7 +15,7 @@
 // the mod's own admin.
 //
 // Everything applies through the same engine paths as the old menu bridge: seta +
-// vid_restart via Cbuf_ExecuteText, cod1reloaded.ini via settings_menu's writeback,
+// vid_restart via Cbuf_ExecuteText, coduoplus.ini via settings_menu's writeback,
 // and the cod1x_* bridge cvars the old menu already bound (widescreen mode).
 // Every cvar named here was grep-verified against CoDMP.exe / cgame_mp_x86.dll.
 
@@ -1296,7 +1296,7 @@ void modern_menu_draw(float sw, float sh) {
              "demo loads that mod first (fs_game + renderer restart), then plays it.");
     } else {
         // ABOUT: what 1.6X actually is - the feature list doubles as a changelog
-        ui_text(cx, cy, 22, 600, UI_TEXT, "cod1reloaded  -  the 1.6X competitive client");
+        ui_text(cx, cy, 22, 600, UI_TEXT, "coduoplus  -  the 1.6X competitive client");
         cy += 34;
         char info[160];
         snprintf(info, sizeof(info), "Desktop %d x %d    overlay %.0f x %.0f    native GL, real resolution",
@@ -1332,7 +1332,7 @@ void modern_menu_draw(float sw, float sh) {
         ui_text(kx, cy + 2, 13, 400, UI_HINT, "back / close");
         cy += 40;
         ui_text(cx, cy, 13, 400, UI_HINT,
-                "Settings persist in cod1reloaded.ini and your player config.");
+                "Settings persist in coduoplus.ini and your player config.");
     }
 }
 

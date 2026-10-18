@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
+# CoDUO+ - the CoD:UO 1.51 port of COD1.6X (cod1plus/client). Builds mss32.dll,
+# a proxy the engine loads from its own import table; see docs/ARCHITECTURE.md.
+#
 # C is here for src/shared/, which is plain C so that cod1plus.so (gcc, no C++) can
 # compile the very same file. See src/shared/lean_controllers.h.
-project(cod1reloaded LANGUAGES C CXX)
+project(coduoplus LANGUAGES C CXX)
 
-# CoD1 is a 32-bit game. Force 32-bit build.
+# CoD:UO is a 32-bit game. Force 32-bit build.
 if (NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
     message(FATAL_ERROR
         "cod1reloaded must be built as 32-bit. "
@@ -28,6 +31,7 @@ set(COD1RELOADED_SOURCES
     # lc_banner() at install so a drift shows up in the two logs.
     src/shared/lean_controllers.c
     src/core/main.cpp
+    src/core/game.cpp
     src/core/patches.cpp
     src/gameplay/viewheight_fix.cpp
     src/gameplay/lean_fix.cpp
@@ -135,7 +139,7 @@ target_link_libraries(mss32 PRIVATE
 
 set_target_properties(cod1reloaded PROPERTIES
     PREFIX ""
-    OUTPUT_NAME "cod1reloaded"
+    OUTPUT_NAME "coduoplus"
     RUNTIME_OUTPUT_DIRECTORY "${COD1RELOADED_OUTPUT_DIR}"
 )
 
@@ -144,3 +148,32 @@ set_target_properties(mss32 PROPERTIES
     OUTPUT_NAME "mss32"
     RUNTIME_OUTPUT_DIRECTORY "${COD1RELOADED_OUTPUT_DIR}"
 )
+
+# -----------------------------------------------------------------------------
+# Tests (ctest). site_check maps the stock CoD:UO 1.51 binaries from disk and
+# checks, for every address the port patches, that the bytes the patch expects
+# are really there - see tests/site_check.cpp and docs/TESTING.md.
+#   cmake -B build -DCODUO_GAME_DIR="D:/Call of Duty - Copy"
+#   cmake --build build && ctest --test-dir build --output-on-failure
+# -----------------------------------------------------------------------------
+set(CODUO_GAME_DIR "D:/Call of Duty - Copy" CACHE PATH
+    "CoD:UO 1.51 install the tests read CoDUOMP.exe and uo/pakuo07.pk3 from")
+find_package(Python3 COMPONENTS Interpreter)
+enable_testing()
+
+add_executable(site_check tests/site_check.cpp tests/image.cpp src/core/game.cpp)
+target_include_directories(site_check PRIVATE src tests)
+target_compile_options(site_check PRIVATE -Wall -Wextra -Wno-unused-parameter -O1)
+target_link_options(site_check PRIVATE -static -static-libgcc -static-libstdc++)
+
+if (Python3_FOUND)
+    set(CODUO_TESTBIN "${CMAKE_BINARY_DIR}/testbin")
+    add_test(NAME fetch_binaries
+             COMMAND Python3::Interpreter -I "${CMAKE_SOURCE_DIR}/tests/fetch_binaries.py"
+                     "${CODUO_GAME_DIR}" "${CODUO_TESTBIN}")
+    set_tests_properties(fetch_binaries PROPERTIES FIXTURES_SETUP uo_binaries)
+    add_test(NAME site_check COMMAND site_check "${CODUO_TESTBIN}")
+    set_tests_properties(site_check PROPERTIES FIXTURES_REQUIRED uo_binaries)
+else()
+    message(WARNING "Python 3 not found: site_check test not registered")
+endif()

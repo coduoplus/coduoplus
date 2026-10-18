@@ -191,7 +191,7 @@ void display_mode_guard() {
         logger::logf("display_probe: game %dx%d is smaller than the desktop %dx%d and "
                      "windowed/borderless is on -> the GPU will NOT stretch it (black "
                      "bars, thinner models). Set fullscreen=on + window_borderless=off "
-                     "in cod1reloaded.ini to play stretched.", gw, gh, dw, dh);
+                     "in coduoplus.ini to play stretched.", gw, gh, dw, dh);
     }
 }
 
@@ -251,7 +251,7 @@ void enforce_ini_fullscreen() {
     fwrite(buf + pos + vlen, 1, total - (size_t)pos - (size_t)vlen, f);
     fclose(f);
     free(buf);
-    logger::logf("display_probe: config_mp.cfg had r_fullscreen %d but cod1reloaded.ini "
+    logger::logf("display_probe: config_mp.cfg had r_fullscreen %d but coduoplus.ini "
                  "says fullscreen = %s -> rewritten to %d (an older build left it there; "
                  "set the .ini key to what you want)", have, want ? "on" : "off", want);
 }
@@ -410,7 +410,7 @@ void enforce_max_hz_native() {
         menu_ini_writeback("view_mode", "stretched");
     }
     logger::logf("display_probe: %dx%d is listed up to %d Hz only, the display does %d Hz at %dx%d -> "
-                 "config_mp.cfg set to %dx%d @ %d Hz%s (max_hz_native_res = off in cod1reloaded.ini to keep the custom res)",
+                 "config_mp.cfg set to %dx%d @ %d Hz%s (max_hz_native_res = off in coduoplus.ini to keep the custom res)",
                  gw, gh, best_at_res, best_any, best_any_w, best_any_h, best_any_w, best_any_h, best_any,
                  was_stretched ? ", view_mode = stretched (the 4:3 stretch is now done by the mod, same look)" : "");
 }

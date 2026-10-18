@@ -2,6 +2,7 @@
 // See cheat_scan.h for the design and its honest limits.
 
 #include "netcode/cheat_scan.h"
+#include "core/game.h"
 #include "netcode/protocol_patch.h"   // CODMP_CVAR_GET_VA, CODMP_CVAR_COUNT_VA, CVAR_USERINFO
 #include "netcode/competitive.h"      // CODMP_CVAR_FINDVAR_VA2, COMP_CVAR_ROM
 #include "core/logger.h"
@@ -82,7 +83,7 @@ char g_verdict[32] = "0";
 int cheat_scan_hits() { return g_hits; }
 
 void cheat_scan_tick() {
-    if ((uintptr_t)GetModuleHandleA(NULL) != 0x400000) return;
+    if (!game_exe_ok()) return;
     // engine cvar system must exist (same guard the watcher uses for the other modules)
     if (*(volatile int*)CODMP_CVAR_COUNT_VA <= 0) return;
 
