@@ -1,4 +1,5 @@
 #include "netcode/protocol_patch.h"
+#include "shared/coduoplus_shared.h"
 #include "core/game.h"
 #include "core/logger.h"
 #include "features/updater.h"        // COD1RELOADED_VERSION - the single source of truth
@@ -23,7 +24,7 @@ namespace patches {
 // protocol (e.g. 23) and a master that serves it, and rebuild. docs/PORTING.md.
 int  g_protocol_version = PROTOCOL_VANILLA_UO;
 char g_master_host[CODMP_MASTER_HOST_MAX + 1] = "";
-int  g_net_version = 16; // "1.6"
+int  g_net_version = CODUOPLUS_NET_VERSION; // "1.6" (shared with the Linux server)
 
 namespace {
 

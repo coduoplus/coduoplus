@@ -23,15 +23,15 @@ namespace patches {
 // (CoD:UO: the server side is swing_server_tick() below, same values, same code.)
 SwingFixConfig g_swing_fix_config = {
     /* enable             */ true,
-    /* legs_tolerance     */ 0.0f,   // vanilla 40.0
-    /* torso_pitch_speed  */ 1.0f,   // vanilla 0.15 (really the LEAN swing channel)
+    /* legs_tolerance     */ SWING_LEGS_TOLERANCE,     // vanilla 40.0  (shared/coduoplus_shared.h)
+    /* torso_pitch_speed  */ SWING_TORSO_PITCH_SPEED,  // vanilla 0.15 (really the LEAN swing channel)
 };
 
 // torso yaw swingSpeed, read by redirected mov (patch 3). 1.0=locked to view, ~0.2=vanilla
-extern "C" float g_torso_yaw_speed_live = 1.0f;
+extern "C" float g_torso_yaw_speed_live = SWING_TORSO_YAW_SPEED;
 
 // movementYaw fraction added to torso yaw target, read by redirected fmul (patch 4). 0=lock to view, 0.3=vanilla
-extern "C" float g_torso_yaw_movefrac_live = 0.0f;
+extern "C" float g_torso_yaw_movefrac_live = SWING_TORSO_YAW_MOVEFRAC;
 
 namespace {
 

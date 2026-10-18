@@ -28,6 +28,14 @@ PunkBuster ruleset, ported onto 0.1.0. Upstream's 1.6.8/1.6.9 line starts from
 - [docs/NETCODE.md](docs/NETCODE.md): how a shot is registered, server/client
   setup, why `sv_fps 40`, and what lag compensation would add.
 
+### Linux servers
+- **`coduoplus_sv.so`** (LD_PRELOAD) for the CoD:UO 1.51b Linux dedicated server:
+  snaps cap 40, `CoDUO+` shortversion, swing-fix mirror + `sv_coduoplus_swing`,
+  version gate, `competitive.cfg` publisher, re-applied on every map change.
+  Shares its values and spec code with the Windows mod. [docs/LINUX.md](docs/LINUX.md)
+- `competitive.cfg.example` trimmed to the four 40-tick lines: the systeminfo
+  string is capped at 1024 chars and stock UO servers already overflow it.
+
 ### Display
 - A `r_fullscreen 1` in `uoconfig_mp.cfg` is the player's choice and is never
   rewritten to 0; a minimized window is never restyled.

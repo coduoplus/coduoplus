@@ -5,7 +5,7 @@
 // This checks the publisher's output against exactly that reading, plus the limits the
 // engine imposes (a cvar value over 256 chars aborts the server at the next map change).
 
-#include "netcode/competitive_sv.h"
+#include "shared/competitive_spec.h"
 
 #include <cstdio>
 #include <cstring>

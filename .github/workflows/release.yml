@@ -8,7 +8,8 @@ name: Release
 #             the stock binaries + the live dedicated-server smoke test, and the UI pk3
 #             (generated from the install's own pakuo03.pk3 - it cannot be built
 #             anywhere else, see ui_pk3/build_pk3.py)
-#   publish   only if both passed: player zip in the game folder layout, manifest.json
+#   linux     hosted Ubuntu: coduoplus_sv.so for Linux servers
+#   publish   only if all passed: player zip in the game folder layout, manifest.json
 #             for the updater, release notes from CHANGELOG.md
 #
 # Also runnable by hand (Actions -> Release -> Run workflow) on an existing tag.
@@ -89,6 +90,22 @@ jobs:
             build/mss32.dll
             build/norinput/mss32.dll
 
+  linux:
+    name: linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: Build coduoplus_sv.so
+        run: |
+          docker build -t coduoplus-linux server/linux
+          docker run --rm -v "$PWD":/src coduoplus-linux sh server/linux/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: build/linux/coduoplus_sv.so
+
   game:
     name: game
     runs-on: [self-hosted, windows, coduo-game]
@@ -107,7 +124,7 @@ jobs:
         run: |
           $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ `
-                "-DCODUO_GAME_DIR=$env:CODUO_GAME_DIR" -DCODUO_SMOKE=ON
+                "-DCODUO_GAME_DIR=$env:CODUO_GAME_DIR" -DCODUO_SMOKE=ON -DCODUO_LINUX_SMOKE=ON
           cmake --build build
 
       - name: Deploy and run every test
@@ -128,7 +145,7 @@ jobs:
 
   publish:
     name: publish
-    needs: [build, game]
+    needs: [build, linux, game]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -147,6 +164,7 @@ jobs:
           cp artifacts/dlls/mss32.dll dist/mss32.dll
           cp artifacts/dlls/norinput/mss32.dll dist/mss32-norinput.dll
           cp artifacts/ui-pk3/zz_coduoplus_ui.pk3 dist/
+          cp artifacts/linux/coduoplus_sv.so dist/
           cp coduoplus.ini competitive.cfg.example dist/
           printf '{\n  "version": "%s",\n  "download_url": "https://github.com/%s/releases/latest/download/mss32.dll",\n  "notes": "CoDUO+ %s - see CHANGELOG"\n}\n' \
             "$VERSION" "$GITHUB_REPOSITORY" "$VERSION" > dist/manifest.json
@@ -182,5 +200,5 @@ jobs:
           fi
           gh release upload "$TAG" --clobber \
             dist/mss32.dll dist/mss32-norinput.dll dist/coduoplus.ini dist/competitive.cfg.example \
-            dist/zz_coduoplus_ui.pk3 dist/manifest.json \
+            dist/zz_coduoplus_ui.pk3 dist/manifest.json dist/coduoplus_sv.so \
             "dist/coduoplus-$VERSION.zip" "dist/coduoplus-$VERSION-norinput.zip"

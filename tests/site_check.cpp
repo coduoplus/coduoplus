@@ -23,6 +23,8 @@
 #include "image.h"
 
 #include "core/game.h"
+#include "features/updater.h"
+#include "shared/coduoplus_shared.h"
 #include "features/settings_menu.h"
 #include "input/rinput.h"
 #include "netcode/competitive.h"
@@ -75,6 +77,8 @@ bool is_call_to(const Image& im, uint32_t va, uint32_t target) {
 // ---------------------------------------------------------------------------
 void check_identity() {
     using namespace patches;
+    // the Windows build and the Linux library report the same release
+    CHECK(strcmp(COD1RELOADED_VERSION, CODUOPLUS_VERSION) == 0);
     CHECK(g_exe.base == GAME_EXE_BASE);
     CHECK(g_exe.timestamp == GAME_PE_TIMESTAMP);
     CHECK(g_exe.bytes_eq(GAME_SHORTVERSION_STR_VA, {'1', '.', '5', '1', 0}));

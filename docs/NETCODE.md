@@ -84,8 +84,9 @@ server-side), but their own packet cap stays 100.
 
 ## Server setup
 
-Run the server with CoDUO+ (`mss32.dll` + `mss32_original.dll` next to
-`CoDUOMP.exe`), and:
+Run the server with CoDUO+: on Windows `mss32.dll` + `mss32_original.dll` next to
+`CoDUOMP.exe`; on Linux `LD_PRELOAD=./coduoplus_sv.so ./coduo_lnxded …`
+([LINUX.md](LINUX.md)). Then:
 
 **`competitive.cfg`** (copy `competitive.cfg.example` from the release): the
 client half, pushed automatically:
@@ -114,6 +115,11 @@ set g_synchronousClients 0 // default; commands are run as they arrive
 `competitive_sv: engine holds sv_competitive "snaps=40 cl_maxpackets=125 …"`. On a
 CoDUO+ client connected to it, `snaps` and `cl_maxpackets` read 40 and 125 and
 refuse changes ("is read only"). `cl_showTimeDelta 1` should show a steady delta.
+
+**Keep `competitive.cfg` short.** It travels in the systeminfo string, which the
+engine caps at 1024 characters and which a stock UO server already overflows
+(see [LINUX.md](LINUX.md#systeminfo-is-full-on-stock-uo-servers); the same holds on
+Windows). The example has only the four 40-tick lines active.
 
 **Upload bandwidth:** worst case per client ≈ `snaps × 1548 B` = 62 kB/s at 40, so
 20 players ≈ 1.2 MB/s (≈ 10 Mbit/s). A typical snapshot is much smaller (delta
