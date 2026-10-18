@@ -15,6 +15,7 @@
 #include "performance/fps_cap.h"
 #include "performance/frame_limiter.h"
 #include "performance/gpu_sync.h"
+#include "core/ini_lock.h"
 #include "features/updater.h"
 #include "features/demo_upload.h"
 #include "performance/cpu_affinity.h"
@@ -424,6 +425,9 @@ void load_config(HMODULE self_module) {
     // a player may set for himself in a text file. Their hardcoded defaults (all off)
     // stand. The two diag_* keys above are kept: they only write to coduoplus.log and
     // change nothing the game does.
+
+    // the keys the mod imposes: file brought in line, values forced (core/ini_lock.cpp)
+    ini_lock_apply(ini_path);
 
     logger::logf("config loaded from %s", ini_path);
     logger::logf("  viewheight_lerp_speed = %.2f", g_viewheight_config.viewheight_lerp_speed);
