@@ -1,212 +1,103 @@
-# COD1.6X
+# CoDUO+
 
-**COD1.6X** is a client mod for **Call of Duty 1 multiplayer** (`CoDMP.exe`). It
-modernizes the 2003 game without breaking anything: a working server browser
-again, competitive player-model fixes ported from CoD2x, smooth stutter-free
-frames, an exact FPS cap, real widescreen, and instant alt-tab. No launcher —
-you drop one file into the game folder and the mod **updates itself**.
+**CoDUO+** is a client mod for **Call of Duty: United Offensive 1.51** multiplayer
+(`CoDUOMP.exe`). It's a port of [COD1.6X](https://github.com/cod1plus/client) (the
+CoD1 mod, release 1.6.6) to UO: exact frame cap, raw mouse input, widescreen,
+borderless window, 40-tick rate caps, player-model swing fix, a settings
+overlay, and more. It's one DLL dropped into the game folder. Nothing on disk
+is modified, and vanilla servers and players are unaffected.
 
-> **Status: 1.6.1 — beta.** See [CHANGELOG.md](CHANGELOG.md).
-
----
-
-## ⚡ Installation (3 steps)
-
-**1. Download the latest release**
-
-👉 **https://github.com/cod1plus/client/releases/latest**
-
-Grab **`mss32.dll`** and **`cod1reloaded.ini`** (or `cod1reloaded-x.y.z.zip`,
-which contains both).
-
-**2. Open the game folder** (the one with `CoDMP.exe`)
-
-- Steam: `…\steamapps\common\Call of Duty\`
-- Retail: `C:\Program Files (x86)\Call of Duty\`
-
-In that folder, **rename the existing `mss32.dll` to `mss32_original.dll`**.
-
-> ⚠️ **Don't skip this.** COD1.6X's `mss32.dll` is a proxy that forwards audio to
-> the original one. If you skip the rename, the game loses sound (or won't start).
-
-**3. Copy the two files**
-
-Put **`mss32.dll`** and **`cod1reloaded.ini`** into the game folder, then launch
-**`CoDMP.exe`** as usual. Done. ✅
-
-The folder should end up with:
-
-| File | Purpose |
-|---|---|
-| `mss32.dll` | COD1.6X (our file) |
-| `mss32_original.dll` | the old `mss32.dll`, renamed (audio) |
-| `cod1reloaded.ini` | the configuration |
+**Status: 0.1.0 — development build.** The engine and server side are verified
+against the stock binaries and on a running dedicated server. The client side
+(rendering, input, menus) is verified offline but **not yet played**. See
+[docs/TESTING.md](docs/TESTING.md#manual-client-checklist).
 
 ---
 
-## 🌐 The COD1.6X ecosystem
+## What you get
 
-COD1.6X runs on its **own network protocol (10)**, separate from vanilla CoD1:
+| | |
+| --- | --- |
+| 🎯 **Exact FPS cap** | `com_maxfps 250` gives 250, not 240–248 (QPC-timed wait + 1 ms timer). |
+| 🖱️ **Raw mouse input** | `m_rinput 1`: the device's own counts, no Windows acceleration or speed slider. `m_rinput_hz` shows the real polling rate. |
+| 🖥️ **Widescreen** | Hor+ FOV for 16:9 / 21:9, or the stretched-4:3 look at native resolution. Off by default. |
+| 🪟 **Borderless window** | Instant alt-tab, per-monitor gamma. Opt-in (`fullscreen = off`). |
+| 🔭 **FOV 80–95** | `cg_fov` unlocked within 80–95 ([note](docs/PORTING.md#fov-unlock-is-ported-as-is--read-this)). |
+| 🧍 **Swing fix** | Torso and legs follow your view without lag. Applied only on servers that run CoDUO+ and test the same pose, so what you see is always what the server hits ([why](docs/PORTING.md#swing-fix-only-where-the-server-mirrors-it)). |
+| 🌐 **40-tick ready** | snaps cap 30 → 40, cl_maxpackets 100 → 125; a server can push its fair-play cvar spec. |
+| ⚙️ **Settings overlay** | Ctrl+M, or **CoDUO+ SETTINGS** in the main menu. |
+| 🧰 **Server side** | Running CoDUO+ on a dedicated server: swing mirror for its players, a version gate that turns away *outdated* CoDUO+ builds (vanilla players are always welcome), uncapped snaps. |
+| 🛡️ **Safe by construction** | Every patch checks the exact original bytes first; on any other exe or DLL build it patches nothing and says so in the log. |
 
-- The dead Activision master server is **replaced**, so the in-game **Internet
-  server browser works again**.
-- Servers **verify** that everyone runs a compatible client (version gate).
-- Everyone plays with the **same model fixes**, so the playing field is fair.
+Not (yet) ported from COD1.6X: the lean fix, antilag, the viewheight tweak,
+and the in-match 2D draw hook. [docs/PORTING.md](docs/PORTING.md#feature-status)
+has the full table and the reasons.
 
-> A COD1.6X client connects **only to COD1.6X servers** (protocol 10), not to old
-> vanilla protocol-6 servers. That separation is intentional.
+## Install
 
----
+1. Open your game folder, the one with `CoDUOMP.exe`.
+2. **Rename `mss32.dll` to `mss32_original.dll`.** Don't skip this: CoDUO+'s
+   `mss32.dll` forwards all sound to the original. Without it the game won't
+   start.
+3. Copy **`mss32.dll`** and **`coduoplus.ini`** next to `CoDUOMP.exe`.
+4. Copy **`zz_coduoplus_ui.pk3`** into the `uo\` folder (for the main-menu entry).
+5. Start `CoDUOMP.exe` as usual. `coduoplus.log` appears next to the DLL.
 
-## ✨ What's included
+Your folder ends up with:
 
-### 🎮 Competitive player-model fixes (ported from CoD2x)
-- **Upright torso** when moving and aiming — no more forward "dip" when you
-  advance while leaning.
-- **Clean lateral lean**, and the **right lean now exposes the body** properly
-  instead of showing only the arm *(new in 1.6.1)*.
-- **Weapon and torso locked to the view** — no leg/torso swing lag.
-- **Synchronized controller smoothing** — no model jitter when your movement
-  direction changes.
-- **Anti lean-spam** — spamming the lean key no longer makes your model flicker
-  for opponents; it stays smooth and trackable.
-- **Crouch view-height** desync fixed.
-- All fixes **persist across map changes** (rotation, `/devmap`).
+| File | |
+| --- | --- |
+| `mss32.dll` | CoDUO+ |
+| `mss32_original.dll` | the game's original Miles sound DLL |
+| `coduoplus.ini` | settings ([docs/CONFIGURATION.md](docs/CONFIGURATION.md)) |
+| `uo\zz_coduoplus_ui.pk3` | main-menu entry |
 
-### 🖥️ Display
-- **Widescreen / Hor+ FOV** — fixes CoD1's forced 4:3; you see *wider* on 16:9 /
-  21:9 instead of a stretched image. Optional forced resolution.
-- **Borderless window** — instant alt-tab, no black-screen freeze.
+## Uninstall
 
-### ⚡ Smoothness & FPS
-- **Exact FPS cap** — 1 ms Windows timer + microsecond frame limiter: with
-  `com_maxfps 250` you actually get 250 (not 240–248).
-- **Anti-microstutter** — CPU-core affinity, raised process/thread priority,
-  working-set lock, and Windows Fullscreen-Optimization disabled.
+Delete `mss32.dll`, `coduoplus.ini` and `uo\zz_coduoplus_ui.pk3`, then rename
+`mss32_original.dll` back to `mss32.dll`. The game is vanilla again.
 
-### 🌐 Network
-- **Working server browser** via the new master server.
-- **Protocol 10** ecosystem + client **version gate**.
+## Troubleshooting
 
-### 🔌 Integrations
-- **Auto-updater** — checks a manifest at launch, updates itself.
-- **Discord Rich Presence** (optional — set `discord_rpc_client_id`).
-- **Demo auto-upload** and **avatar overlay** — proof-of-concept, off by default.
+- **Game won't start / no sound:** step 2 was skipped, so `mss32_original.dll`
+  is missing.
+- **A feature does nothing:** look in `coduoplus.log`. Each patch logs a line
+  when it applies, and a reason when it refuses (e.g. not the 1.51 exe).
+- **Swing fix not active online:** expected on vanilla servers; the log says
+  `swing_fix [client]: vanilla`.
 
-### 🧪 Experimental
-- **Antilag** (lag compensation) — server-side, **off** by default.
+## Build
 
-> PunkBuster-safe: COD1.6X doesn't touch sensitive dvars, only the engine's
-> internal logic.
-
----
-
-## 🔄 Auto-updates
-
-Nothing to do. On each launch COD1.6X checks for a newer version; if there is one
-it downloads in the background and **applies it on the next launch**.
-
-> To disable: set `updater_enable = false` in `cod1reloaded.ini`.
-
-## 📦 PAM in one click
-
-The 1.6X menu (Ctrl+M, Files tab) has an **INSTALL / UPDATE PAM** button: it fetches the
-competitive mod's pk3s - maps included - straight into `__rPAMv115b5\`, checksums
-verified, so joining a match server never waits on the in-game download. Press it again
-later to update; only changed files are fetched.
-
-## 🛡️ Fair-play rules (PunkBuster replacement)
-
-On a 1.6X server the client enforces the server's cvar rules itself: the short
-`competitive.cfg` the server pushes (40-tick netcode, FOV, picmip ...) plus the full
-CoDBase PunkBuster list (~430 cvars) - the one the server names, or `codbase-2023-05`
-on any server that pushes a `competitive.cfg`. That list lives in
-https://github.com/cod1plus/rulesets, is downloaded at launch and refreshed every 10
-minutes (immediately when a server asks a newer version), cached in `rulesets\`, with
-a built-in copy as the offline fallback. Locked cvars come back the moment you leave
-the server.
-
-> To disable the download (built-in copy only): `ruleset_fetch_enable = off`.
-
----
-
-## ⚙️ Configuration (optional)
-
-Everything is tunable in **`cod1reloaded.ini`** — each option is commented. Edit,
-save, relaunch. The defaults are fine for most players.
-
----
-
-## 🗑️ Uninstall
-
-1. Delete COD1.6X's `mss32.dll`.
-2. Rename `mss32_original.dll` back to `mss32.dll`.
-3. *(optional)* Delete `cod1reloaded.ini`.
-
-The game is back to vanilla.
-
----
-
-## ❓ Troubleshooting
-
-**No sound / the game won't start**
-→ You probably skipped step 2: the old `mss32.dll` must be renamed to
-`mss32_original.dll` and kept in the folder.
-
-**No servers in the Internet list**
-→ Make sure you're on the latest version (it queries the new master). The browser
-only lists COD1.6X (protocol-10) servers. Direct-connect (`/connect ip`) always
-works.
-
-**Antivirus flags the `.dll`**
-→ Common false positive for this kind of mod (a DLL loaded by the game). Allow
-the file / add an exception.
-
-**The update didn't apply**
-→ Expected on the first launch: it downloads, then applies on the **next** launch.
-Start the game once more.
-
----
-
-## 🛠️ Building from source
-
-COD1.6X builds as an `mss32.dll` proxy with a **32-bit** MinGW toolchain
-(`i686-w64-mingw32`).
-
-**Locally (MSYS2 MinGW32):**
-```sh
-cmake -B build -G Ninja
-cmake --build build --target mss32
-# -> build/mss32.dll
+```powershell
+.\build.ps1            # 32-bit MinGW (WinLibs i686 in C:\tools\mingw32, or MSYS2 mingw32)
+.\build.ps1 -Test      # + the test suite against your CoD:UO install
+.\deploy.ps1           # copy into a test install (renames the Miles DLL on first run)
+.\release.ps1          # tested build + player zip in dist\
 ```
 
-**Reproduce the CI (Ubuntu cross-compile):**
-```sh
-sudo apt-get install -y g++-mingw-w64-i686 cmake
-cmake -B build -DCMAKE_SYSTEM_NAME=Windows \
-  -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc \
-  -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ \
-  -DCMAKE_RC_COMPILER=i686-w64-mingw32-windres
-cmake --build build --target mss32
-```
+Details in [BUILD.md](BUILD.md).
 
-Publishing a release on GitHub triggers the **Release** Action, which builds
-`mss32.dll` and attaches it to the release automatically.
+## Documentation
 
-Source is organized by domain under `src/`:
+| Document | What's in it |
+| --- | --- |
+| [docs/PORTING.md](docs/PORTING.md) | How the port was done, every decision and why, feature status, what's left |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the DLL loads, the startup sequence, the watcher thread, safe patching, client↔server agreement |
+| [docs/ADDRESSES.md](docs/ADDRESSES.md) | Every address, CoD1 → UO, with the evidence |
+| [docs/TESTING.md](docs/TESTING.md) | The test layers, how to run them, the manual client checklist |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every `coduoplus.ini` key |
+| [BUILD.md](BUILD.md) | Toolchain, build, deploy, release |
+| [CHANGELOG.md](CHANGELOG.md) | CoDUO+ releases, then upstream COD1.6X's history |
 
-| Folder | Contents |
-|---|---|
-| `core/` | entry point, config loader, logging |
-| `gameplay/` | lean, swing, viewheight (player-model fixes) |
-| `netcode/` | protocol, master server, version gate, antilag |
-| `video/` | Hor+ FOV, windowing |
-| `performance/` | FPS cap, frame limiter, CPU/priority/working-set |
-| `features/` | auto-updater, Discord RPC, demo upload, avatar overlay |
+## Credits
 
----
+COD1.6X is by the [cod1plus](https://github.com/cod1plus) team. Nearly all of
+the mod's design and code is theirs; this repository keeps their full git
+history. Some fixes are ported from [CoD2x](https://github.com/callofduty2x).
+CoD:UO reverse-engineering notes in [docs/ADDRESSES.md](docs/ADDRESSES.md).
 
 ## Requirements
 
-- **Call of Duty (2003)**, multiplayer (`CoDMP.exe`), patched to **1.5**.
-- Windows.
+Call of Duty: United Offensive, multiplayer, patched to **1.51**
+(`CoDUOMP.exe` SHA-256 `64a5aab2…d205`). Other versions are detected and left
+alone.

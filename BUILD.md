@@ -1,110 +1,98 @@
-# Build cod1reloaded
+# Building CoDUO+
 
-## Pré-requis
+## Toolchain
 
-- **MinGW-w64 32-bit** (i686, pas x86_64)
-  - Sur MSYS2 : `pacman -S mingw-w64-i686-gcc mingw-w64-i686-cmake mingw-w64-i686-make`
-  - Ou télécharger depuis [winlibs.com](https://winlibs.com/) la version i686-posix-dwarf
-- **CMake ≥ 3.16**
+CoD:UO is a 32-bit game, so the mod must be a **32-bit** DLL: an `i686`
+MinGW-w64, not `x86_64`. CMake refuses a 64-bit compiler.
 
-## Compilation
+- **WinLibs** (what this port was built and tested with): the
+  `i686-posix-dwarf` MSVCRT release, e.g.
+  `winlibs-i686-posix-dwarf-gcc-16.2.0-mingw-w64msvcrt-14.0.0-r2.zip` from
+  <https://github.com/brechtsanders/winlibs_mingw/releases>, unzipped so that
+  `C:\tools\mingw32\bin\g++.exe` exists. It ships `cmake`, `ninja`, `objdump`
+  and `gdb`.
+- or **MSYS2**: `pacman -S mingw-w64-i686-gcc mingw-w64-i686-cmake mingw-w64-i686-ninja`.
+- or, on Linux/CI: `apt install g++-mingw-w64-i686 cmake` (cross-compile, see
+  `.github/workflows/build.yml`).
 
-Depuis le dossier racine du repo, dans un **shell MSYS2 MINGW32** :
+Python 3 is needed for the tests and the UI pk3.
 
-```bash
-cmake -S . -B build -G "MinGW Makefiles" \
-    -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc \
-    -DCMAKE_CXX_COMPILER=i686-w64-mingw32-g++ \
-    -DCMAKE_BUILD_TYPE=Release
-
-cmake --build build
-```
-
-Le DLL est produit dans `build/cod1reloaded.dll`.
-Un proxy test `build/mss32.dll` est aussi produit pour un chargement automatique
-par le jeu.
-
-### Build rapide sous PowerShell
-
-Un helper est aussi disponible pour les setups Windows ou le toolchain n'est pas
-dans le `PATH` :
+## Build
 
 ```powershell
-.\build.ps1
-```
-
-Si PowerShell bloque l'execution des scripts, utilise :
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-```
-
-Le script cherche automatiquement un MinGW 32-bit dans :
-
-- `.\tools\mingw\bin`
-- `.\cod2x\tools\mingw\bin`
-- `C:\msys64\mingw32\bin`
-- `C:\mingw32\bin`
-
-Options utiles :
-
-```powershell
-.\build.ps1 -Clean
+.\build.ps1                    # Release; finds the toolchain in C:\tools\mingw32, .\tools\mingw, C:\msys64\mingw32, C:\mingw32
+.\build.ps1 -Test              # + ctest
+.\build.ps1 -Clean             # wipe build\ first
 .\build.ps1 -Configuration Debug
 ```
 
-## Test du proxy `mss32.dll`
+or by hand:
 
-Prototype actuel :
-
-- `build\mss32.dll` = proxy custom charge par le jeu
-- `mss32_original.dll` = copie renommee de la DLL audio d'origine
-
-Procedure de test dans le dossier du jeu :
-
-1. Faire une sauvegarde de `mss32.dll`
-2. Renommer la DLL d'origine en `mss32_original.dll`
-3. Copier `build\mss32.dll` dans le dossier du jeu
-4. Lancer `CoDMP.exe` normalement
-
-Si le chargement du proxy fonctionne, notre code est execute automatiquement par
-le jeu et continue ensuite a forwarder les exports vers `mss32_original.dll`.
-
-## Test en jeu
-
-Pour cette version initiale, le DLL doit être **injecté manuellement** dans `CoDMP.exe` après le lancement du jeu. Le proxy `mss32.dll` (chargement automatique) sera ajouté plus tard.
-
-### Injection avec Process Hacker
-
-1. Lancer CoD1 Multiplayer
-2. Ouvrir Process Hacker, trouver `CoDMP.exe`
-3. Clic droit > Miscellaneous > Inject DLL
-4. Sélectionner `build/cod1reloaded.dll`
-
-### Injection en ligne de commande
-
-Avec un outil comme [Injector](https://github.com/nefarius/Injector) :
-
-```cmd
-injector.exe --process-name CoDMP.exe --inject build\cod1reloaded.dll
+```sh
+export PATH=/c/tools/mingw32/bin:$PATH
+cmake -B build -G Ninja -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
+      -DCODUO_GAME_DIR="D:/Call of Duty - Copy"
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-### Vérification
+Outputs (always in `<repo>\build\`, whatever the build dir, see
+`COD1RELOADED_OUTPUT_DIR` in `CMakeLists.txt`):
 
-Le DLL polle pendant 60s à la recherche de `gamex86.dll`. Une fois trouvée :
+| File | |
+| --- | --- |
+| `mss32.dll` | the mod, as the Miles proxy the game loads |
+| `coduoplus.dll` | the same code without the proxy exports, for manual injection while debugging |
+| `site_check.exe` | the offline patch-site test |
 
-- Vérification de cohérence : la valeur actuelle doit être `180.0f`. Si non, une popup d'erreur s'affiche et le patch est annulé (signe que les adresses ont changé — autre version de CoD1).
-- Si OK : la valeur est remplacée par `100.0f` et un message debug est écrit (visible avec [DebugView](https://learn.microsoft.com/en-us/sysinternals/downloads/debugview)).
+`-DCOD1RELOADED_NO_RINPUT=ON` builds a variant without the raw-input
+`GetCursorPos` hook into `build\norinput\`, for bisecting input problems.
 
-Pour tester l'effet en jeu : crouch/standup rapide et observer si le corps "pop" toujours pendant la transition.
+## CMake options
 
-## Désinstallation
+| Option | Default | |
+| --- | --- | --- |
+| `CODUO_GAME_DIR` | `D:/Call of Duty - Copy` | CoD:UO 1.51 install the tests read binaries from (read-only), and the smoke test runs. |
+| `CODUO_SMOKE` | `OFF` | Register `smoke_dedicated` (launches the game as a dedicated server). |
+| `COD1RELOADED_NO_RINPUT` | `OFF` | Build without the raw-input hook. |
 
-Fermer le jeu. Le DLL ne touche rien d'autre que la mémoire volatile.
+## Deploy to a test install
 
-## Limitations actuelles
+```powershell
+.\deploy.ps1 [-Game "D:\Call of Duty - Copy"]
+python -I ui_pk3\build_pk3.py --deploy [--game "D:/Call of Duty - Copy"]
+```
 
-- Pas de chargement automatique — injection manuelle requise
-- Ciblé uniquement sur CoD1 Multiplayer (CoDMP.exe), version "1.5" présumée
-- Une seule modification appliquée (viewheight lerp speed)
-- Pas de désactivation à chaud
+`deploy.ps1` refuses to run while the game is running from that folder. On the
+first deploy it renames the game's Miles `mss32.dll` to `mss32_original.dll`
+(keeping `mss32.dll.miles-backup`), and installs `coduoplus.ini` only if none
+exists.
+
+## Release
+
+```powershell
+.\release.ps1 [-Version 0.1.1] [-Repo owner/name] [-Game "D:\Call of Duty - Copy"]
+```
+
+Builds in `build-release`, runs `ctest` and stops if anything fails, generates
+the UI pk3, and writes `dist\`: `mss32.dll`, `manifest.json`,
+`zz_coduoplus_ui.pk3`, and `coduoplus-<ver>.zip` laid out like the game folder.
+Publishing a GitHub release also triggers `.github/workflows/release.yml`,
+which cross-compiles and attaches the DLLs and ini. The UI pk3 can only be
+built where a game install exists, so it's attached from `release.ps1`'s output.
+
+The version lives in one place: `COD1RELOADED_VERSION` in
+`src/features/updater.h`.
+
+## Reverse-engineering helpers
+
+`tools/re/` holds the scripts used to find and check addresses. See
+[docs/PORTING.md](docs/PORTING.md#method):
+
+```sh
+python -I tools/re/find.py <pe> str "r_fullscreen"     # string + code refs
+python -I tools/re/find.py <pe> call 43abc0            # E8 callers of a VA
+bash tools/re/dis.sh <pe> 0x43c6a7 0x30                # objdump, Intel syntax
+python -I tools/re/q3query.py 127.0.0.1 28960 getstatus
+python -I tools/re/q3connect.py 127.0.0.1 28960 coduoplus=5
+```
