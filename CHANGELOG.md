@@ -1,6 +1,6 @@
 # CoDUO+ — Changelog
 
-## v0.3.0 (unreleased)
+## v0.3.0 (2026-10-18) — lag compensation rewinds poses
 
 ### Netcode
 - **Lag compensation rewinds poses.** A target that crouched, went prone, leaned or
