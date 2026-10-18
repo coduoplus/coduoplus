@@ -146,7 +146,7 @@ or if the result loses CRLF or balanced braces.
 
    | userinfo | expected | why |
    | --- | --- | --- |
-   | `coduoplus=5` | `error` + "Update coduoplus to CoDUO+ 0.1.0+ …" | older CoDUO+ build: refused by our gate |
+   | `coduoplus=5` | `error` + "Update coduoplus to CoDUO+ 0.2.0+ …" | older CoDUO+ build: refused by our gate |
    | (vanilla) | `connectResponse` | vanilla players are let in |
    | `coduoplus=16` | `connectResponse` | current build |
 
@@ -160,8 +160,8 @@ or if the result loses CRLF or balanced braces.
 A typical run:
 
 ```text
-server: map=mp_harbor protocol=22 shortversion=CoDUO+ 0.1.0
-connect {'coduoplus': '5'} -> error | Update coduoplus to CoDUO+ 0.1.0+ to join this server.
+server: map=mp_harbor protocol=22 shortversion=CoDUO+ 0.2.0
+connect {'coduoplus': '5'} -> error | Update coduoplus to CoDUO+ 0.2.0+ to join this server.
 connect vanilla            -> connectResponse
 connect {'coduoplus': '16'} -> connectResponse
 smoke_dedicated: ok (23 checks of the log, 0 problems)
@@ -180,7 +180,7 @@ Run on the test install after `.\deploy.ps1` and
 `python -I ui_pk3/build_pk3.py --deploy`. Close the game afterwards and send
 `coduoplus.log`.
 
-1. **Starts, sound works.** Main menu shows `CoDUO+ 0.1.0` bottom right and a
+1. **Starts, sound works.** Main menu shows `CoDUO+ 0.2.0` bottom right and a
    gold **CoDUO+ SETTINGS** item between QUIT and AUTO-UPDATE.
 2. **Overlay menu.** Click CoDUO+ SETTINGS, or press Ctrl+M: the overlay opens
    and the mouse moves its cursor. Esc closes it.

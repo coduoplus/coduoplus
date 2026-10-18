@@ -2,12 +2,12 @@
 
 **CoDUO+** is a client mod for **Call of Duty: United Offensive 1.51** multiplayer
 (`CoDUOMP.exe`). It's a port of [COD1.6X](https://github.com/cod1plus/client) (the
-CoD1 mod, release 1.6.6) to UO: exact frame cap, raw mouse input, widescreen,
+CoD1 mod: release 1.6.6, plus the non-PunkBuster work of 1.6.9) to UO: exact frame cap, raw mouse input, widescreen,
 borderless window, 40-tick rate caps, player-model swing fix, a settings
 overlay, and more. It's one DLL dropped into the game folder. Nothing on disk
 is modified, and vanilla servers and players are unaffected.
 
-**Status: 0.1.0 — development build.** The engine and server side are verified
+**Status: 0.2.0 — development build.** The engine and server side are verified
 against the stock binaries and on a running dedicated server. The client side
 (rendering, input, menus) is verified offline but **not yet played**. See
 [docs/TESTING.md](docs/TESTING.md#manual-client-checklist).
@@ -18,10 +18,12 @@ against the stock binaries and on a running dedicated server. The client side
 
 | | |
 | --- | --- |
-| 🎯 **Exact FPS cap** | `com_maxfps 250` gives 250, not 240–248 (QPC-timed wait + 1 ms timer). |
+| 🎯 **Exact FPS cap** | `com_maxfps 250` gives 250, not 240–248 (QPC-timed wait + 1 ms timer), on a continuous engine clock. |
+| ⚡ **Less input latency** | Mouse movement made during the frame wait reaches this frame, not the next; `glFinish` after each frame keeps one frame in flight (auto-off when the GPU is the limit). |
+| 📋 **Session line** | Once a minute the log says how the game ran: fps, late and long frames, GPU wait, display mode. |
 | 🖱️ **Raw mouse input** | `m_rinput 1`: the device's own counts, no Windows acceleration or speed slider. `m_rinput_hz` shows the real polling rate. |
 | 🖥️ **Widescreen** | Hor+ FOV for 16:9 / 21:9, or the stretched-4:3 look at native resolution. Off by default. |
-| 🪟 **Borderless window** | Instant alt-tab, per-monitor gamma. Opt-in (`fullscreen = off`). |
+| 🔒 **Same settings for everyone** | Frame pacing, input path, exclusive fullscreen at the display's max Hz are imposed (upstream 1.6.9's ini lock), so the borderless window is not available in release builds. Per-monitor gamma, instant minimize on alt-tab. |
 | 🔭 **FOV 80–95** | `cg_fov` unlocked within 80–95 ([note](docs/PORTING.md#fov-unlock-is-ported-as-is--read-this)). |
 | 🧍 **Swing fix** | Torso and legs follow your view without lag. Applied only on servers that run CoDUO+ and test the same pose, so what you see is always what the server hits ([why](docs/PORTING.md#swing-fix-only-where-the-server-mirrors-it)). |
 | 🌐 **40-tick ready** | snaps cap 30 → 40, cl_maxpackets 100 → 125; a server can push its fair-play cvar spec. |
