@@ -223,6 +223,8 @@ void load_config(HMODULE self_module) {
             "coduoplus", "frame_limiter_bias_us", "", buf, sizeof(buf), ini_path);
         if (n > 0) g_frame_limiter_config.deadline_bias_us = atoi(buf);
     }
+    g_frame_limiter_config.late_input = read_ini_bool(
+        ini_path, "input_late_sampling", g_frame_limiter_config.late_input);
     {
         // Friendly key "fullscreen = on/off"; internally force_windowed_default is its
         // inverse (kept for back-compat). Old key still honored; `fullscreen` wins if set.

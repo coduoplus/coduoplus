@@ -62,6 +62,11 @@ is covered where it differs. See [Two uo_game builds](#two-uo_game-builds).
 | `lastTime` (static int) | — | `0x980230` | `mov ecx,[0x980230]` right after the call |
 | `com_maxfps` cvar slot | `0x1912acc` | `0x492908c` | `mov [0x492908c],eax` after its `Cvar_Get` (`0x43be91`), read at `0x43c681` |
 | `dedicated` cvar slot | — | `0x49290a4` | `mov [0x49290a4],eax` after `Cvar_Get("dedicated")` (`0x43bdfe`) |
+| `sys_timeBase` / `sys_timeInitialized` | `0x1999d40` / `0x1460254` | `0x489bc3c` / `0x389fddc` | `Sys_Milliseconds` inlined 51×: `mov [0x489bc3c],eax ; mov [0x389fddc],1` after `timeGetTime` (e.g. `0x43c663`) |
+| second `Com_EventLoop` (client only) | `0x43a6cd` | `0x43c899` | preceded by `mov ecx,[dedicated] ; mov eax,[ecx+0x20] ; test ; jne` (`0x43c888`) |
+| `IN_MouseMove` (late mouse) | `0x466b70` | `0x469c20` | `GetCursorPos` − centre, `SetCursorPos`, queue `SE_MOUSE`; tail-jumped from `IN_Frame` (`0x469eb9`) |
+| mouse initialised / active | `0x93b3a4` / `0x93b3a0` | `0x9cdbc4` / `0x9cdbc0` | `IN_Frame`'s gate before `IN_MouseMove` (`0x469e93`, `0x469e9c`) |
+| `Sys_SendKeyEvents` | `0x468a40` | inlined | the PeekMessage pump lives in `Sys_GetEvent` (`0x46bb80`) |
 | Mouse centre X / Y | `0x93b398` / `0x93b228` | `0x9cdbb8` / `0x9cda48` | `SetCursorPos(x, y)` in `IN_GetMouseDelta` (`0x469ab0`) and `IN_MouseMove` (`0x469c20`), the only two `GetCursorPos` callers |
 | `GetCursorPos` IAT slot | — | `0x5862a0` | 2 `call [slot]` (above) and 1 unreferenced linker thunk `jmp [slot]` at `0x56c2d6` |
 | Live systeminfo: `stringOffsets[1]` / `stringData` | `0x148dcc0` / `0x148fcbc` | `0x495c6f8` / `0x495e6f4` | `CL_SystemInfoChanged` (`0x418b80`): `mov esi,[0x495c6f8] ; lea esi,[esi+0x495e6f4]` |

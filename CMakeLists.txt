@@ -201,3 +201,14 @@ if (Python3_FOUND)
              COMMAND Python3::Interpreter -I "${CMAKE_SOURCE_DIR}/tests/check_doc_links.py"
              WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 endif()
+
+# The real frame limiter wait inside a copy of UO's patched Com_Frame loop, against a
+# fake engine (timing-based, ~15 s). See tests/test_frame_limiter.cpp.
+add_executable(test_frame_limiter tests/test_frame_limiter.cpp
+               src/performance/frame_limiter.cpp src/core/logger.cpp src/core/game.cpp)
+target_include_directories(test_frame_limiter PRIVATE src)
+target_compile_options(test_frame_limiter PRIVATE -Wall -Wextra -Wno-unused-parameter -O2)
+target_link_options(test_frame_limiter PRIVATE -static -static-libgcc -static-libstdc++)
+target_link_libraries(test_frame_limiter PRIVATE winmm)
+add_test(NAME frame_limiter COMMAND test_frame_limiter)
+set_tests_properties(frame_limiter PROPERTIES TIMEOUT 120)

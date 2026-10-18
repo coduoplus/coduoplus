@@ -59,6 +59,7 @@ possible fixes) the impossible combinations before the renderer starts.
 | Key | Default | What it does |
 | --- | --- | --- |
 | `frame_limiter_enable` | `on` | Exact `com_maxfps`: QPC-timed wait so 250 means 250, not 240–248. Still runs the engine's event loop every frame. See [PORTING.md → Frame limiter](PORTING.md#frame-limiter). |
+| `input_late_sampling` | `on` | Read the mouse again right after the limiter's wait, so movement made during the wait reaches the frame being built, not the next one (upstream 1.6.9). Keys and buttons are already pumped after the wait in UO. Needs `frame_limiter_enable`. |
 | `frame_limiter_bias_us` | `0` | Microseconds added to each frame deadline (negative = slightly faster). |
 | `force_1ms_timer` | `on` | `timeBeginPeriod(1)` so sleeps and `com_maxfps` are precise. |
 | `smoothness_process_priority` | `high` | `normal`, `above_normal`, `high`, `realtime`, `default`. |
