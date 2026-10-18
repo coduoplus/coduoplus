@@ -18,6 +18,7 @@ features belong to the **server**, and the Linux library provides all of them:
 | 3 | **swing-fix mirror** + `sv_coduoplus_swing 1` | CoDUO+ clients keep the vanilla swing there (correct, but no fix) |
 | 4 | **version gate** | outdated CoDUO+ clients get in |
 | 5 | **competitive spec publisher** (`competitive.cfg`) | clients stay at `snaps 20` / `cl_maxpackets 30` / `rate 5000` |
+| 6 | **large-inode file access** (not a CoDUO+ feature: a fix for the 2005 binary) | on a Windows drive under WSL/Docker Desktop, or a big XFS/btrfs disk: "0 files in pk3 files", the server won't start |
 
 Shared parts are compiled from the same files on both sides:
 `src/shared/coduoplus_shared.h` (the swing values, cvar names and net version)
@@ -25,6 +26,9 @@ and `src/shared/competitive_spec.cpp` (the `competitive.cfg` parser and chunker)
 So a client and a server from the same tree can't disagree.
 
 ## Running it
+
+**Easiest: the Docker image**, see [DOCKER.md](DOCKER.md) (`docker compose up -d` with
+the example compose file). By hand:
 
 Supported build: **CoD:UO 1.51b Linux server** (icculus, 2005-03-22:
 `coduo_lnxded` sha256 `24b0d826…61f1`, `uo/game.mp.uo.i386.so` `4d2391c1…acb7`). On
@@ -61,6 +65,7 @@ ten years. `coduo_lnxded` itself still needs `libstdc++.so.5`, see its README.
 | `CODUOPLUS_VERSION_GATE=0` | let every client in |
 | `CODUOPLUS_SNAPS=0` | keep the vanilla snaps cap of 30 |
 | `CODUOPLUS_COMPETITIVE_FILE` | path of `competitive.cfg` (default: the server's working directory) |
+| `CODUOPLUS_LFS=0` | leave the engine's 32-bit `stat`/`readdir` alone (see below) |
 
 `LD_PRELOAD` is inherited by everything the server starts; the library only acts
 inside a process whose executable is `coduo_lnxded`.
@@ -72,6 +77,7 @@ LD_PRELOAD constructor (before main)
  ├─ check every engine site's bytes (sites_151b.h) -> else: do nothing
  ├─ snaps clamp 30 -> 40             808d490 imm8, 808d496 imm32
  ├─ shortversion default -> "CoDUO+" 80719d5 operand
+ ├─ engine's __xstat/readdir/closedir GOT slots -> 64-bit wrappers (DOCKER.md)
  └─ engine's dlopen GOT slot -> ours 80fe1cc
                 │
      every map: Sys_LoadDll -> dlopen("…/uo/game.mp.uo.i386.so")
@@ -150,24 +156,19 @@ So:
 
 | Test | What |
 | --- | --- |
-| `site_check_linux` (44 checks, offline, runs on Windows) | every site's bytes, plus each address pinned to its meaning: exports via `.dynsym`, GOT slots via the `R_386_JUMP_SLOT`/`GLOB_DAT` relocations, PLT stubs, `vmMain`'s calls, trap syscall numbers, the 0.3f / 40.0 / 0.15 constants, the snaps userinfo key and `snapshotMsec` store |
-| `smoke_linux` (WSL + Docker) | builds the image and the library, runs the **real `coduo_lnxded`** with it on mp_harbor, then checks: `getstatus` protocol 22 + `CoDUO+` shortversion; real connects (old CoDUO+ refused, vanilla and current accepted); `rcon systeminfo` holds `sv_coduoplus_swing 1` and the spec; **a map change to mp_arnhem** re-applies everything and clients still receive both; the console log has every patch and no refusal |
+| `site_check_linux` (61 checks, offline, runs on Windows) | every site's bytes, plus each address pinned to its meaning: exports via `.dynsym`, GOT slots via the `R_386_JUMP_SLOT`/`GLOB_DAT` relocations, PLT stubs, `vmMain`'s calls, trap syscall numbers, the 0.3f / 40.0 / 0.15 constants, the snaps userinfo key and `snapshotMsec` store |
+| `smoke_linux` (WSL + Docker) | builds the **server image** ([DOCKER.md](DOCKER.md)) and runs the **real `coduo_lnxded`** in it against the Windows install, read-only, on mp_harbor (after a control run proving the large-inode fix is needed), then checks: Docker health; `getstatus` protocol 22 + `CoDUO+` shortversion; real connects (old CoDUO+ refused, vanilla and current accepted); `rcon systeminfo` holds `sv_coduoplus_swing 1` and the spec; **a map change to mp_arnhem** re-applies everything and clients still receive both; the console log has every patch and no refusal |
 | tampered module (manual) | one swing constant changed in the `.so`: the library logs the mismatch, patches nothing, and the server runs vanilla |
 
-Setup for `smoke_linux`, once: `server/linux/make_game_volume.sh "/mnt/d/Call of Duty - Copy"`
-copies the stock paks into a Docker volume. They can't be read straight from the
-Windows drive: drvfs inode numbers overflow the 32-bit `stat()` of a 2005 binary,
-so the server sees "0 files in pk3 files". Then
-`cmake -B build -DCODUO_LINUX_SMOKE=ON` and `ctest -R linux`.
+Run them: `cmake -B build -DCODUO_LINUX_SMOKE=ON` and `ctest -R linux`. The test reads
+the game from `CODUO_GAME_DIR`, the same install as the Windows tests.
 
-Build by hand:
+Build the library by hand (the `artifact` stage of the server image's Dockerfile):
 
 ```sh
-docker build -t coduoplus-linux server/linux
-docker run --rm -v "$PWD":/src coduoplus-linux sh server/linux/build.sh   # -> build/linux/coduoplus_sv.so
+docker build -f server/linux/Dockerfile --target artifact --output type=local,dest=build/linux .
 ```
 
-The image is Debian 11 i386 from a fixed snapshot date (reproducible; the oldest
-glibc we build on), with `libstdc++.so.5` from the Debian archive so the 2005
-server runs in it. The library links its C++ runtime statically with every symbol
+It's built on Debian 11 i386 from a fixed snapshot date (reproducible; the oldest
+glibc we build on). The library links its C++ runtime statically with every symbol
 hidden, so it can't clash with the `libstdc++.so.5` the server loads.

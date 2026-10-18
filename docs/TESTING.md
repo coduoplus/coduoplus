@@ -17,7 +17,7 @@ ctest
  ├─ competitive_sv     competitive.cfg -> sv_competitive*, checked against the client's reading
  ├─ site_check_linux   the Linux library's address table against coduo_lnxded 1.51b (offline)
  ├─ smoke_dedicated    (opt-in) run the real game with the mod as a server
- └─ smoke_linux        (opt-in) the real coduo_lnxded with coduoplus_sv.so, in Docker (docs/LINUX.md)
+ └─ smoke_linux        (opt-in) the server image with the real coduo_lnxded, in Docker (docs/DOCKER.md)
 ```
 
 ## Running
