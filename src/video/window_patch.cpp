@@ -63,10 +63,12 @@ struct FindData { DWORD pid; HWND hwnd; };
 // "CoD United Offensive WinConsole" window - the whole UI of a dedicated server,
 // and big enough to pass the size test below - plus the splash screen; matching
 // on size alone (upstream) turned a dedicated server's console into a borderless
-// full-monitor window.
+// full-monitor window. And never a MINIMIZED one (upstream 1.6.9 e1161b7): while the
+// game is iconic its rect is a 160x28 stub at -32000, nothing to restyle or follow.
 bool is_game_window(HWND hwnd) {
     char cls[64] = {0};
-    return GetClassNameA(hwnd, cls, sizeof(cls)) && strcmp(cls, GAME_WINDOW_CLASS) == 0;
+    return GetClassNameA(hwnd, cls, sizeof(cls)) && strcmp(cls, GAME_WINDOW_CLASS) == 0 &&
+           !IsIconic(hwnd);
 }
 
 BOOL CALLBACK enum_windows_cb(HWND hwnd, LPARAM lParam) {
@@ -306,16 +308,20 @@ DWORD WINAPI window_watcher_thread(LPVOID) {
         }
 
         if (g_exclusive) {
-            // subclass-only: maintain minimize-on-focus-loss, touch nothing else
-            HWND t = find_main_window();
+            // subclass-only: maintain minimize-on-focus-loss, touch nothing else -
+            // and only if that is wanted (upstream 1.6.9: with it off there is
+            // nothing at all to do to an exclusive-fullscreen window)
             if (g_subclassed_hwnd && !IsWindow(g_subclassed_hwnd)) {
                 // engine recreated its window (normal per mode change): just move on
                 g_subclassed_hwnd   = nullptr;
                 g_original_wnd_proc = nullptr;
             }
-            if (t && t != g_subclassed_hwnd) {
-                restore_subclass();
-                subclass_window(t);
+            if (g_window_config.minimize_on_focus_loss) {
+                HWND t = find_main_window();
+                if (t && t != g_subclassed_hwnd) {
+                    restore_subclass();
+                    subclass_window(t);
+                }
             }
             Sleep(500);
             continue;

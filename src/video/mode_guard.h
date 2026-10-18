@@ -31,6 +31,9 @@ void mode_guard_start();
 // engine is the two-windows/dead-keyboard bug (meta 2026-08-25), and it must
 // come back when the player switches to windowed via the menu mid-session.
 bool mode_guard_exclusive_active();
+// The exclusive mode the engine holds (w, h, Hz as the display reports it), or false
+// when the game is windowed (session_report.cpp). upstream 1.6.9
+bool mode_guard_current_mode(int* w, int* h, int* hz);
 
 // Restore-from-minimize repair. When a CDS_FULLSCREEN window minimizes, Windows
 // restores the desktop mode automatically - but on restore it does NOT reliably
