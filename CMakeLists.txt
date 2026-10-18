@@ -177,3 +177,14 @@ if (Python3_FOUND)
 else()
     message(WARNING "Python 3 not found: site_check test not registered")
 endif()
+
+# Opt-in end-to-end test: launches the real game (as a dedicated server, console
+# window only) from CODUO_GAME_DIR with the deployed mss32.dll. Off by default
+# because it starts a process; enable with -DCODUO_SMOKE=ON and run deploy.ps1
+# first. See tests/smoke_dedicated.py.
+option(CODUO_SMOKE "Register the dedicated-server smoke test (launches CoDUOMP.exe)" OFF)
+if (CODUO_SMOKE AND Python3_FOUND)
+    add_test(NAME smoke_dedicated
+             COMMAND Python3::Interpreter -I "${CMAKE_SOURCE_DIR}/tests/smoke_dedicated.py" "${CODUO_GAME_DIR}")
+    set_tests_properties(smoke_dedicated PROPERTIES TIMEOUT 120)
+endif()

@@ -59,11 +59,22 @@ LRESULT CALLBACK cod1reloaded_wnd_proc(HWND, UINT, WPARAM, LPARAM);
 
 struct FindData { DWORD pid; HWND hwnd; };
 
+// Only the renderer's window is ever restyled. The process also owns the
+// "CoD United Offensive WinConsole" window - the whole UI of a dedicated server,
+// and big enough to pass the size test below - plus the splash screen; matching
+// on size alone (upstream) turned a dedicated server's console into a borderless
+// full-monitor window.
+bool is_game_window(HWND hwnd) {
+    char cls[64] = {0};
+    return GetClassNameA(hwnd, cls, sizeof(cls)) && strcmp(cls, GAME_WINDOW_CLASS) == 0;
+}
+
 BOOL CALLBACK enum_windows_cb(HWND hwnd, LPARAM lParam) {
     auto* d = (FindData*)lParam;
     DWORD wnd_pid = 0;
     GetWindowThreadProcessId(hwnd, &wnd_pid);
     if (wnd_pid != d->pid)                 return TRUE;
+    if (!is_game_window(hwnd))             return TRUE;
     if (!IsWindowVisible(hwnd))            return TRUE;
     if (GetWindow(hwnd, GW_OWNER) != NULL) return TRUE; // not top-level
     RECT rc;
@@ -79,7 +90,7 @@ HWND find_main_window() {
     if (fg) {
         DWORD pid = 0;
         GetWindowThreadProcessId(fg, &pid);
-        if (pid == GetCurrentProcessId() && IsWindowVisible(fg) &&
+        if (pid == GetCurrentProcessId() && is_game_window(fg) && IsWindowVisible(fg) &&
             GetWindow(fg, GW_OWNER) == NULL) {
             RECT rc;
             if (GetWindowRect(fg, &rc) &&
