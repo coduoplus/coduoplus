@@ -39,6 +39,8 @@ MUST_LOG = [
     'swing_fix: server publishes sv_coduoplus_swing 1 (engine holds "1")',
     'competitive_sv: engine holds sv_competitive "snaps=40 cl_maxpackets=125',
     'version_gate: reject client ',
+    'antilag: Bullet_Fire hook installed',
+    'antilag: g_antilag=1 g_antilagMaxMs=300',
 ]
 MUST_NOT_LOG = ['does not match', 'unknown build', 'FAILED', 'left vanilla', 'not hooking',
                 'line refused', 'too long', 'Segmentation']
@@ -135,7 +137,8 @@ def main():
         if needle not in log:
             failures.append('log lacks: ' + needle)
     # once per game-module load: the map change must have re-applied both
-    for needle in ('swing_fix [server]: ON in 0x', 'G_RunFrame hook installed'):
+    for needle in ('swing_fix [server]: ON in 0x', 'G_RunFrame hook installed',
+                   'antilag: Bullet_Fire hook installed'):
         if log.count(needle) < 2:
             failures.append('not re-applied after the map change: ' + needle)
     for line in log.splitlines():

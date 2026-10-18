@@ -54,9 +54,12 @@ MUST_LOG = [
     'competitive_sv: ',
     'engine holds sv_competitive "snaps=40 cl_maxpackets=125 com_maxfps=125:250 rate=90000"',
     'SYSTEMINFO yes)',
+    # lag compensation: both hook kinds redirected in uo_game, cvars live
+    'antilag: installed in ',
+    'antilag: g_antilag=1 g_antilagMaxMs=300',
 ]
 # Phrases the patches log when they refuse to write (wrong bytes, wrong build).
-MUST_NOT_LOG = ['abort', 'SKIPPED', 'annule', 'PARTIAL', 'expected 0x', 'inattendu',
+MUST_NOT_LOG = ['abort', 'SKIPPED', 'PARTLY installed', 'not the stock call', 'annule', 'PARTIAL', 'expected 0x', 'inattendu',
                 'not CoDUOMP.exe', 'borderless applied', 'do not match',
                 'line refused', 'too long', 'still empty']
 

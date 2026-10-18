@@ -14,7 +14,7 @@ cd "$(dirname "$0")/../.."
 mkdir -p build/linux
 g++ -std=c++17 -O2 -fPIC -shared -fvisibility=hidden -Wall -Wextra \
     -Isrc -Iserver/linux \
-    server/linux/coduoplus_sv.cpp src/shared/competitive_spec.cpp \
+    server/linux/coduoplus_sv.cpp src/shared/competitive_spec.cpp src/shared/antilag_core.cpp \
     -static-libstdc++ -static-libgcc -Wl,--exclude-libs,ALL -Wl,-z,defs \
     -ldl -o build/linux/coduoplus_sv.so
 # what the host's glibc must provide

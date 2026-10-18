@@ -125,6 +125,7 @@ DWORD WINAPI patch_watcher_thread(LPVOID) {
         }
         patches::swing_server_tick();            // hosting: mirror swing into uo_game, publish it
         patches::version_gate_tick();            // hosting: ClientConnect version gate (per map load)
+        patches::antilag_tick();                 // hosting: lag compensation hooks (per map load)
         patches::competitive_sv_tick();          // hosting: publish competitive.cfg as sv_competitive*
         patches::swing_client_tick();            // follow the server's sv_coduoplus_swing on the cgame
         patches::widescreen_update_stretch();    // drive the stretched-mode vfov ratio (live)
@@ -167,7 +168,7 @@ extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
             patches::demo_upload_start();
             patches::discord_rpc_start();
 
-            // phase 0: read-only offset validation; no-op unless antilag_diag_enable. see docs/lag_compensation_cod1_plan.md
+            // server-side lag compensation when hosting (logs its defaults; hooks per map load)
             patches::antilag_start();
 
             // server-side: reject clients running an older cod1reloaded (ClientConnect gate)

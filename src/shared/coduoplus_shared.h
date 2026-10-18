@@ -34,7 +34,14 @@
 #define COMP_SV_CHUNK_MAX_C       220                /* per-cvar payload (< 256)  */
 #define COMP_SV_CHUNKS_C          4
 
+/* ---- lag compensation (shared/antilag_core.*, netcode/antilag.cpp, server/linux) -- */
+#define ANTILAG_CVAR            "g_antilag"       /* 0 off, 1 on, 2 on + log every rewind */
+#define ANTILAG_MAXMS_CVAR      "g_antilagMaxMs"  /* furthest a shot is rewound          */
+#define ANTILAG_DEFAULT         1
+#define ANTILAG_MAXMS_DEFAULT   300
+
 /* engine cvar flags (Quake 3, identical in CoDUOMP.exe and coduo_lnxded) */
+#define CODUOPLUS_CVAR_SERVERINFO 0x04
 #define CODUOPLUS_CVAR_SYSTEMINFO 0x08
 #define CODUOPLUS_CVAR_ROM        0x40
 
