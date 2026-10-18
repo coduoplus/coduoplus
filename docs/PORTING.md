@@ -128,7 +128,7 @@ checks compare against relocated values.
 | Version string in menus (`version_patch`) | ✅ ported | Shows `CoDUO+ 0.1.0`. |
 | Protocol / master / browser (`protocol_patch`) | ✅ ported, **vanilla values** | [Decision](#protocol-and-master-server-stay-vanilla). |
 | 40-tick caps: snaps 40, cl_maxpackets 125 (`competitive`) | ✅ ported | Server-pushed competitive spec + ROM lock work unchanged. |
-| Fair-play ruleset (`ruleset*`, `cheat_scan`) | ✅ ported (inactive) | Only acts when a server publishes `sv_competitive*`; vanilla UO servers don't. |
+| PunkBuster-replacement ruleset + cheat-cvar scan (`ruleset*`, `cheat_scan`) | 🗑️ removed | [Why](#punkbuster-code-removed). |
 | Frame limiter (`frame_limiter`) | ✅ ported, **reworked** | [Decision](#frame-limiter). |
 | 1 ms timer, CPU affinity, priority, working set, FSO (`performance/*`) | ✅ ported | Win32 only. |
 | Raw mouse input `m_rinput` (`rinput`) | ✅ ported | Same two `GetCursorPos` callers. |
@@ -320,6 +320,26 @@ never shipped. Because pmove runs on both sides, client prediction and server
 would also disagree unless both were patched. Not ported; noted in
 `core/main.cpp`.
 
+### PunkBuster code removed
+
+Upstream carries a client-side replacement for PunkBuster: `ruleset*` parses
+PB's `pbsv.cfg` rule format, embeds the CoDBase PunkBuster cvar list (~430
+rules, `rulesets/codbase-2023-05.pb`), downloads newer lists from
+`cod1plus/rulesets`, enforces them while a server names a list in
+`sv_competitive_ruleset`, and reports in userinfo `cod1x_rs`. `cheat_scan` is
+PB's other half, a blocklist of cheat cvar names reported in `cod1x_ac`.
+
+All of it was removed from CoDUO+ (files, ini keys, watcher ticks, the embedded
+list). The server-pushed **competitive spec** (`sv_competitive*` → exact values
+ROM-locked, ranges clamped, `netcode/competitive.cpp`) stays: it isn't
+PunkBuster code, and the small numeric compare/clamp it borrowed from the ruleset
+now lives in `competitive.cpp` itself, with the same rules (`""` counts as 0,
+magnitude-scaled tolerance, integers printed without a decimal point).
+
+What remains that mentions PunkBuster is the engine's own switch:
+`smoke_dedicated.py` starts its test server with `+set sv_punkbuster 0`, which
+turns the game's PunkBuster off.
+
 ### Version numbering
 
 CoDUO+ starts at **0.1.0**. `cod1x_build` (sent in userinfo) is derived from the
@@ -330,7 +350,7 @@ version, so 0.1.0 → 100 can never be confused with a COD1.6X build (1.6.x →
 ### Internal names kept
 
 `cod1x_*` cvars, `COD1RELOADED_*` macros and the `CODMP_*` constant names are
-kept. Menus and the ruleset protocol depend on the cvar names, and keeping the
+kept. Menus and the server spec depend on the cvar names, and keeping the
 code names makes a future merge of upstream changes a matter of resolving
 values, not renames. Everything a player sees says CoDUO+ (`coduoplus.ini`,
 `coduoplus.log`, dialogs, version string, userinfo key `coduoplus`).

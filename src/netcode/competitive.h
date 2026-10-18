@@ -76,7 +76,7 @@ constexpr uint32_t COMP_CVAR_SYSTEMINFO = 0x08;
 // Cvar_Set2(force) on EACH KEY PRESENT - a key the new server does not publish keeps
 // whatever the PREVIOUS server set. So "the cvar is non-empty" never meant "this
 // server publishes it": a player leaving a competitive server for a fun server kept the
-// spec, and would keep the ruleset id. The engine's own truth is the CS_SYSTEMINFO
+// spec. The engine's own truth is the CS_SYSTEMINFO
 // configstring, which the gamestate parser rewrites for every server / map:
 //   cl.gameState.stringOffsets[1] @0x495c6f8  (int, into stringData)
 //   cl.gameState.stringData       @0x495e6f4  (MAX_GAMESTATE_CHARS = 0x5000 in UO)
@@ -105,7 +105,6 @@ extern CompetitiveConfig g_competitive_config;
 
 bool apply_competitive_caps();   // byte-patch the snaps/cl_maxpackets caps (once, at attach)
 void competitive_force_cvars();  // enforce + ROM-lock the netconfig cvars (polled)
-bool competitive_spec_has(const char* name);  // is this cvar named in the spec being enforced? (ruleset.cpp defers to it)
 // Value of `key` in the CURRENT server's systeminfo configstring (false = not published
 // / not connected). Use this, not the mirrored cvar: the cvar keeps a previous server's value.
 bool systeminfo_value(const char* key, char* out, int outsz);

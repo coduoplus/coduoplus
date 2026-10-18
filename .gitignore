@@ -1,7 +1,7 @@
 # ============================================================
 # cod1reloaded — .gitignore
 # On garde : src/, CMakeLists.txt, build_cod1.ps1, cod1reloaded.ini,
-# rulesets/, ui_pk3/, README/CHANGELOG/BUILD.
+# ui_pk3/, README/CHANGELOG/BUILD.
 # On ignore : tout ce qui est généré, lourd, ou hérité de CoD2x.
 # ============================================================
 

@@ -41,7 +41,7 @@ def connect(host, port, extra=None):
         info = {
             'challenge': challenge, 'qport': str(random.randint(1000, 60000)),
             'protocol': '22', 'name': 'coduoplus-probe', 'rate': '25000', 'snaps': '20',
-            'cl_punkbuster': '0', 'cl_anonymous': '0', 'cg_predictItems': '1',
+            'cl_anonymous': '0', 'cg_predictItems': '1',
         }
         info.update(extra or {})
         userinfo = ''.join('\\%s\\%s' % kv for kv in info.items())

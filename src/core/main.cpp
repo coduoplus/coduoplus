@@ -9,8 +9,6 @@
 #include "core/game.h"
 #include "core/single_instance.h"
 #include "features/pam_install.h"
-#include "netcode/cheat_scan.h"
-#include "netcode/ruleset.h"
 #include "gameplay/viewheight_fix.h"
 #include "gameplay/lean_fix.h"
 #include "gameplay/swing_fix.h"
@@ -116,8 +114,6 @@ DWORD WINAPI patch_watcher_thread(LPVOID) {
             patches::register_client_version_cvar();
             patches::competitive_force_cvars();  // force/lock snaps+cl_maxpackets+rate for 40-tick
             patches::settings_menu_tick();       // register/poll cod1x_* cvars + cg_fov unlock + hotkey
-            patches::cheat_scan_tick();          // cvar-name cheat detection -> userinfo cod1x_ac
-            patches::ruleset_tick();             // embedded PB ruleset (sv_competitive_ruleset) -> userinfo cod1x_rs
             patches::rinput_tick();              // follow m_rinput, publish m_rinput_hz
             patches::netmode_tick();             // follow cod1x_masterlist (1.6 <-> legacy 1.5)
         }

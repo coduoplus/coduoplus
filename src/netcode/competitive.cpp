@@ -1,9 +1,9 @@
 #include "netcode/competitive.h"
 #include "core/game.h"
-#include "netcode/ruleset_eval.h"    // rule_ok / rule_fix: the one place value semantics live
 #include "netcode/protocol_patch.h"   // CODMP_CVAR_GET_VA
 #include "core/logger.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -108,6 +108,29 @@ const Cvar_Set_t     cv_set  = (Cvar_Set_t)CODMP_CVAR_SET_VA;
 const Cvar_FindVar_t cv_find = (Cvar_FindVar_t)CODMP_CVAR_FINDVAR_VA2;
 const Cvar_Get_t     cv_get  = (Cvar_Get_t)CODMP_CVAR_GET_VA;
 
+// Numeric value semantics for the server spec. A cvar's string is a number when it
+// parses fully; "" counts as 0 (an off string cvar, which the engine also reads as 0).
+// The tolerance scales with magnitude, so float round trips of "0.022" and "25000"
+// compare equal while 0.0219 vs 0.022 does not.
+float num_eps(float a) { const float e = fabsf(a) * 1e-4f; return e > 1e-6f ? e : 1e-6f; }
+
+bool parse_num(const char* s, float* out) {
+    if (!s || !*s) { *out = 0.f; return true; }
+    char* end = nullptr;
+    const float v = (float)strtod(s, &end);
+    if (end == s) return false;
+    while (*end == ' ' || *end == '\t') ++end;
+    if (*end) return false;
+    *out = v;
+    return true;
+}
+
+// Integral values print without a decimal point ("40", not "40.000000").
+void fmt_num(float v, char* out, int outsz) {
+    if (fabsf(v - roundf(v)) < 1e-6f) snprintf(out, outsz, "%d", (int)roundf(v));
+    else                              snprintf(out, outsz, "%g", v);
+}
+
 // Force `value` then ROM-lock: the engine refuses any later player set. Our own
 // Cvar_Set passes force=1 and bypasses the ROM check, so we keep write access.
 // The value is compared and written as the STRING the server sent: 0, negatives and
@@ -117,12 +140,11 @@ const Cvar_Get_t     cv_get  = (Cvar_Get_t)CODMP_CVAR_GET_VA;
 void lock_exact(const char* name, const char* value) {
     void* cv = cv_find(name);
     if (!cv) return;
-    RuleDef r = { name, RM_EXACT, 0, 0.f, 0.f, "" };
     const char* cur = *(const char**)((char*)cv + COMP_CVAR_STRING);
     bool same;
-    if (sscanf(value, "%f", &r.a) == 1) {
-        r.b = r.a;
-        same = rule_ok(r, cur);                 // numeric compare, tolerance 1e-4
+    float want = 0.f, have = 0.f;
+    if (sscanf(value, "%f", &want) == 1) {
+        same = parse_num(cur, &have) && fabsf(have - want) <= num_eps(want);  // numeric compare
     } else {
         same = cur && !strcmp(cur, value);      // non-numeric: literal
     }
@@ -136,14 +158,18 @@ void lock_exact(const char* name, const char* value) {
 // out-of-range value never survives a frame. No ROM here - the range must stay usable.
 // Bounds are floats: "cl_timenudge -20 0" and "r_picmip 0 3" are legal ranges.
 void clamp_range(const char* name, const char* lo_s, const char* hi_s) {
-    RuleDef r = { name, RM_RANGE, 0, 0.f, 0.f, "" };
-    if (sscanf(lo_s, "%f", &r.a) != 1 || sscanf(hi_s, "%f", &r.b) != 1 || r.b < r.a) return;
+    float lo = 0.f, hi = 0.f;
+    if (sscanf(lo_s, "%f", &lo) != 1 || sscanf(hi_s, "%f", &hi) != 1 || hi < lo) return;
     void* cv = cv_find(name);
     if (!cv) return;
     const char* cur = *(const char**)((char*)cv + COMP_CVAR_STRING);
-    if (rule_ok(r, cur)) return;
+    float v = 0.f;
+    const bool numeric = parse_num(cur, &v);
+    if (numeric && v >= lo - num_eps(lo) && v <= hi + num_eps(hi)) return;
+    if (!numeric) v = lo;  // a non-numeric value in a numeric range -> the low bound
     char buf[32];
-    if (rule_fix(r, cur, "", buf, sizeof(buf))) cv_set(name, buf);
+    fmt_num(v < lo ? lo : (v > hi ? hi : v), buf, sizeof(buf));
+    cv_set(name, buf);
 }
 
 // Track which cvars WE locked, so we can release them when the server spec changes
@@ -222,18 +248,6 @@ void apply_token(const char* name, const char* rhs) {
     }
 }
 
-// Names present in the spec we are enforcing (the embedded ruleset defers to them).
-constexpr int MAX_SPEC_NAMES = 96;
-char g_spec_names[MAX_SPEC_NAMES][32];
-int  g_spec_name_count = 0;
-
-void note_spec_name(const char* name) {
-    if (g_spec_name_count >= MAX_SPEC_NAMES) return;
-    strncpy(g_spec_names[g_spec_name_count], name, 31);
-    g_spec_names[g_spec_name_count][31] = 0;
-    ++g_spec_name_count;
-}
-
 }  // namespace
 
 void competitive_force_cvars() {
@@ -265,7 +279,6 @@ void competitive_force_cvars() {
         if (g_locked_count || s_applied[0]) {
             unlock_all();
             s_applied[0] = 0;
-            g_spec_name_count = 0;
             logger::logf("  competitive: no server spec -> cvars unlocked");
         }
         return;
@@ -281,7 +294,6 @@ void competitive_force_cvars() {
         unlock_all();                              // release old set before applying new
         strncpy(s_applied, spec, sizeof(s_applied) - 1);
         s_applied[sizeof(s_applied) - 1] = 0;
-        g_spec_name_count = 0;
     }
 
     // parse "name=rhs" tokens separated by spaces
@@ -292,18 +304,11 @@ void competitive_force_cvars() {
         char* eq = strchr(tok, '=');
         if (!eq) continue;
         *eq = 0;
-        if (changed) note_spec_name(tok);
         apply_token(tok, eq + 1);
     }
 
     if (changed)
         logger::logf("  competitive: applied server spec \"%s\"", spec);
-}
-
-bool competitive_spec_has(const char* name) {
-    for (int i = 0; i < g_spec_name_count; ++i)
-        if (!_stricmp(g_spec_names[i], name)) return true;
-    return false;
 }
 
 }  // namespace patches
