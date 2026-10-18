@@ -134,8 +134,8 @@ checks compare against relocated values.
 | GPU sync: `glFinish` after `SwapBuffers` (`gpu_sync`, 1.6.9) | ✅ ported | Chains with the overlay's `SwapBuffers` hook. |
 | Raw mouse input `m_rinput` (`rinput`) | ✅ ported | Same two `GetCursorPos` callers. |
 | Refresh-rate cap 200 → 1000 Hz (`settings_menu`) | ✅ ported | |
-| Display probe, mode guard, fullscreen default (`video/*`) | ✅ ported | Now reads/writes `uo\uoconfig_mp.cfg`. |
-| Borderless window (`window_patch`) | ✅ ported, **fixed** | [Decision](#window-patch-only-touches-the-game-window). |
+| Display probe, mode guard, fullscreen default (`video/*`) | ✅ ported, 1.6.9 | Now reads/writes `uo\uoconfig_mp.cfg`. 1.6.9: a `r_fullscreen 1` the player chose is never rewritten to 0. |
+| Borderless window (`window_patch`) | ✅ ported, **fixed**, 1.6.9 | [Decision](#window-patch-only-touches-the-game-window). 1.6.9: ignores a minimized window; in exclusive fullscreen it only subclasses when `window_minimize_on_focus_loss` is on. |
 | Per-monitor gamma (`gamma_fix`) | ✅ ported | GDI only. |
 | Single-instance guard (`single_instance`) | ✅ ported | UO window class. |
 | Ctrl+M overlay menu (`ui/*`) | ✅ ported | Paths and cvar reads point at UO. |

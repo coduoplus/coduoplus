@@ -26,7 +26,7 @@ in [PORTING.md](PORTING.md).
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `fullscreen` | `on` | `on` keeps UO's exclusive fullscreen. `off` makes the game start windowed: it repoints the `r_fullscreen` default to `"0"` *and* rewrites a contradicting `seta r_fullscreen` in `uo\uoconfig_mp.cfg` (the ini wins). Combine with `window_borderless`. |
+| `fullscreen` | `on` | `on` keeps UO's exclusive fullscreen. `off` makes the game start windowed by repointing the `r_fullscreen` default to `"0"`. `uo\uoconfig_mp.cfg` is only corrected in one direction (upstream 1.6.9): `on` repairs a stale `seta r_fullscreen 0`, but a `1` there is the player's own choice (Options menu) and is never rewritten. Combine `off` with `window_borderless`. |
 | `window_borderless` | `on` | When windowed, strip the border and cover the monitor (instant alt-tab, no mode switch). No effect in exclusive fullscreen. |
 | `window_follow_current_monitor` | `on` | Borderless window follows the monitor it's on. |
 | `window_minimize_on_focus_loss` | `on` | Minimise when another window takes focus. |
