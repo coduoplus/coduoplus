@@ -69,3 +69,7 @@ desktop.ini
 /build-norinput/
 # --- CoD:UO port: Python caches from tools/re ---
 __pycache__/
+server/linux/.env
+server/linux/config/
+server/linux/game/
+server/linux/bins/

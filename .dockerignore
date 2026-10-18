@@ -1,0 +1,9 @@
+# docker build context = repo root (server/linux/Dockerfile): send only what it COPYs
+*
+!src/shared/
+!server/linux/
+!competitive.cfg.example
+server/linux/.env
+server/linux/config/
+server/linux/game/
+server/linux/bins/
