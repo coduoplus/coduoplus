@@ -111,6 +111,14 @@ possible fixes) the impossible combinations before the renderer starts.
 | --- | --- |
 | `ctrl_dump`, `antilag_diag_*` | Upstream diagnostics for the (not ported) lean and antilag code. |
 
+## Server: competitive.cfg
+
+On a machine **hosting** a server (dedicated or listen), `competitive.cfg` next to
+`mss32.dll` is published to CoDUO+ clients as `sv_competitive` (+`2..4`) and applied
+by them while connected: `cvar value` locks, `cvar min max` clamps. It is re-read
+every second and cleared when the file goes away. See `competitive.cfg.example`
+and [NETCODE.md](NETCODE.md#server-setup).
+
 ## Files the mod reads and writes
 
 | File | Purpose |
@@ -120,4 +128,5 @@ possible fixes) the impossible combinations before the renderer starts.
 | `uo\uoconfig_mp.cfg` | read by the display probe; `r_fullscreen` / `r_displayRefresh` may be rewritten to match the ini |
 | `uo\coduoplus_autoexec.cfg` | only with `force_resolution = on` |
 | `uo\zz_coduoplus_ui.pk3` | main-menu entry (generated, see `ui_pk3/build_pk3.py`) |
+| `competitive.cfg` | (server only) the netcode spec pushed to clients |
 | `mss32_original.dll` | the real Miles DLL every audio call is forwarded to |

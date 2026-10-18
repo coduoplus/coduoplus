@@ -49,10 +49,15 @@ MUST_LOG = [
     'swing_fix: server publishes sv_coduoplus_swing 1',
     'version_gate: ClientConnect gate installed in ',
     'version_gate: reject client ',
+    # server half of the competitive netconfig: competitive.cfg published, engine holds it
+    'competitive_sv: ',
+    'engine holds sv_competitive "snaps=40 cl_maxpackets=125 com_maxfps=125:250 rate=90000',
+    'SYSTEMINFO yes)',
 ]
 # Phrases the patches log when they refuse to write (wrong bytes, wrong build).
 MUST_NOT_LOG = ['abort', 'SKIPPED', 'annule', 'PARTIAL', 'expected 0x', 'inattendu',
-                'not CoDUOMP.exe', 'borderless applied', 'do not match']
+                'not CoDUOMP.exe', 'borderless applied', 'do not match',
+                'line refused', 'too long', 'still empty']
 
 
 def info_dict(reply):
@@ -67,6 +72,15 @@ def main():
     log_path = os.path.join(game, 'coduoplus.log')
     if os.path.exists(log_path):
         os.remove(log_path)
+
+    # The shipped competitive.cfg.example as the server's competitive.cfg for this run
+    # (left alone if the install already has its own), so the publisher is exercised.
+    comp_cfg = os.path.join(game, 'competitive.cfg')
+    comp_installed = not os.path.exists(comp_cfg)
+    if comp_installed:
+        here = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, '..', 'competitive.cfg.example'), 'rb') as src, open(comp_cfg, 'wb') as dst:
+            dst.write(src.read())
 
     exe = os.path.join(game, 'CoDUOMP.exe')
     proc = subprocess.Popen([exe, '+set', 'dedicated', '1', '+set', 'net_port', str(port),
@@ -108,6 +122,8 @@ def main():
         if '--keep' not in sys.argv and proc.poll() is None:
             proc.kill()
             proc.wait()
+        if comp_installed and os.path.exists(comp_cfg):
+            os.remove(comp_cfg)
 
     log = open(log_path, encoding='latin1').read() if os.path.exists(log_path) else ''
     if not log:

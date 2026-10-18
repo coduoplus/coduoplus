@@ -82,6 +82,7 @@ process. Work that needs the engine running or a module loaded happens here:
 | once the cvar system is up (`cvar count > 0`) | register the mod's cvars (userinfo `coduoplus` / `cod1x_build`, `m_rinput`, `cod1x_*` menu cvars); enforce a server's competitive spec; follow `m_rinput`; follow the master-list toggle |
 | `swing_server_tick` | if `uo_game` is loaded (we are a server): keep the swing mirror applied, publish `sv_coduoplus_swing` |
 | `version_gate_tick` | if `uo_game` is loaded: keep the ClientConnect gate installed |
+| `competitive_sv_tick` | if `uo_game` is loaded: publish `competitive.cfg` as `sv_competitive*` (SYSTEMINFO, set through the command buffer on the main thread) |
 | `swing_client_tick` | if `uo_cgame` is loaded: swing on/off according to the current server's systeminfo |
 | `widescreen_update_stretch` | feed the stretched-mode aspect, install FOV hooks if the view mode changed live |
 | `gamma_fix_tick` | per-monitor gamma on focus/monitor changes |

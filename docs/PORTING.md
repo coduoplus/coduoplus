@@ -128,7 +128,8 @@ checks compare against relocated values.
 | Build identity, names, paths (`core/game.*`) | ✅ new | UO module names, window class, `uo\uoconfig_mp.cfg`. |
 | Version string in menus (`version_patch`) | ✅ ported | Shows `CoDUO+ 0.1.0`. |
 | Protocol / master / browser (`protocol_patch`) | ✅ ported, **vanilla values** | [Decision](#protocol-and-master-server-stay-vanilla). |
-| 40-tick caps: snaps 40, cl_maxpackets 125 (`competitive`) | ✅ ported | Server-pushed competitive spec + ROM lock work unchanged. |
+| 40-tick caps: snaps 40, cl_maxpackets 125 (`competitive`) | ✅ ported | Client applies a server-pushed spec (lock / clamp). An over-cap `cl_maxpackets` resets to 125 (vanilla reset it to 100). |
+| Server publisher of the competitive spec (`competitive_sv`, new) | ✅ new | Upstream's lives in its Linux server module; a UO server had none, so clients never got snaps 40 / 125 pps. Reads `competitive.cfg` next to the server's DLL. [NETCODE.md](NETCODE.md). |
 | Imposed ini keys (`ini_lock`, 1.6.9) | ✅ ported | [Decision](#ini-lock-imposed-settings). |
 | Session report (`session_report`, 1.6.9) | ✅ ported | One `session` line a minute in the log. |
 | PunkBuster-replacement ruleset + cheat-cvar scan (`ruleset*`, `cheat_scan`) | 🗑️ removed | [Why](#punkbuster-code-removed). |

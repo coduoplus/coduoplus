@@ -16,6 +16,7 @@
 #include "netcode/version_patch.h"
 #include "netcode/protocol_patch.h"
 #include "netcode/competitive.h"
+#include "netcode/competitive_sv.h"
 #include "netcode/version_gate.h"
 #include "video/window_patch.h"
 #include "video/fullscreen_patch.h"
@@ -124,6 +125,7 @@ DWORD WINAPI patch_watcher_thread(LPVOID) {
         }
         patches::swing_server_tick();            // hosting: mirror swing into uo_game, publish it
         patches::version_gate_tick();            // hosting: ClientConnect version gate (per map load)
+        patches::competitive_sv_tick();          // hosting: publish competitive.cfg as sv_competitive*
         patches::swing_client_tick();            // follow the server's sv_coduoplus_swing on the cgame
         patches::widescreen_update_stretch();    // drive the stretched-mode vfov ratio (live)
         patches::gamma_fix_tick();               // per-monitor gamma: focus/monitor transitions

@@ -57,6 +57,7 @@ is covered where it differs. See [Two uo_game builds](#two-uo_game-builds).
 | `r_displayRefresh` max 200.0f | imm at `0x4be6d1` | imm at `0x4c4001` | `push 0x43480000` right after the `r_displayRefresh` `Cvar_Get` (`0x4c3feb`), then `call R_CheckRange (0x4c12a0)` |
 | snaps cap 30 → 40 (`cmp` / `mov` imm) | `0x459266` / `0x45926a` | `0x45bbf6` / `0x45bbfa` | `83 f9 1e  cmp ecx,30 ; 7e 05 ; b9 1e 00 00 00  mov ecx,30` in `SV_UserinfoChanged` (reads `"snaps"`) |
 | cl_maxpackets cap 100 → 125 (imm) | `0x40c51d` | `0x40cc26` | `83 f8 64  cmp eax,100`, then `push "100"`, `push "cl_maxpackets"` |
+| cl_maxpackets reset value `push "100"` → `"125"` | — | `0x40cc2b` → `0x592410` | operand repointed at the mod's own `"125"`; the `"100"` literal is shared with the handicap default. Gate after it: `1000 / [0x4df969c]+0x20` (`0x40cc5c`). |
 | Frame limiter: `call` in `Com_Frame`'s wait loop | `0x43a4f5` → `0x438a70` | `0x43c6a7` → `0x43abc0` (**`Com_EventLoop`**) | target has a `0x8054`-byte frame and references `"Com_EventLoop: oversize packet"` |
 | Frame limiter: loop branch | — (not patched upstream) | `0x43c6c9` `7c dc` (`jl 0x43c6a7`) → `90 90` | preceded by `3b f7  cmp esi,edi`. See [frame limiter](PORTING.md#frame-limiter) |
 | `lastTime` (static int) | — | `0x980230` | `mov ecx,[0x980230]` right after the call |
