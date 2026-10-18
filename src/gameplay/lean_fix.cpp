@@ -507,6 +507,15 @@ bool cgame_needs_reapply(HMODULE cgame_module) {
         if (cs + 5 + (uintptr_t)(intptr_t)off != (uintptr_t)&lean_fix_hook)
             return true;  // reverted to original target
     }
+    // CoD:UO port: the lean/swing sentinels above only exist while those groups are
+    // ported, so the FOV unlock needs its own - the cg_fov cvarTable flags read
+    // ARCHIVE|CHEAT again on a freshly reloaded cgame. Only once CG_Init has run
+    // can we tell; before that the .data still holds the file's 0x201 either way,
+    // and patching early is exactly what we want.
+    if (port::CGAME_FOV && g_settings_menu_config.enable && g_settings_menu_config.fov_unlock) {
+        if (*(const uint32_t*)(base + CGAME_FOV_CVAR_FLAGS_RVA) == 0x00000201)
+            return true;
+    }
     if (port::CGAME_SWING && g_swing_fix_config.enable) {
         const uintptr_t p = base + CGAME_SWING_LEGS_TOLERANCE_PUSH_RVA;
         if (*(const uint8_t*)p == 0x68 && *(const float*)(p + 1) > 39.0f)
