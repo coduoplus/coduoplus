@@ -67,8 +67,10 @@ passed on the tagged commit.
    - **linux:** builds `coduoplus_sv.so`;
    - **image** (only if both passed): builds `server/linux/Dockerfile` and pushes
      `ghcr.io/<owner>/coduoplus-server:X.Y.Z` and `:latest` ([DOCKER.md](DOCKER.md));
-   - **publish** (only if both passed): creates the release with the CHANGELOG
-     section as notes, and attaches `mss32.dll`, `mss32-norinput.dll`,
+   - **publish** (only if both passed): creates the release (or refreshes it on a
+     re-run) with the notes: the version's whole CHANGELOG section, links pointing
+     into the tag, then every PR merged since the previous tag and the
+     "Full Changelog" compare link, and attaches `mss32.dll`, `mss32-norinput.dll`,
      `coduoplus.ini`, `competitive.cfg.example`, `coduoplus_sv.so`,
      `manifest.json`, and `coduoplus-X.Y.Z.zip` / `-norinput.zip` (laid out like the
      game folder).
