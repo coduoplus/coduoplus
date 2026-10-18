@@ -1,4 +1,4 @@
-// The 1.6X modern settings panel (English). gl_overlay owns GL + input; this file is
+// The CoDUO+ settings panel (English). gl_overlay owns GL + input; this file is
 // layout and settings logic only.
 //
 // DESIGN (2026-08-21 restyle, validated direction: FLAT engine-drawn, monochrome,
@@ -26,6 +26,8 @@
 #include "core/game.h"
 #include "features/settings_menu.h"
 #include "features/pam_install.h"
+#include "features/updater.h"        // COD1RELOADED_VERSION
+#include "netcode/protocol_patch.h"  // PROTOCOL_VANILLA_UO (demo extension)
 #include "video/display_probe.h"
 
 #include <cstdio>
@@ -109,7 +111,6 @@ bool game_root(char* out, size_t n) {
 }
 
 void scan_dir(const char* sub, const char* pat, std::vector<std::string>& out) {
-    out.clear();
     char base[MAX_PATH];
     if (!game_root(base, sizeof(base))) return;
     char q[MAX_PATH];
@@ -119,14 +120,37 @@ void scan_dir(const char* sub, const char* pat, std::vector<std::string>& out) {
     do { if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) out.push_back(fd.cFileName); }
     while (FindNextFileA(h, &fd));
     FindClose(h);
-    std::sort(out.begin(), out.end());
 }
 
-// demos live in <searchpath>/demos of EVERY mod dir, not just Main - rPAM records
+// Same set as the stock-menu bridge (settings_menu.cpp publish_files): player configs
+// in uo/ itself, minus the engine-managed ones, then uo/configs/ (shown with its
+// prefix). Entries are paths relative to uo/, exactly what `exec` takes.
+void scan_cfgs() {
+    static const char* SKIP[] = { "config_mp.cfg", "config.cfg", "default_mp.cfg", "default.cfg",
+                                  "uoconfig_mp.cfg", "uoconfig.cfg" };
+    g_cfgs.clear();
+    std::vector<std::string> v;
+    scan_dir(".", "*.cfg", v);
+    std::sort(v.begin(), v.end());
+    for (const std::string& n : v) {
+        bool skip = false;
+        for (const char* k : SKIP) if (_stricmp(n.c_str(), k) == 0) { skip = true; break; }
+        if (!skip) g_cfgs.push_back(n);
+    }
+    v.clear();
+    scan_dir("configs", "*.cfg", v);
+    std::sort(v.begin(), v.end());
+    for (const std::string& n : v) g_cfgs.push_back("configs/" + n);
+}
+
+// demos live in <searchpath>/demos of EVERY mod dir, not just uo - rPAM records
 // into __rPAMv115b5/demos (found 2026-08-21: the old Main-only *.dm_1 scan showed
 // an empty list while 25 rPAM demos sat next door, in .dm_2 no less)
 // scan <root>/<mod>/demos/*.dm_* for every top-level folder, adding to g_demo_ents
 // (deduped by dir+name, so the same demo present in two roots is listed once).
+// Only UO's own demos: the engine records "demos/%s.dm_%d" with the network protocol
+// (22), so *.dm_22. That also keeps out CoD1's Main/ (Timedemo1.dm_2 ships there),
+// which UO can't play - and clicking it used to run `seta fs_game Main`.
 void scan_demos_root(const char* root) {
     if (!root || !root[0]) return;
     char base[MAX_PATH];
@@ -140,7 +164,7 @@ void scan_demos_root(const char* root) {
     do {
         if (!(dd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) continue;
         if (dd.cFileName[0] == '.') continue;
-        snprintf(q, sizeof(q), "%s%s/demos/*.dm_*", base, dd.cFileName);
+        snprintf(q, sizeof(q), "%s%s/demos/*.dm_%d", base, dd.cFileName, PROTOCOL_VANILLA_UO);
         WIN32_FIND_DATAA fd; HANDLE h = FindFirstFileA(q, &fd);
         if (h == INVALID_HANDLE_VALUE) continue;
         do {
@@ -165,7 +189,7 @@ void scan_demos() {
     // invisible to a basepath-only scan). Scan both; scan_demos_root dedups.
     scan_demos_root(cv_str("fs_homepath", ""));
     scan_demos_root(cv_str("fs_basepath", ""));
-    // Main first, then mods; newest (highest demo number) first within each dir
+    // uo first, then mods; newest (highest demo number) first within each dir
     std::sort(g_demo_ents.begin(), g_demo_ents.end(),
               [](const DemoEnt& a, const DemoEnt& b) {
                   int md = _stricmp(a.dir.c_str(), GAME_BASE_DIR) == 0 ? 0 : 1;
@@ -782,8 +806,8 @@ void modern_menu_draw(float sw, float sh) {
     ui_rect(rail, 0, 1, sh, 0xFF2A2A2A);
 
     // brand block
-    ui_text(36, 40, 36, 600, UI_TEXT, "1.6X");
-    ui_text(38, 88, 11, 600, UI_MUTED, "C O D 1  R E L O A D E D");
+    ui_text(36, 40, 36, 600, UI_TEXT, "CoDUO+");
+    ui_text(38, 88, 11, 600, UI_MUTED, "U N I T E D   O F F E N S I V E");
     ui_rect(36, 118, rail - 72, 1, UI_LINE);
 
     static const char* tabs[] = { "Display", "Mouse", "Keys", "Game", "Files", "About" };
@@ -792,7 +816,7 @@ void modern_menu_draw(float sw, float sh) {
         "Raw input and aim feel. What your hand does is what the game gets.",
         "Click an action, press the new key. Saved to your config instantly.",
         "Performance, HUD, effects and the competitive netcode.",
-        "Configs and demos - Main and every mod folder. One click to run.",
+        "Configs and demos - uo and every mod folder. One click to run.",
         "What this client is and what runs under the hood.",
     };
     float taby = 150;
@@ -824,7 +848,9 @@ void modern_menu_draw(float sw, float sh) {
         kx = 36;
         kx += keychip(kx, ky, "ESC") + 10;
         ui_text(kx, ky + 2, 12, 400, UI_HINT, "back");
-        ui_text(36, sh - 34, 11, 400, 0xFF4A4A4A, "1.6X dev build - 2026-08-21");
+        char ver[48];
+        snprintf(ver, sizeof(ver), "CoDUO+ %s", COD1RELOADED_VERSION);
+        ui_text(36, sh - 34, 11, 400, 0xFF4A4A4A, ver);
     }
 
     // content frame of reference (kept so the tab bodies below stay untouched)
@@ -1180,7 +1206,7 @@ void modern_menu_draw(float sw, float sh) {
         }
     } else if (g_tab == 4) {
         if (GetTickCount() - g_files_scan > 3000) {
-            scan_dir("configs", "*.cfg", g_cfgs);
+            scan_cfgs();
             scan_demos();
             g_files_scan = GetTickCount();
         }
@@ -1190,7 +1216,7 @@ void modern_menu_draw(float sw, float sh) {
 
         // ---- PAM: the competitive mod, fetched here instead of at the first connect
         if (g_pam_install_config.enable) {
-            section(cx, ly, pw - 72, "PAM MOD  (the competitive mod every 1.6X match server runs)"); ly += 26;
+            section(cx, ly, pw - 72, "PAM MOD  (the competitive mod match servers run)"); ly += 26;
             PamStatus ps; pam_install_status(&ps);
             const bool busy = ps.state == PAM_CHECKING || ps.state == PAM_DOWNLOADING;
             const char* lbl = busy ? "WORKING..." : (ps.state == PAM_DONE ? "CHECK AGAIN" : "INSTALL / UPDATE PAM");
@@ -1246,7 +1272,7 @@ void modern_menu_draw(float sw, float sh) {
                 ui_rect_rounded(lx + lw + 6, thumby, 3, thumbh, 1.5f, 0xFF3A3A3A);
             }
         };
-        list(cx, g_cfgs, g_scroll_c, "exec configs/%s\n", false);
+        list(cx, g_cfgs, g_scroll_c, "exec %s\n", false);
         // demos: every search-path folder, tagged with its source; a mod demo can
         // only be opened with that mod's filesystem active, so switching fs_game +
         // vid_restart first is the engine's own way in (the classic Q3 mod idiom)
@@ -1295,12 +1321,15 @@ void modern_menu_draw(float sw, float sh) {
             }
         }
         hint(cx, ly + vis * rh + 10,
-             "Configs from uo/configs. Demos from every folder's demos/ - playing a mod's");
+             "Configs from uo/ and uo/configs. Demos from every folder's demos/ - playing a mod's");
         hint(cx, ly + vis * rh + 30,
              "demo loads that mod first (fs_game + renderer restart), then plays it.");
     } else {
-        // ABOUT: what 1.6X actually is - the feature list doubles as a changelog
-        ui_text(cx, cy, 22, 600, UI_TEXT, "coduoplus  -  the 1.6X competitive client");
+        // ABOUT: what CoDUO+ actually is - the feature list doubles as a changelog
+        char title[96];
+        snprintf(title, sizeof(title), "CoDUO+ %s  -  competitive client for United Offensive",
+                 COD1RELOADED_VERSION);
+        ui_text(cx, cy, 22, 600, UI_TEXT, title);
         cy += 34;
         char info[160];
         snprintf(info, sizeof(info), "Desktop %d x %d    overlay %.0f x %.0f    native GL, real resolution",

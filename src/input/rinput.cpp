@@ -243,8 +243,24 @@ void rinput_disable() {
 // --- the hook ----------------------------------------------------------------------
 
 BOOL WINAPI hk_GetCursorPos(LPPOINT p) {
-    if (InterlockedCompareExchange(&g_active, 0, 0) != 1 || !p)
-        return g_real_GetCursorPos ? g_real_GetCursorPos(p) : FALSE;
+    if (InterlockedCompareExchange(&g_active, 0, 0) != 1 || !p) {
+        if (!g_real_GetCursorPos) return FALSE;
+        BOOL ok = g_real_GetCursorPos(p);
+        // m_rinput 0 with the overlay open: the engine re-pins the cursor to centre
+        // right after this call, so by the time Windows builds a WM_MOUSEMOVE the
+        // cursor is back at centre and the overlay never sees a move (frozen cursor,
+        // 2026-10-18). This read is the one place the real offset exists: hand it to
+        // the overlay and tell the engine the mouse did not move.
+        if (ok && p && g_lock_ready && InterlockedCompareExchange(&g_ui_capture, 0, 0) == 1) {
+            EnterCriticalSection(&g_lock);
+            g_ui_dx += p->x - *g_center_x;
+            g_ui_dy += p->y - *g_center_y;
+            LeaveCriticalSection(&g_lock);
+            p->x = *g_center_x;
+            p->y = *g_center_y;
+        }
+        return ok;
+    }
 
     long dx = 0, dy = 0;
     take_delta(&dx, &dy);
