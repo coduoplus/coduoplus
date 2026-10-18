@@ -31,6 +31,8 @@
 #include "performance/frame_limiter.h"
 #include "video/fullscreen_patch.h"
 #include "video/widescreen_fix.h"
+#include "gameplay/swing_fix.h"
+#include "gameplay/stance_fix.h"
 
 #include <cstdio>
 #include <cstring>
@@ -352,6 +354,49 @@ void check_cgame_widescreen() {
     CHECK(g_cgame.bytes_eq(0x3002e022, {0xd8, 0x0d}) && g_cgame.f32(g_cgame.u32(0x3002e024)) == 1.0f / 480.0f);
 }
 
+void check_cgame_swing() {
+    using namespace patches;
+    // BG_SwingAngles(dest, swingTolerance, clampTolerance, speed, ...): the legs call
+    // pushes clamp 150 then tolerance 40; the torso pitch call pushes speed 0.15 then 45
+    const uint32_t legs = CG + CGAME_SWING_LEGS_TOLERANCE_PUSH_RVA;
+    CHECK(g_cgame.bytes_eq(legs - 5, {0x68, 0x00, 0x00, 0x16, 0x43}));  // push 150.0
+    CHECK(g_cgame.u8(legs) == 0x68 && g_cgame.f32(legs + 1) == 40.0f);
+    CHECK(g_cgame.u8(legs + 5) == 0x55);                                 // push ebp
+    const uint32_t pitch = CG + CGAME_SWING_TORSO_PITCH_SPEED_PUSH_RVA;
+    CHECK(g_cgame.u8(pitch) == 0x68 && g_cgame.f32(pitch + 1) == 0.15f);
+    CHECK(g_cgame.bytes_eq(pitch + 5, {0x68, 0x00, 0x00, 0x34, 0x42}));  // push 45.0
+    // both are in the function that calls BG_SwingAngles (0x30004330) for torso and legs
+    const uint32_t swing = g_cgame.call_target(CG + 0x4711);
+    CHECK(is_call_to(g_cgame, CG + 0x4711, 0x30004330) && swing == 0x30004330);
+    // torso yaw: mov esi,[swingSpeed] ; push esi ; push edx ; lea ebx,[edi+0x3b0] (torso)
+    const uint32_t mov = CG + CGAME_SWING_TORSO_YAW_MOV_RVA;
+    CHECK(g_cgame.bytes_eq(mov, {0x8b, 0x35}));
+    CHECK(g_cgame.u32(mov + 2) == CG + CGAME_SWING_TORSO_YAW_DVAR_RVA);
+    CHECK(g_cgame.bytes_eq(mov + 6, {0x56, 0x52, 0x8d, 0x9f, 0xb0, 0x03, 0x00, 0x00}));
+    // the same swingSpeed is read 4 more times for the legs - only the torso load moves
+    CHECK(g_cgame.xrefs(CG + CGAME_SWING_TORSO_YAW_DVAR_RVA).size() == 5);
+    CHECK(g_cgame.xrefs(CG + CGAME_SWING_TORSO_YAW_DVAR_RVA)[0] == mov + 2);
+    // movementYaw * 0.3: fmul [0.3f] operand
+    const uint32_t fm = CG + CGAME_SWING_TORSO_YAW_MOVEFRAC_FMUL_RVA;
+    CHECK(g_cgame.bytes_eq(fm - 2, {0xd8, 0x0d}));
+    CHECK(g_cgame.u32(fm) == CG + CGAME_SWING_TORSO_YAW_MOVEFRAC_CONST_RVA);
+    CHECK(g_cgame.f32(CG + CGAME_SWING_TORSO_YAW_MOVEFRAC_CONST_RVA) == 0.3f);
+    CHECK(g_cgame.bytes_eq(fm + 4, {0xd8, 0x44, 0x24, 0x18}));  // fadd [esp+0x18] (view yaw)
+    CHECK(fm < mov && mov - fm < 0x60);                          // same block, before the swing
+}
+
+void check_cgame_stance() {
+    using namespace patches;
+    const uint32_t imm = CG + CGAME_STANCE_HOLD_IMM_RVA;
+    CHECK(g_cgame.bytes_eq(imm - 2, {0x81, 0xc1}));
+    CHECK(g_cgame.u32(imm) == CGAME_STANCE_HOLD_VANILLA);
+    // stored into the clientInfo blend-hold field right after
+    CHECK(g_cgame.bytes_eq(imm + 4, {0x89, 0x8a, 0xc0, 0x04, 0x00, 0x00}));
+    // preceded by: cmp of the two stance classes ; je skip ; mov ecx,[cg.time]
+    CHECK(g_cgame.bytes_eq(imm - 0x10, {0x3b, 0xc5, 0x74, 0x16, 0x8b, 0x0d}));
+    CHECK(is_call_to(g_cgame, imm - 0x15, 0x30003a40) && is_call_to(g_cgame, imm - 0x1e, 0x30003a40));
+}
+
 struct Group {
     const char* name;
     bool enabled;
@@ -387,8 +432,8 @@ int main(int argc, char** argv) {
         {"engine", port::ENGINE, check_engine},
         {"cgame_fov", port::CGAME_FOV, check_cgame_fov},
         {"cgame_widescreen", port::CGAME_WIDESCREEN, check_cgame_widescreen},
-        {"cgame_swing", port::CGAME_SWING, nullptr},
-        {"cgame_stance", port::CGAME_STANCE, nullptr},
+        {"cgame_swing", port::CGAME_SWING, check_cgame_swing},
+        {"cgame_stance", port::CGAME_STANCE, check_cgame_stance},
         {"cgame_lean", port::CGAME_LEAN, nullptr},
         {"cgame_draw2d", port::CGAME_DRAW2D, nullptr},
         {"game_viewheight", port::GAME_VIEWHEIGHT, nullptr},

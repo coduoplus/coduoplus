@@ -65,8 +65,8 @@ namespace port {
 constexpr bool ENGINE           = true;   // CoDUOMP.exe: cvar API, version, protocol, caps, mouse, frame limiter
 constexpr bool CGAME_FOV        = true;   // uo_cgame: cg_fov cheat flag + min clamp
 constexpr bool CGAME_WIDESCREEN = true;   // uo_cgame: CG_CalcFov Hor+/stretch hooks
-constexpr bool CGAME_SWING      = false;  // uo_cgame: torso/legs swing constants
-constexpr bool CGAME_STANCE     = false;  // uo_cgame: stance blend hold time
+constexpr bool CGAME_SWING      = true;   // uo_cgame: torso/legs swing constants
+constexpr bool CGAME_STANCE     = true;   // uo_cgame: stance blend hold time
 constexpr bool CGAME_LEAN       = false;  // uo_cgame: DoControllers lean/body hook
 constexpr bool CGAME_DRAW2D     = false;  // uo_cgame: CG_Draw2D / shader hooks (discord, avatar)
 constexpr bool GAME_VIEWHEIGHT  = false;  // uo_game: PM_UpdateViewHeight lerp speed

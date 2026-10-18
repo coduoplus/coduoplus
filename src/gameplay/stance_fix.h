@@ -28,7 +28,14 @@ struct StanceFixConfig {
 
 extern StanceFixConfig g_stance_fix_config;
 
-constexpr uintptr_t CGAME_STANCE_HOLD_IMM_RVA = 0x0000397f; // imm32 of `add ecx, 0x190`
+// uo_cgame 1.51: BG_SetNewAnimation compares the old and new legs anim's stance class
+// (two calls to 0x30003a40) and, when they differ, arms the hold:
+//   30003b75  8b 0d 30 a0 53 30   mov ecx,[cg.time]
+//   30003b7f  81 c1 90 01 00 00   add ecx,0x190          <- imm32 @ +0x3b81 (CoD1 +0x397f)
+//   30003b85  89 8a c0 04 00 00   mov [edx+0x4c0],ecx    ; ci field (CoD1 +0x4a4)
+// Two other `add ecx,0x190` in uo_cgame (0x678f, and in CoD1 0x6643) are a different
+// 400/200 ms choice and are NOT this site.
+constexpr uintptr_t CGAME_STANCE_HOLD_IMM_RVA = 0x00003b81; // imm32 of `add ecx, 0x190`
 constexpr uint32_t  CGAME_STANCE_HOLD_VANILLA = 0x190;      // 400 ms
 
 bool apply_stance_fix(HMODULE cgame_module);  // idempotent; re-run on cgame reload
