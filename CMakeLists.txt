@@ -172,7 +172,7 @@ if (Python3_FOUND)
              COMMAND Python3::Interpreter -I "${CMAKE_SOURCE_DIR}/tests/fetch_binaries.py"
                      "${CODUO_GAME_DIR}" "${CODUO_TESTBIN}")
     set_tests_properties(fetch_binaries PROPERTIES FIXTURES_SETUP uo_binaries)
-    add_test(NAME site_check COMMAND site_check "${CODUO_TESTBIN}")
+    add_test(NAME site_check COMMAND site_check "${CODUO_TESTBIN}" "${CMAKE_SOURCE_DIR}/src/mss32_proxy.def")
     set_tests_properties(site_check PROPERTIES FIXTURES_REQUIRED uo_binaries)
 else()
     message(WARNING "Python 3 not found: site_check test not registered")

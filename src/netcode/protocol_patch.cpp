@@ -10,8 +10,19 @@
 
 namespace patches {
 
-int  g_protocol_version = 10;
-char g_master_host[CODMP_MASTER_HOST_MAX + 1] = "87.106.7.52";
+// CoD:UO port: the protocol and master stay VANILLA by default.
+//
+// Upstream moves CoD1 from protocol 6 to 10 and to its own master (87.106.7.52)
+// so that COD1.6X clients only meet COD1.6X servers. That master lists CoD1
+// servers only, and no CoDUO+ server ecosystem exists yet - a split here would
+// leave CoDUO+ players with an empty browser and no server that accepts them.
+// So the machinery is ported and verified (all six protocol sites, the master
+// slot, the browser query and filter), but it re-applies UO's own values:
+// protocol 22 and the engine's coduomaster.activision.com (empty host = leave
+// the string alone). To run a separate CoDUO+ ecosystem, set these two to a new
+// protocol (e.g. 23) and a master that serves it, and rebuild. docs/PORTING.md.
+int  g_protocol_version = PROTOCOL_VANILLA_UO;
+char g_master_host[CODMP_MASTER_HOST_MAX + 1] = "";
 int  g_net_version = 16; // "1.6"
 
 namespace {
@@ -46,16 +57,17 @@ void poke_master_host(const char* host) {
     }
 }
 
+const uintptr_t kProtoSites[] = {
+    CODMP_PROTO_SERVER_CMP_VA, CODMP_PROTO_CLIENT_EMIT_VA, CODMP_PROTO_GETINFO_VA,
+    CODMP_PROTO_CVAR_VA,       CODMP_PROTO_BOT_VA,         CODMP_PROTO_REJECTMSG_VA,
+};
+
 // Everything that defines "which ecosystem am I talking to". Re-runnable at any time:
-// the five protocol immediates, the master hostname, and the two server-browser knobs
+// the six protocol immediates, the master hostname, and the two server-browser knobs
 // (what we ask the master for, and what the list refuses to display).
 void poke_netmode(int proto, const char* master) {
     const uint8_t pv = (uint8_t)proto;
-    poke(CODMP_PROTO_SERVER_CMP_VA,  pv);
-    poke(CODMP_PROTO_CLIENT_EMIT_VA, pv);
-    poke(CODMP_PROTO_GETINFO_VA,     pv);
-    poke(CODMP_PROTO_BOT_VA,         pv);
-    poke(CODMP_PROTO_REJECTMSG_VA,   pv);
+    for (uintptr_t va : kProtoSites) poke(va, pv);
 
     poke_master_host(master);
 
@@ -101,12 +113,16 @@ bool apply_protocol_patch() {
         return false;
     }
 
-    const uint8_t cur = *(const uint8_t*)CODMP_PROTO_SERVER_CMP_VA;
-    const uint8_t pv  = (uint8_t)g_protocol_version;
-    if (cur != 0x06 && cur != pv) {
-        logger::logf("  protocol_patch: byte @0x%lx = 0x%02x (expected 0x06), abort",
-                     (unsigned long)CODMP_PROTO_SERVER_CMP_VA, cur);
-        return false;
+    // Every site must still hold the vanilla value (or ours, on a re-run) before we
+    // write any of them: half a protocol change is worse than none.
+    const uint8_t pv = (uint8_t)g_protocol_version;
+    for (uintptr_t va : kProtoSites) {
+        const uint8_t cur = *(const uint8_t*)va;
+        if (cur != PROTOCOL_VANILLA_UO && cur != pv) {
+            logger::logf("  protocol_patch: byte @0x%lx = 0x%02x (expected 0x%02x), abort",
+                         (unsigned long)va, cur, PROTOCOL_VANILLA_UO);
+            return false;
+        }
     }
 
     g_netmode = 0;

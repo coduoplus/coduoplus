@@ -1,5 +1,7 @@
 #include "video/window_patch.h"
 #include "core/game.h"
+#include "features/settings_menu.h"  // CODMP_CVAR_FINDVAR_VA
+#include "netcode/protocol_patch.h"  // CODMP_CVAR_COUNT_VA
 #include "video/mode_guard.h"
 #include "core/logger.h"
 #include "features/demo_upload.h"
@@ -38,8 +40,8 @@ volatile bool g_exclusive = false;
 // we borderless-restyled a window the engine was about to take exclusive
 // (meta's 16:21 log: restyle at 53.396, CDS_FULLSCREEN at 53.702).
 typedef void* (__cdecl* WpCvarFindVar_t)(const char*);
-constexpr uintptr_t WP_CVAR_FINDVAR_VA = 0x0043b790;  // Cvar_FindVar
-constexpr uintptr_t WP_CVAR_COUNT_VA   = 0x01912aec;  // cvar count (system up)
+constexpr uintptr_t WP_CVAR_FINDVAR_VA = CODMP_CVAR_FINDVAR_VA;  // Cvar_FindVar
+constexpr uintptr_t WP_CVAR_COUNT_VA   = CODMP_CVAR_COUNT_VA;    // cvar count (system up)
 constexpr int       WP_CVAR_OFF_INTEGER = 0x20;
 
 bool engine_cvar_int(const char* name, int* out) {

@@ -20,16 +20,18 @@ struct RInputConfig {
 
 extern RInputConfig g_rinput_config;
 
-// CoDMP.exe, image base 0x400000. win_input.c equivalents, RE'd 2026-08-02:
-//   IN_GetMouseDelta @0x00466a00  GetCursorPos -> *outX/*outY (menu cursor path)
-//   IN_MouseMove     @0x00466b70  GetCursorPos -> Sys_QueEvent(SE_MOUSE) (in-game path)
+// CoDUOMP.exe 1.51, image base 0x400000. win_input.c equivalents (CoD1 RE'd
+// 2026-08-02, UO re-found 2026-10-17 - the same code):
+//   IN_GetMouseDelta @0x00469ab0  GetCursorPos -> *outX/*outY (menu cursor path)
+//   IN_MouseMove     @0x00469c20  GetCursorPos -> Sys_QueEvent(SE_MOUSE) (in-game path)
 // Both are byte-identical up to the subtraction and are the ONLY two callers of
-// GetCursorPos in the whole executable (verified: 2 xrefs). Both do
+// GetCursorPos in the whole executable (UO decompile: 2 call sites). Both do
 //     delta = GetCursorPos() - centre ; SetCursorPos(centre)
 // so a GetCursorPos that answers "centre + raw delta" makes both produce the raw
 // delta, whatever the centre holds - we add exactly what they subtract.
-constexpr uintptr_t CODMP_MOUSE_CENTER_X_VA = 0x0093b398;
-constexpr uintptr_t CODMP_MOUSE_CENTER_Y_VA = 0x0093b228;
+// (IN_ActivateMouse @0x4699b0 is the only other SetCursorPos(centre) caller.)
+constexpr uintptr_t CODMP_MOUSE_CENTER_X_VA = 0x009cdbb8;
+constexpr uintptr_t CODMP_MOUSE_CENTER_Y_VA = 0x009cda48;
 
 void rinput_start();      // DllMain: hook GetCursorPos (inert until m_rinput is on)
 void rinput_tick();       // watcher thread: follow m_rinput, publish m_rinput_hz

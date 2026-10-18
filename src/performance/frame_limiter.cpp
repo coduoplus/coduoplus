@@ -1,6 +1,9 @@
 // QPC frame limiter: engine ms-math caps maxfps=250 at ~240-248. Keep
-// com_maxfps=250 (PB bans >250) but enforce a real 250 by patching only the
-// call at 0x0043a4f5 inside the spin-loop. Original fcn.00438a70 untouched.
+// com_maxfps=250 (PB bans >250) but enforce a real 250.
+//
+// CoD:UO port: Com_Frame's wait loop spins on Com_EventLoop (0x43abc0), so the
+// replacement waits and then still calls it - see frame_limiter.h for the loop
+// and why the CoD1 "replace the call with a wait" would freeze input here.
 
 #include "performance/frame_limiter.h"
 #include "core/logger.h"
@@ -26,22 +29,32 @@ LONGLONG      g_step_frac = 0;       // running remainder of freq/maxfps
 int           g_last_maxfps = 0;
 bool          g_applied = false;
 
-int read_com_maxfps_dvar() {
-    HMODULE exe = GetModuleHandleA(NULL);
-    if (!exe) return 0;
-    uintptr_t base = (uintptr_t)exe;
-    void** slot = (void**)(base + (CODMP_COM_MAXFPS_DVAR_SLOT_VA - CODMP_PREFERRED_BASE));
-    void* dvar = *slot;
+int read_cvar_slot_int(uintptr_t slot_va) {
+    void* dvar = *(void* volatile*)slot_va;
     if (!dvar) return 0;
     return *(int*)((char*)dvar + CODMP_DVAR_INTEGER_OFFSET);
 }
 
+typedef int (__cdecl *com_event_loop_fn)();
+com_event_loop_fn g_com_event_loop = nullptr;  // the real Com_EventLoop
+
+// What the engine's own loop did around each Com_EventLoop call (43c6ac..43c6c9),
+// now that its jl is gone: drain events until at least min_msec engine-ms passed
+// since the last frame. Returns the engine time the frame runs at.
+int event_loop_until(int min_msec) {
+    volatile int* last_time = (volatile int*)CODMP_FRAME_LIMIT_LASTTIME_VA;
+    for (;;) {
+        const int t = g_com_event_loop();
+        if (*last_time > t) *last_time = t;  // clock went backwards: engine resyncs too
+        if (t - *last_time >= min_msec) return t;
+        _mm_pause();
+    }
+}
+
 }  // namespace
 
-typedef int (__cdecl *sys_ms_fn)();
-static sys_ms_fn g_orig_sys_ms = nullptr; // unused; kept for revisiting orig-call approach
-
-// __cdecl no-arg, returns ms in eax. replaces fcn.00438a70 call in spin-loop.
+// __cdecl no-arg, returns engine ms in eax. Replaces the Com_EventLoop call in
+// Com_Frame's wait loop (0x43c6a7).
 extern "C" int __cdecl frame_wait_replacement() {
     if (g_qpc_freq.QuadPart == 0) {
         QueryPerformanceFrequency(&g_qpc_freq);
@@ -50,9 +63,12 @@ extern "C" int __cdecl frame_wait_replacement() {
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
 
-    int maxfps = read_com_maxfps_dvar();
+    const int maxfps    = read_cvar_slot_int(CODMP_COM_MAXFPS_DVAR_SLOT_VA);
+    const int dedicated = read_cvar_slot_int(CODMP_COM_DEDICATED_DVAR_SLOT_VA);
 
-    if (maxfps > 0 && maxfps <= 10000) {
+    // Same condition the engine uses for its own cap (43c689..43c69b): a dedicated
+    // server is paced by sv_fps inside the event loop's NET_Sleep, not com_maxfps.
+    if (!dedicated && maxfps > 0 && maxfps <= 10000) {
         // EXACT frame step: freq/maxfps rarely divides evenly, and truncating loses a
         // fraction of a tick every frame - visible as a permanent 1-2 fps shortfall.
         // Carry the remainder so the average is exactly maxfps.
@@ -100,19 +116,27 @@ extern "C" int __cdecl frame_wait_replacement() {
             g_step_frac = 0;
             g_deadline_met = now.QuadPart;   // resync: fall back to real time
         }
-    } else {
-        g_next_deadline = 0;
-        g_deadline_met  = 0;
+
+        // Deadline reached: now drain this frame's input/network events and run.
+        // The 1 ms floor is vanilla's minimum frame (minMsec is never below 1 at
+        // <= 1000 fps); it only bites above 1000 fps, where the engine's integer
+        // clock can otherwise report a 0 ms frame.
+        //
+        // REAL time, always: the value handed back is Com_EventLoop's own engine
+        // clock, never the deadline. Upstream learned this the hard way - a
+        // synthetic clock drifts from the network timeline, the snapshot
+        // interpolation window slides, and remote player models flicker ("on voit
+        // le joueur briller", reported live on crouch spam). The deadline is what we
+        // WAIT for; it must never be what we REPORT.
+        return event_loop_until(1);
     }
 
-    // REAL time, always. Returning the theoretical deadline instead was tried (it
-    // makes the ms deltas perfectly uniform) and REVERTED: this value is the clock the
-    // engine uses for everything time-based - snapshot interpolation, animation
-    // blending, stance transitions. A synthetic clock drifts from the network
-    // timeline by a few ms, the interpolation window slides, and remote player models
-    // flicker ("on voit le joueur briller", reported live on crouch spam). The
-    // deadline is what we WAIT for; it must never be what we REPORT.
-    return (int)((now.QuadPart * 1000) / g_qpc_freq.QuadPart);
+    // Limiter not in charge (com_maxfps 0 / out of range, or dedicated): behave
+    // exactly like the vanilla loop, minMsec included.
+    g_next_deadline = 0;
+    g_deadline_met  = 0;
+    const int min_msec = (!dedicated && maxfps > 0) ? 1000 / maxfps : 1;
+    return event_loop_until(min_msec);
 }
 
 bool apply_frame_limiter_patch() {
@@ -143,7 +167,7 @@ bool apply_frame_limiter_patch() {
         return false;
     }
 
-    // verify current target == fcn.00438a70
+    // verify current target == Com_EventLoop (0x43abc0)
     const int32_t current_offset = *(const int32_t*)operand_addr;
     const uintptr_t current_target = (uintptr_t)((intptr_t)opcode_addr + 5 + current_offset);
     const uintptr_t expected_target = exe_base + (CODMP_FRAME_LIMIT_ORIGINAL_TARGET - CODMP_PREFERRED_BASE);
@@ -154,22 +178,40 @@ bool apply_frame_limiter_patch() {
         return false;
     }
 
-    g_orig_sys_ms = (sys_ms_fn)expected_target;
+    // The loop-back branch must be the stock `jl 0x43c6a7` (7c dc) too: the two
+    // patches only make sense together, so check both before writing either.
+    BYTE* jl = (BYTE*)(exe_base + (CODMP_FRAME_LIMIT_LOOP_JL_VA - CODMP_PREFERRED_BASE));
+    if (jl[0] != 0x7c || jl[1] != 0xdc) {
+        logger::logf("frame_limiter: loop branch @0x%08x is %02x %02x (expected 7c dc) - patch annule",
+                     (unsigned)(uintptr_t)jl, jl[0], jl[1]);
+        return false;
+    }
+
+    g_com_event_loop = (com_event_loop_fn)expected_target;
 
     const uintptr_t hook = (uintptr_t)&frame_wait_replacement;
     const int32_t new_offset = (int32_t)((intptr_t)hook - (intptr_t)(opcode_addr + 5));
 
+    // Code pages are PAGE_EXECUTE_READ; writing needs the EXECUTE kept, since the
+    // main thread may be running this very loop while we patch it.
     DWORD old_protect = 0;
-    if (!VirtualProtect((void*)operand_addr, 4, PAGE_READWRITE, &old_protect)) {
+    if (!VirtualProtect((void*)operand_addr, 4, PAGE_EXECUTE_READWRITE, &old_protect)) {
         logger::logf("frame_limiter: VirtualProtect a echoue");
         return false;
     }
     *(int32_t*)operand_addr = new_offset;
     VirtualProtect((void*)operand_addr, 4, old_protect, &old_protect);
 
+    if (VirtualProtect(jl, 2, PAGE_EXECUTE_READWRITE, &old_protect)) {
+        // One 16-bit store, so the CPU never sees half a patched branch.
+        *(volatile uint16_t*)jl = 0x9090;  // nop ; nop
+        VirtualProtect(jl, 2, old_protect, &old_protect);
+    }
+    FlushInstructionCache(GetCurrentProcess(), (void*)opcode_addr, 0x30);
+
     g_applied = true;
     logger::logf(
-        "frame_limiter: call at CoDMP+0x%lx redirige -> our wait (0x%08x)",
+        "frame_limiter: Com_EventLoop call at CoDUOMP+0x%lx -> our wait (0x%08x), loop jl removed",
         (unsigned long)CODMP_FRAME_LIMIT_CALL_OPCODE_RVA, (unsigned)hook);
     return true;
 }
