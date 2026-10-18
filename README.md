@@ -43,7 +43,8 @@ has the full table and the reasons.
    `mss32.dll` forwards all sound to the original. Without it the game won't
    start.
 3. Copy **`mss32.dll`** and **`coduoplus.ini`** next to `CoDUOMP.exe`.
-4. Copy **`zz_coduoplus_ui.pk3`** into the `uo\` folder (for the main-menu entry).
+4. Optional: copy **`zz_coduoplus_ui.pk3`** into the `uo\` folder for a main-menu
+   entry. Ctrl+M opens the settings without it.
 5. Start `CoDUOMP.exe` as usual. `coduoplus.log` appears next to the DLL.
 
 Your folder ends up with:

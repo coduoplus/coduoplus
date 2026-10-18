@@ -8,21 +8,15 @@ name: game
 # image on the real coduo_lnxded in Docker under WSL. The game binaries are
 # Activision's: they stay on that machine, never in the repo or on a hosted runner.
 #
-# NOT a required check: main is protected by the hosted jobs in ci.yml, so merging
-# never waits for that machine. This workflow runs after every push to main, and on
-# demand (`gh workflow run game.yml`, any branch). If the machine is off, the run waits
-# for it: the concurrency group below keeps only the newest waiting run, so turning the
-# machine on tests the latest main once instead of replaying a backlog. GitHub drops a
-# run that has waited 24 hours; start a new one by hand. Releases still need it
-# (release.yml has its own game job), so nothing ships untested against the game.
+# Manual only (`gh workflow run game.yml`, add `--ref <branch>` for a branch): nothing
+# waits for that machine, not pull requests, not pushes to main, not releases. Run it
+# with the machine on before tagging a release. See docs/CI.md.
 #
 # SECURITY: no pull_request trigger, so code from a pull request never reaches the
 # self-hosted runner: only commits already on main, or a branch a maintainer chose to
 # run. See docs/CI.md.
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:

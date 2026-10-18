@@ -10,7 +10,7 @@ name: CI
 #   linux     GitHub-hosted Ubuntu: builds coduoplus_sv.so in the i386 build image.
 #
 # The tests that need the real game run in game.yml, on the self-hosted machine with
-# the install, after every push to main (not required; see that file and docs/CI.md).
+# the install, started by hand (not required; see that file and docs/CI.md).
 
 on:
   push:

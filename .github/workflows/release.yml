@@ -4,13 +4,14 @@ name: Release
 # builds, tests and publishes a GitHub release:
 #
 #   build     hosted Windows: mss32.dll + the no-rinput variant, portable tests
-#   game      self-hosted runner with the CoD:UO install: the full test suite against
-#             the stock binaries + the live dedicated-server smoke test, and the UI pk3
-#             (generated from the install's own pakuo03.pk3 - it cannot be built
-#             anywhere else, see ui_pk3/build_pk3.py)
 #   linux     hosted Ubuntu: coduoplus_sv.so for Linux servers
-#   publish   only if all passed: player zip in the game folder layout, manifest.json
+#   publish   only if both passed: player zip in the game folder layout, manifest.json
 #             for the updater, release notes from CHANGELOG.md
+#
+# Hosted runners only: a release never waits for the self-hosted game machine. The
+# tests against the real game (game.yml) are run by hand before tagging. The UI pk3
+# is generated from the player's own pakuo03.pk3 (ui_pk3/build_pk3.py), so it can't
+# be built here; attach it afterwards with `gh release upload` (see docs/CI.md).
 #
 # Also runnable by hand (Actions -> Release -> Run workflow) on an existing tag.
 
@@ -106,46 +107,9 @@ jobs:
           name: linux
           path: build/linux/coduoplus_sv.so
 
-  game:
-    name: game
-    runs-on: [self-hosted, windows, coduo-game]
-    concurrency:
-      group: coduo-game-install
-      cancel-in-progress: false
-    env:
-      CODUO_GAME_DIR: ${{ vars.CODUO_GAME_DIR || 'D:/Call of Duty - Copy' }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TAG }}
-
-      - name: Build
-        shell: pwsh
-        run: |
-          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ `
-                "-DCODUO_GAME_DIR=$env:CODUO_GAME_DIR" -DCODUO_SMOKE=ON -DCODUO_LINUX_SMOKE=ON
-          cmake --build build
-
-      - name: Deploy and run every test
-        shell: pwsh
-        run: |
-          $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
-          .\deploy.ps1 -Game $env:CODUO_GAME_DIR
-          ctest --test-dir build --output-on-failure
-
-      - name: UI pk3
-        shell: pwsh
-        run: python -I ui_pk3\build_pk3.py --game "$env:CODUO_GAME_DIR"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ui-pk3
-          path: dist/zz_coduoplus_ui.pk3
-
   publish:
     name: publish
-    needs: [build, linux, game]
+    needs: [build, linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -160,10 +124,9 @@ jobs:
         run: |
           set -e
           VERSION="${TAG#v}"
-          mkdir -p dist/stage/uo dist/norinput-stage/uo
+          mkdir -p dist/stage dist/norinput-stage
           cp artifacts/dlls/mss32.dll dist/mss32.dll
           cp artifacts/dlls/norinput/mss32.dll dist/mss32-norinput.dll
-          cp artifacts/ui-pk3/zz_coduoplus_ui.pk3 dist/
           cp artifacts/linux/coduoplus_sv.so dist/
           cp coduoplus.ini competitive.cfg.example dist/
           printf '{\n  "version": "%s",\n  "download_url": "https://github.com/%s/releases/latest/download/mss32.dll",\n  "notes": "CoDUO+ %s - see CHANGELOG"\n}\n' \
@@ -174,13 +137,13 @@ jobs:
           Install (game folder = the one with CoDUOMP.exe):
           1. Rename the game's mss32.dll to mss32_original.dll (the mod forwards all sound to it).
           2. Copy mss32.dll and coduoplus.ini next to CoDUOMP.exe.
-          3. Copy uo\zz_coduoplus_ui.pk3 into the game's uo\ folder.
+          3. Optional, for a main-menu entry: copy uo\zz_coduoplus_ui.pk3 into the game's
+             uo\ folder (a separate release download). Ctrl+M opens the settings either way.
           Server admins: competitive.cfg.example -> competitive.cfg next to the server's mss32.dll.
           Uninstall: delete those files, rename mss32_original.dll back to mss32.dll.
           EOF
           for s in stage norinput-stage; do
             cp dist/coduoplus.ini dist/competitive.cfg.example dist/README.txt dist/$s/
-            cp dist/zz_coduoplus_ui.pk3 dist/$s/uo/
           done
           cp dist/mss32.dll dist/stage/mss32.dll
           cp dist/mss32-norinput.dll dist/norinput-stage/mss32.dll
@@ -200,5 +163,5 @@ jobs:
           fi
           gh release upload "$TAG" --clobber \
             dist/mss32.dll dist/mss32-norinput.dll dist/coduoplus.ini dist/competitive.cfg.example \
-            dist/zz_coduoplus_ui.pk3 dist/manifest.json dist/coduoplus_sv.so \
+            dist/manifest.json dist/coduoplus_sv.so \
             "dist/coduoplus-$VERSION.zip" "dist/coduoplus-$VERSION-norinput.zip"

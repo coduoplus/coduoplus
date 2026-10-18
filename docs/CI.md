@@ -8,8 +8,8 @@ machine, how `main` is protected, and how a release is cut.
 | Workflow | Trigger | Jobs |
 | --- | --- | --- |
 | `.github/workflows/ci.yml` | push to `main`, pull request into `main`, manual | **`portable`** (hosted Windows) and **`linux`** (hosted Ubuntu: the Linux library), the required checks |
-| `.github/workflows/game.yml` | push to `main`, manual (any branch) | `game` (self-hosted): the full suite against the real game, **not** required |
-| `.github/workflows/release.yml` | tag `v*` pushed, manual on a tag | `build` (hosted), `game` (self-hosted), `publish` |
+| `.github/workflows/game.yml` | manual only (any branch) | `game` (self-hosted): the full suite against the real game, **not** required |
+| `.github/workflows/release.yml` | tag `v*` pushed, manual on a tag | `build` and `linux` (hosted), `publish` |
 
 ### Why two kinds of runner
 
@@ -39,21 +39,19 @@ until that PC came online, and nothing could merge. So:
 
 - **Pull requests are gated by the hosted jobs only** (`portable`, `linux`). They
   never wait for a particular machine.
-- **`game.yml` runs after every push to `main`.** If the machine is off, the run
-  waits for it. Its concurrency group (`coduo-game-install`) keeps only the newest
-  waiting run, so when the machine comes on it tests the latest `main` once rather
-  than replaying every merge. GitHub drops a run that has waited 24 hours; start a
-  new one with `gh workflow run game.yml` (add `--ref <branch>` to test a branch
-  before merging it).
-- **Releases still need it.** `release.yml` has its own `game` job, and `publish`
-  depends on it, so no release ships without the full suite passing against the
-  real game. Cutting a release needs the machine on.
+- **`game.yml` only runs when started by hand:** `gh workflow run game.yml` (add
+  `--ref <branch>` to test a branch before merging it). Nothing queues up waiting
+  for the machine.
+- **Releases don't need it either.** `release.yml` runs on hosted runners only.
+  Run `game.yml` (or the suite locally) on the commit you are about to tag.
 - The game tests are also run locally, against the test install, before a branch
   is merged (see [TESTING.md](TESTING.md)).
 
 What's given up: a change that compiles and passes the portable tests, but breaks
-against the real binaries, can reach `main`. It shows up as a red `game` run on
-`main` as soon as the machine is on, and it can't reach a release.
+against the real binaries, can reach `main` and a release unless someone runs the
+game suite first. The UI pk3 is also no longer built by the release workflow,
+because it is generated from the install's `pakuo03.pk3`; see
+[Cutting a release](#cutting-a-release).
 
 ### Toolchain
 
@@ -72,8 +70,8 @@ expected in `C:\tools\mingw32`.
 - No force-pushes, no deletion.
 
 So nothing reaches `main` unless the hosted jobs passed on that exact merge
-result, and nothing is released unless the whole suite, including the live
-dedicated-server runs, passed on the tagged commit.
+result, and nothing is released unless the hosted build and portable tests
+passed on the tagged commit.
 
 ## Security of the self-hosted runner
 
@@ -110,18 +108,22 @@ On the machine with the CoD:UO install and `C:\tools\mingw32`:
 ## Cutting a release
 
 1. Bump `COD1RELOADED_VERSION` in `src/features/updater.h`, add the
-   `## vX.Y.Z` section to `CHANGELOG.md`, and merge through a PR.
+   `## vX.Y.Z` section to `CHANGELOG.md`, and merge through a PR. If the game
+   machine is available, run `gh workflow run game.yml` on that commit first.
 2. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
 3. `release.yml`:
    - **build:** fails unless the tag equals `COD1RELOADED_VERSION`; builds the
      standard and no-rinput DLLs, proves they differ, and runs the portable tests;
-   - **game:** runs the full suite against the install, including the smoke test,
-     and generates `zz_coduoplus_ui.pk3` from the install's `pakuo03.pk3`;
+   - **linux:** builds `coduoplus_sv.so`;
    - **publish** (only if both passed): creates the release with the CHANGELOG
      section as notes, and attaches `mss32.dll`, `mss32-norinput.dll`,
-     `coduoplus.ini`, `competitive.cfg.example`, `zz_coduoplus_ui.pk3`,
+     `coduoplus.ini`, `competitive.cfg.example`, `coduoplus_sv.so`,
      `manifest.json`, and `coduoplus-X.Y.Z.zip` / `-norinput.zip` (laid out like the
      game folder).
+   - The UI pk3 can't be generated on a hosted runner. On a machine with the game:
+     `python -I ui_pk3/build_pk3.py --game "<install>"`, then
+     `gh release upload vX.Y.Z dist/zz_coduoplus_ui.pk3`. It's optional for players:
+     Ctrl+M opens the settings without it.
 4. To point installed copies at the release feed, set `updater_manifest_url` to
    `https://github.com/<org>/coduoplus/releases/latest/download/manifest.json`.
    CoDUO+ ships with an empty URL, see [PORTING.md](PORTING.md#updater-and-pam-installer-point-nowhere-by-default).
