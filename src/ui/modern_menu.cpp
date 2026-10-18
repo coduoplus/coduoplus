@@ -1,4 +1,4 @@
-// The 1.6X modern settings panel (English). gl_overlay owns GL + input; this file is
+// The CoDUO+ settings panel (English). gl_overlay owns GL + input; this file is
 // layout and settings logic only.
 //
 // DESIGN (2026-08-21 restyle, validated direction: FLAT engine-drawn, monochrome,
@@ -26,6 +26,7 @@
 #include "core/game.h"
 #include "features/settings_menu.h"
 #include "features/pam_install.h"
+#include "features/updater.h"        // COD1RELOADED_VERSION
 #include "video/display_probe.h"
 
 #include <cstdio>
@@ -782,8 +783,8 @@ void modern_menu_draw(float sw, float sh) {
     ui_rect(rail, 0, 1, sh, 0xFF2A2A2A);
 
     // brand block
-    ui_text(36, 40, 36, 600, UI_TEXT, "1.6X");
-    ui_text(38, 88, 11, 600, UI_MUTED, "C O D 1  R E L O A D E D");
+    ui_text(36, 40, 36, 600, UI_TEXT, "CoDUO+");
+    ui_text(38, 88, 11, 600, UI_MUTED, "U N I T E D   O F F E N S I V E");
     ui_rect(36, 118, rail - 72, 1, UI_LINE);
 
     static const char* tabs[] = { "Display", "Mouse", "Keys", "Game", "Files", "About" };
@@ -824,7 +825,9 @@ void modern_menu_draw(float sw, float sh) {
         kx = 36;
         kx += keychip(kx, ky, "ESC") + 10;
         ui_text(kx, ky + 2, 12, 400, UI_HINT, "back");
-        ui_text(36, sh - 34, 11, 400, 0xFF4A4A4A, "1.6X dev build - 2026-08-21");
+        char ver[48];
+        snprintf(ver, sizeof(ver), "CoDUO+ %s", COD1RELOADED_VERSION);
+        ui_text(36, sh - 34, 11, 400, 0xFF4A4A4A, ver);
     }
 
     // content frame of reference (kept so the tab bodies below stay untouched)
@@ -1190,7 +1193,7 @@ void modern_menu_draw(float sw, float sh) {
 
         // ---- PAM: the competitive mod, fetched here instead of at the first connect
         if (g_pam_install_config.enable) {
-            section(cx, ly, pw - 72, "PAM MOD  (the competitive mod every 1.6X match server runs)"); ly += 26;
+            section(cx, ly, pw - 72, "PAM MOD  (the competitive mod match servers run)"); ly += 26;
             PamStatus ps; pam_install_status(&ps);
             const bool busy = ps.state == PAM_CHECKING || ps.state == PAM_DOWNLOADING;
             const char* lbl = busy ? "WORKING..." : (ps.state == PAM_DONE ? "CHECK AGAIN" : "INSTALL / UPDATE PAM");
@@ -1299,8 +1302,11 @@ void modern_menu_draw(float sw, float sh) {
         hint(cx, ly + vis * rh + 30,
              "demo loads that mod first (fs_game + renderer restart), then plays it.");
     } else {
-        // ABOUT: what 1.6X actually is - the feature list doubles as a changelog
-        ui_text(cx, cy, 22, 600, UI_TEXT, "coduoplus  -  the 1.6X competitive client");
+        // ABOUT: what CoDUO+ actually is - the feature list doubles as a changelog
+        char title[96];
+        snprintf(title, sizeof(title), "CoDUO+ %s  -  competitive client for United Offensive",
+                 COD1RELOADED_VERSION);
+        ui_text(cx, cy, 22, 600, UI_TEXT, title);
         cy += 34;
         char info[160];
         snprintf(info, sizeof(info), "Desktop %d x %d    overlay %.0f x %.0f    native GL, real resolution",

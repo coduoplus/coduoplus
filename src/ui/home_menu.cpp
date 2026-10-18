@@ -27,6 +27,7 @@
 // capping the nav column against sw rather than scaling it with s.
 
 #include "ui/home_menu.h"
+#include "features/updater.h"        // COD1RELOADED_VERSION
 #include "ui/gl_overlay.h"
 #include "features/settings_menu.h"   // CODMP_CVAR_FINDVAR_VA / CODMP_CBUF_EXECTEXT_VA
 #include "core/logger.h"
@@ -230,7 +231,9 @@ HomeAction home_menu_draw(float sw, float sh) {
     float ctw = ui_text_width(px(15, s), 600, clock);
     ui_text(sw - 90 * s - ctw, 46 * s, px(15, s), 600, UI_TEXT, clock);
     ui_rect(sw - 100 * s, 50 * s, 6 * s, 6 * s, UI_ACCENT);
-    ui_text(sw - 90 * s, 68 * s, px(12, s), 400, UI_MUTED, "1.6X BUILD  -  READY");
+    char build[48];
+    snprintf(build, sizeof(build), "CoDUO+ %s  -  READY", COD1RELOADED_VERSION);
+    ui_text(sw - 90 * s, 68 * s, px(12, s), 400, UI_MUTED, build);
 
     // Hero lockup, top-left. The numeral IS the identity - no logo asset, just type.
     // No underline: a rule beneath a word reads as a hyperlink, not a wordmark. The
@@ -240,11 +243,11 @@ HomeAction home_menu_draw(float sw, float sh) {
     // graphic ideas competing.
     float lx = 90 * s, ly = sh * 0.15f + (1.0f - ot) * 20 * s;
     ui_alpha(ot);
-    ui_text(lx, ly, px(15, s), 600, UI_MUTED, "CALL OF DUTY  -  COMPETITIVE");
+    ui_text(lx, ly, px(15, s), 600, UI_MUTED, "CALL OF DUTY: UNITED OFFENSIVE  -  COMPETITIVE");
     float hero_px = (float)px(96, s);
-    ui_text(lx - 4 * s, ly + 26 * s, (int)hero_px, 600, UI_TEXT, "1.6X");
+    ui_text(lx - 4 * s, ly + 26 * s, (int)hero_px, 600, UI_TEXT, "CoDUO+");
     {
-        float tw = ui_text_width((int)hero_px, 600, "1.6X");
+        float tw = ui_text_width((int)hero_px, 600, "CoDUO+");
         float bx0 = lx - 10 * s, by0 = ly + 14 * s;
         float bx1 = lx - 4 * s + tw + 8 * s, by1 = ly + 26 * s + hero_px * 0.86f;
         float arm = 16 * s, th = 1.5f * s;
@@ -329,7 +332,9 @@ HomeAction home_menu_draw(float sw, float sh) {
     float fx = 90 * s, fy = sh - 50 * s;
     fx += keycap(fx, fy, "CTRL+M", "settings", s) + 28 * s;
     fx += keycap(fx, fy, "ESC", "back", s) + 28 * s;
-    ui_text(fx, fy + 5 * s, px(13, s), 400, 0xFF444444, "coduoplus 1.6X");
+    char foot[48];
+    snprintf(foot, sizeof(foot), "CoDUO+ %s", COD1RELOADED_VERSION);
+    ui_text(fx, fy + 5 * s, px(13, s), 400, 0xFF444444, foot);
 
     ui_alpha(1.0f);
     return result;

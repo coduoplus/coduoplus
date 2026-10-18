@@ -349,6 +349,7 @@ void overlay_toggle(bool on) {
     g_mode = on ? 1 : 0;
     g_came_from_home = false;
     g_last_move.x = -1;
+    g_saw_raw = false;      // re-decide per open: a windowed session may have no tap
     rinput_ui_capture(on);
     if (on && was == 0) {
         // start the virtual cursor mid-screen (a mode swap keeps the old position)
@@ -563,7 +564,8 @@ BOOL WINAPI hk_swapbuffers(HDC dc) {
             // this job - Windows coalesces it to the latest position and the
             // engine re-pins the cursor to centre ~250x/s, so the physical
             // positions are overwritten before we ever see them (frozen cursor,
-            // 2026-08-10). Raw deltas come straight from the device.
+            // 2026-08-10). Raw deltas come straight from the device; with m_rinput 0
+            // rinput's GetCursorPos hook feeds the same tap from the engine's own read.
             long rdx = 0, rdy = 0;
             rinput_ui_take_delta(&rdx, &rdy);
             if (rdx || rdy) {
