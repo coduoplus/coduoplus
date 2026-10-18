@@ -32,6 +32,7 @@ services:
       CODUOPLUS_SNAPS: ${CODUOPLUS_SNAPS:-1}     # 0 = vanilla snaps cap of 30
       CODUOPLUS_ANTILAG: ${CODUOPLUS_ANTILAG:-1} # g_antilag default: 0 off, 2 = log each shot
       CODUOPLUS_ANTILAG_MAXMS: ${CODUOPLUS_ANTILAG_MAXMS:-300}
+      CODUOPLUS_ANTILAG_POSE: ${CODUOPLUS_ANTILAG_POSE:-1}   # 0 = position only
     volumes:
       # main/ (or Main/) + uo/ with the pk3s; the 1.51b Linux binaries (coduo_lnxded,
       # uo/game.mp.uo.i386.so) either in here too or in CODUO_BINS_DIR

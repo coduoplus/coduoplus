@@ -14,6 +14,7 @@ namespace patches {
 struct AntilagConfig {
     bool enable = ANTILAG_DEFAULT != 0;   // default of g_antilag (ini: antilag)
     int  max_ms = ANTILAG_MAXMS_DEFAULT;  // default of g_antilagMaxMs (ini: antilag_max_ms)
+    bool pose = ANTILAG_POSE_DEFAULT != 0; // default of g_antilagPose (ini: antilag_pose)
 };
 extern AntilagConfig g_antilag_config;
 
@@ -45,6 +46,20 @@ constexpr AntilagSites ANTILAG_BUILDS[] = {
 };
 constexpr uintptr_t ANTILAG_ENTITIES_RVA = 0x118d40;  // g_entities[1024], both builds
 constexpr int       G_LINKENTITY         = 53;        // syscall -> SV_LinkEntity (0x467050)
+
+// Pose rewind: G_DObjCalcPose is three syscalls around the controllers callback
+// (uo_game 0x20052800 / 2005 build 0x20052810: 111 CreateSkelForBones -> if 0: 115
+// CalcAnim, ent+0x230 (ent, mask), 116 CalcSkel), so it is redone here through the
+// syscall pointer instead of calling MSVC code that takes the entity in esi. The
+// skeleton it leaves is read from the engine's cache (CoDUOMP.exe 1.51, syscall 111
+// at 0x45cfe0): entnum -> short index -> info (0x5c each) -> +4 skeleton, +8 frame.
+constexpr int       G_DOBJ_CREATESKEL    = 111;
+constexpr int       G_DOBJ_CALCANIM      = 115;
+constexpr int       G_DOBJ_CALCSKEL      = 116;
+constexpr uint32_t  ENT_CONTROLLERS      = 0x230;     // void (*)(gentity*, int* mask)
+constexpr uintptr_t CODMP_DOBJ_INDEX_VA  = 0x968918;  // short[] entnum -> info index
+constexpr uintptr_t CODMP_DOBJ_INFO_VA   = 0x969228;  // info[]: +4 skeleton +8 frame +0x17 bones
+constexpr uintptr_t CODMP_DOBJ_FRAME_VA  = 0x4927eb0; // skeleton frame counter
 
 // Log configuration (DllMain).
 void antilag_start();

@@ -1,5 +1,15 @@
 # CoDUO+ — Changelog
 
+## v0.3.0 (unreleased)
+
+### Netcode
+- **Lag compensation rewinds poses.** A target that crouched, went prone, leaned or
+  aimed down since the shooter saw it is now tested in that earlier pose, not just
+  at the earlier position: the server records each player's computed skeleton every
+  frame and swaps the old one in for the length of the shot. Bounding boxes are
+  rewound too. New server cvar `g_antilagPose` (on; `0` = position only).
+  [docs/NETCODE.md](docs/NETCODE.md#lag-compensation)
+
 ## v0.2.0 (2026-10-18) — upstream 1.6.9, lag compensation, Linux servers
 
 Everything new in COD1.6X `release/1.6.8`..`release/1.6.9` except the

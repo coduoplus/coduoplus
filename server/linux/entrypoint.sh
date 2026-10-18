@@ -12,7 +12,7 @@
 #
 # Environment: PORT (28960), DEDICATED (2 = internet / master server, 1 = LAN),
 # CODUOPLUS_SWING / CODUOPLUS_VERSION_GATE / CODUOPLUS_SNAPS (=0 turns one off),
-# CODUOPLUS_ANTILAG / CODUOPLUS_ANTILAG_MAXMS (g_antilag defaults, read by the library),
+# CODUOPLUS_ANTILAG / CODUOPLUS_ANTILAG_MAXMS / CODUOPLUS_ANTILAG_POSE (g_antilag defaults, read by the library),
 # CODUOPLUS_COMPETITIVE_FILE (/config/competitive.cfg; re-read when it changes).
 set -eu
 

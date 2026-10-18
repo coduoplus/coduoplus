@@ -37,6 +37,8 @@
 /* ---- lag compensation (shared/antilag_core.*, netcode/antilag.cpp, server/linux) -- */
 #define ANTILAG_CVAR            "g_antilag"       /* 0 off, 1 on, 2 on + log every rewind */
 #define ANTILAG_MAXMS_CVAR      "g_antilagMaxMs"  /* furthest a shot is rewound          */
+#define ANTILAG_POSE_CVAR       "g_antilagPose"   /* 1 rewind the pose too, 0 placement   */
+#define ANTILAG_POSE_DEFAULT    1
 #define ANTILAG_DEFAULT         1
 #define ANTILAG_MAXMS_DEFAULT   300
 

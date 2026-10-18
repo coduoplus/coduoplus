@@ -57,6 +57,7 @@ MUST_LOG = [
     # lag compensation: both hook kinds redirected in uo_game, cvars live
     'antilag: installed in ',
     'antilag: g_antilag=1 g_antilagMaxMs=300',
+    'antilag: g_antilagPose=1 (poses rewound too',
 ]
 # Phrases the patches log when they refuse to write (wrong bytes, wrong build).
 MUST_NOT_LOG = ['abort', 'SKIPPED', 'PARTLY installed', 'not the stock call', 'annule', 'PARTIAL', 'expected 0x', 'inattendu',

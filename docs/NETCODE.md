@@ -189,35 +189,46 @@ vanilla players benefit too.
 
 | Cvar (server) | Default | |
 | --- | --- | --- |
-| `g_antilag` | `1` | `0` off, `1` on, `2` on and log every compensated shot (`[coduoplus] antilag: client 3 shot ... 87 ms back, 2 player(s) moved, max 31.4 units`) |
+| `g_antilag` | `1` | `0` off, `1` on, `2` on and log every compensated shot (`[coduoplus] antilag: client 3 shot ... 87 ms back, 2 player(s) moved (2 posed), max 31.4 units`) |
 | `g_antilagMaxMs` | `300` | the furthest back a shot is compensated. A 600 ms player is compensated 300 ms, so nobody gets shot "around a corner" from half a second ago |
+| `g_antilagPose` | `1` | `1` also rewinds each target's **pose** (stance, lean, aim pitch, run cycle); `0` position and facing only |
 
-`g_antilag` is in serverinfo, so server browsers show it. Both cvars change
-live (`rcon g_antilag 0`). Their defaults come from `CODUOPLUS_ANTILAG` /
-`CODUOPLUS_ANTILAG_MAXMS` on Linux ([LINUX.md](LINUX.md)) and `antilag` /
-`antilag_max_ms` in `coduoplus.ini` on a Windows server
-([CONFIGURATION.md](CONFIGURATION.md)).
+`g_antilag` is in serverinfo, so server browsers show it. All three change
+live (`rcon g_antilag 0`). Their defaults come from `CODUOPLUS_ANTILAG`,
+`CODUOPLUS_ANTILAG_MAXMS` and `CODUOPLUS_ANTILAG_POSE` on Linux
+([LINUX.md](LINUX.md)) and `antilag`, `antilag_max_ms` and `antilag_pose` in
+`coduoplus.ini` on a Windows server ([CONFIGURATION.md](CONFIGURATION.md)).
 
 How it works (`src/shared/antilag_core.cpp`, the same code in the Windows mod and
 the Linux library):
 
 1. after every server frame (`G_RunFrame`), record each live player's
-   `r.currentOrigin` and `r.currentAngles` with the level time: 128 frames,
-   3.2 s at 40 Hz;
+   `r.currentOrigin`, `r.currentAngles` and bounding box with the level time
+   (128 frames, 3.2 s at 40 Hz), and its posed skeleton (16 frames: 400 ms at
+   40 Hz, 800 ms at 20);
 2. on every root bullet call (Linux: `Bullet_Fire`, which every weapon, turret
    and vehicle gun goes through; Windows: the five root calls of
    `Bullet_Fire_Extended`), move every other live player to where they were at
    the shooter's `usercmd.serverTime` (the time its client was drawing),
    interpolated between the two recorded frames around it and capped by
-   `g_antilagMaxMs`. Relink them, run the shot (penetration, damage, kills),
-   then restore every moved player exactly.
+   `g_antilagMaxMs`, with the box and skeleton of the recorded frame nearest to
+   that time. Relink them, run the shot (penetration, damage, kills), then
+   restore every moved player exactly, skeleton included.
 
-Why origin and angles are enough to move the hit boxes: the server places the
-posed skeleton in the world from exactly those two fields
-(`G_DObjGetWorldBoneIndexMatrix`). **Limitation:** the *pose* is the current
-frame's, so a stance change (crouch/prone) or lean inside the rewind window is
-tested in its new pose at the old position. Rewinding the animation state is
-the next step.
+Hit boxes are a pose placed in the world. The server places a player's skeleton
+from exactly origin and angles (`G_DObjGetWorldBoneIndexMatrix`). The skeleton
+itself is computed once per server frame (`G_DObjCalcPose`: animation tree,
+then the lean/aim controllers, then the bones) into a block the engine caches
+with that frame's number and reuses for every trace: 0x30 bytes of
+"bone done" masks plus 96 bytes per bone (about 110 bones for a UO player,
+10.6 KB). CoDUO+ copies that block after each frame, and for the length of a
+shot copies the old one over the current one, so a target that crouched, went
+prone, leaned or looked down since is tested in the pose the shooter saw. Same
+block size or nothing: a player whose model changed (another weapon) keeps the
+current pose, and so does one older than the 16 recorded poses. Pose rewind is
+verified on the real 1.51b Linux server with UO's own test clients, which
+wander and fire (`scr_numbots`, a development hook in the stock gametype
+scripts): every compensated shot that moved a target also posed it.
 
 With lag compensation on, players should keep `cl_timenudge` at 0 or slightly
 negative only: the rewind targets the moment the client drew, and a large

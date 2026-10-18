@@ -119,6 +119,7 @@ Only used when this game runs a server.
 | --- | --- | --- |
 | `antilag` | `on` | Default of the server cvar `g_antilag` ([lag compensation](NETCODE.md#lag-compensation)). `+set` / rcon still win. |
 | `antilag_max_ms` | `300` | Default of `g_antilagMaxMs`, the furthest back a shot is compensated. |
+| `antilag_pose` | `on` | Default of `g_antilagPose`: also rewind the target's pose (stance, lean, aim). |
 
 ## Server: competitive.cfg
 

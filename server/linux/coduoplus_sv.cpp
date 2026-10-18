@@ -39,6 +39,7 @@
  *   CODUOPLUS_LFS=0            leave the engine's stat/readdir alone
  *   CODUOPLUS_ANTILAG=0        default of g_antilag (1); `+set g_antilag` / rcon win
  *   CODUOPLUS_ANTILAG_MAXMS=n  default of g_antilagMaxMs (300)
+ *   CODUOPLUS_ANTILAG_POSE=0   default of g_antilagPose (1): placement only
  */
 
 #ifndef _GNU_SOURCE
@@ -133,6 +134,7 @@ float g_swing_movefrac  = SWING_TORSO_YAW_MOVEFRAC;
 
 typedef void* (*dlopen_t)(const char*, int);
 dlopen_t g_real_dlopen = nullptr;
+bool     g_engine_pose_ok = false;   // skeleton-cache sites matched (in LNX_EXE_SITES)
 
 // game module (refreshed on every load: map changes reload it, maybe elsewhere)
 typedef char* (*ClientConnect_t)(int, int);
@@ -143,6 +145,7 @@ typedef void  (*trap_Cvar_StringBuf_t)(const char*, char*, int);
 typedef void  (*trap_GetUserinfo_t)(int, char*, int);
 typedef void  (*Bullet_Fire_t)(void*, uint32_t, uint32_t, void*, void*);  // spread/damage passed through as raw bits
 typedef void  (*trap_LinkEntity_t)(void*);
+typedef void  (*G_DObjCalcPose_t)(void*);
 struct Game {
     uintptr_t             base = 0;
     ClientConnect_t       ClientConnect = nullptr;
@@ -154,6 +157,7 @@ struct Game {
     Bullet_Fire_t         Bullet_Fire = nullptr;
     trap_LinkEntity_t     LinkEntity = nullptr;
     uint8_t*              entities = nullptr;
+    G_DObjCalcPose_t      CalcPose = nullptr;
     bool                  swing_mirrored = false;
     bool                  hooked = false;
     // per-load publishing state (reset on every load)
@@ -166,6 +170,9 @@ struct Game {
     int                   verify_frames = 0;
     int                   antilag = 0;            // g_antilag, polled once a second
     int                   antilag_max_ms = ANTILAG_MAXMS_DEFAULT;
+    int                   antilag_pose = -1;      // g_antilagPose as last applied
+    bool                  pose_ok = false;        // engine skeleton sites matched
+    bool                  pose_logged = false;    // first recorded pose logged (per load)
     long                  next_antilag_poll_ms = 0;
 } g;
 
@@ -292,6 +299,24 @@ const char* env_or(const char* name, const char* dflt) {
     return (v && v[0]) ? v : dflt;
 }
 
+// The engine's skeleton cache (sites_151b.h), for pose rewind.
+bool pose_has_dobj(int entnum) {
+    return *(const volatile int16_t*)(uintptr_t)(LNX_DOBJ_INDEX + 2u * (uint32_t)entnum) != 0;
+}
+void pose_calc(void* ent) { g.CalcPose(ent); }
+uint8_t* pose_skeleton(int entnum, uint32_t* size) {
+    const int16_t idx = *(const volatile int16_t*)(uintptr_t)(LNX_DOBJ_INDEX + 2u * (uint32_t)entnum);
+    if (!idx) return nullptr;
+    const uint8_t* info = (const uint8_t*)(uintptr_t)(LNX_DOBJ_INFO + 0x5cu * (uint32_t)idx);
+    uint32_t skel, frame;
+    memcpy(&skel, info + 4, 4);
+    memcpy(&frame, info + 8, 4);
+    if (!skel || frame != *(const volatile uint32_t*)(uintptr_t)LNX_DOBJ_FRAME) return nullptr;
+    *size = 0x30u + 96u * info[0x17];
+    return (uint8_t*)(uintptr_t)skel;
+}
+const patches::antilag::PoseSource k_pose = { pose_has_dobj, pose_calc, pose_skeleton };
+
 void poll_antilag() {
     const long now = now_ms();
     if (now < g.next_antilag_poll_ms) return;
@@ -306,6 +331,20 @@ void poll_antilag() {
            mode ? "" : " (off: shots hit where players are now)");
     g.antilag = mode;
     g.antilag_max_ms = max_ms;
+    g.Cvar_StringBuf(ANTILAG_POSE_CVAR, v, sizeof(v));
+    const int pose = (atoi(v) && g.pose_ok) ? 1 : 0;
+    if (pose != g.antilag_pose) {
+        patches::antilag::set_pose_source(pose ? &k_pose : nullptr);
+        lg("antilag: %s=%d (%s)", ANTILAG_POSE_CVAR, pose,
+           pose ? "poses rewound too: stance, lean, aim" : g.pose_ok ? "placement only" : "placement only: engine sites not matched");
+        g.antilag_pose = pose;
+    }
+    uint32_t size = 0;
+    const int who = (pose && !g.pose_logged) ? patches::antilag::recorded_pose(&size) : -1;
+    if (who >= 0) {
+        lg("antilag: recording poses (client %d: %u-byte skeleton, %u bones)", who, size, (size - 0x30) / 96);
+        g.pose_logged = true;
+    }
 }
 
 void hk_Bullet_Fire(void* attacker, uint32_t spread, uint32_t damage, void* wp, void* self) {
@@ -316,8 +355,8 @@ void hk_Bullet_Fire(void* attacker, uint32_t spread, uint32_t damage, void* wp, 
         if (shooter >= 0) {
             rewound = patches::antilag::rewind(g.entities, shooter, g.antilag_max_ms, g.LinkEntity, &s);
             if (g.antilag >= 2)
-                lg("antilag: client %d shot, world at %d (cmd %d, %d ms back), %d player(s) moved, max %.1f units",
-                   shooter, s.target_time, s.cmd_time, s.now - s.target_time, s.moved, s.max_dist);
+                lg("antilag: client %d shot, world at %d (cmd %d, %d ms back), %d player(s) moved (%d posed), max %.1f units",
+                   shooter, s.target_time, s.cmd_time, s.now - s.target_time, s.moved, s.posed, s.max_dist);
         }
     }
     g.Bullet_Fire(attacker, spread, damage, wp, self);
@@ -394,6 +433,9 @@ void hk_G_RunFrame(int levelTime) {
         g.Cvar_Register(g_vmcvar, ANTILAG_CVAR, env_or("CODUOPLUS_ANTILAG", d), CODUOPLUS_CVAR_SERVERINFO);
         snprintf(d, sizeof(d), "%d", ANTILAG_MAXMS_DEFAULT);
         g.Cvar_Register(g_vmcvar, ANTILAG_MAXMS_CVAR, env_or("CODUOPLUS_ANTILAG_MAXMS", d), 0);
+        snprintf(d, sizeof(d), "%d", ANTILAG_POSE_DEFAULT);
+        g.Cvar_Register(g_vmcvar, ANTILAG_POSE_CVAR, env_or("CODUOPLUS_ANTILAG_POSE", d), 0);
+        g.antilag_pose = -1;
         g.antilag = -1;                       // force the first poll to log the state
     }
     publish_competitive();
@@ -439,6 +481,7 @@ void on_game_loaded(void* h, const char* file) {
     ng.Bullet_Fire    = sym<Bullet_Fire_t>(h, "Bullet_Fire", base, LNX_G_BULLET_FIRE, &ok);
     ng.LinkEntity     = sym<trap_LinkEntity_t>(h, "trap_LinkEntity", base, LNX_G_TRAP_LINKENTITY, &ok);
     ng.entities       = sym<uint8_t*>(h, "g_entities", base, LNX_G_ENTITIES, &ok);
+    ng.CalcPose       = sym<G_DObjCalcPose_t>(h, "G_DObjCalcPose", base, LNX_G_DOBJCALCPOSE, &ok);
     ok = ok && sites_match(base, LNX_GAME_SITES, sizeof(LNX_GAME_SITES) / sizeof(LNX_GAME_SITES[0]), "game");
     if (!ok) {
         lg("game: %s at 0x%08x is not the 1.51b game module - no CoDUO+ features this map", file,
@@ -477,6 +520,8 @@ void on_game_loaded(void* h, const char* file) {
     // 6. lag compensation: the Bullet_Fire PLT slot every weapon goes through. A new
     // module has new entities: no history carries over.
     patches::antilag::reset();
+    patches::antilag::set_pose_source(nullptr);   // re-enabled by the first poll
+    ng.pose_ok = g_engine_pose_ok && ng.CalcPose;
     const uintptr_t bf = (uintptr_t)&hk_Bullet_Fire;
     const bool al = ng.hooked && poke(base + LNX_G_GOT_BULLET_FIRE, &bf, 4);
     lg("antilag: Bullet_Fire hook %s (%s / %s control it)", al ? "installed" : "FAILED",
@@ -505,6 +550,7 @@ __attribute__((constructor)) void coduoplus_init() {
         lg("engine: not coduo_lnxded 1.51b - nothing patched");
         return;
     }
+    g_engine_pose_ok = true;
 
     // 1. snaps cap
     if (!env_off("CODUOPLUS_SNAPS")) {
