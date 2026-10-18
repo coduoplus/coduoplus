@@ -184,11 +184,14 @@ Run on the test install after `.\deploy.ps1` and
    doesn't mirror it).
 6. **FOV.** `/cg_fov 95` takes effect without `sv_cheats`; `/cg_fov 120` is
    clamped back to 95.
-7. **Frame rate.** `/com_maxfps 250`, `/cg_drawfps 1`: a steady 250 (not
+7. **GPU sync.** After a minute in game the log has no
+   `gpu_sync: the GPU sets the frame rate` line on a machine that holds the fps
+   cap (it should on any modern GPU at 250).
+8. **Frame rate.** `/com_maxfps 250`, `/cg_drawfps 1`: a steady 250 (not
    240–248). `/com_maxfps 125`: 125. Input and network stay responsive (the
    limiter still runs `Com_EventLoop` every frame).
-8. **Raw input.** `/m_rinput 1`, move the mouse: aim works, `m_rinput_hz`
+9. **Raw input.** `/m_rinput 1`, move the mouse: aim works, `m_rinput_hz`
    reports a rate while moving.
-9. **Map change.** `/map mp_arnhem` from the devmap: the log shows the cgame
+10. **Map change.** `/map mp_arnhem` from the devmap: the log shows the cgame
    reload being re-patched (`uo_cgame_mp_x86.dll reloaded`), FOV still unlocked.
-10. **Alt-tab** in and out a few times; no freeze, gamma restored on the desktop.
+11. **Alt-tab** in and out a few times; no freeze, gamma restored on the desktop.

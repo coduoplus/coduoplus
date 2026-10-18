@@ -59,6 +59,7 @@ possible fixes) the impossible combinations before the renderer starts.
 | Key | Default | What it does |
 | --- | --- | --- |
 | `frame_limiter_enable` | `on` | Exact `com_maxfps`: QPC-timed wait so 250 means 250, not 240–248. Still runs the engine's event loop every frame. See [PORTING.md → Frame limiter](PORTING.md#frame-limiter). |
+| `gpu_sync` | `auto` | `glFinish` right after every `SwapBuffers`: one frame in flight, never two queued in the driver, so the frame carrying your mouse movement is on screen before the next movement is read. `auto` switches itself off for the session if the wait fills more than half the frame for 10 s (the GPU sets the fps). `on` / `off` force it. The wait goes into the log. (upstream 1.6.9) |
 | `input_late_sampling` | `on` | Read the mouse again right after the limiter's wait, so movement made during the wait reaches the frame being built, not the next one (upstream 1.6.9). Keys and buttons are already pumped after the wait in UO. Needs `frame_limiter_enable`. |
 | `frame_limiter_bias_us` | `0` | Microseconds added to each frame deadline (negative = slightly faster). |
 | `force_1ms_timer` | `on` | `timeBeginPeriod(1)` so sleeps and `com_maxfps` are precise. |

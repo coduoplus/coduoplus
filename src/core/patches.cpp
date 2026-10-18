@@ -14,6 +14,7 @@
 #include "input/rinput.h"
 #include "performance/fps_cap.h"
 #include "performance/frame_limiter.h"
+#include "performance/gpu_sync.h"
 #include "features/updater.h"
 #include "features/demo_upload.h"
 #include "performance/cpu_affinity.h"
@@ -222,6 +223,13 @@ void load_config(HMODULE self_module) {
         DWORD n = GetPrivateProfileStringA(
             "coduoplus", "frame_limiter_bias_us", "", buf, sizeof(buf), ini_path);
         if (n > 0) g_frame_limiter_config.deadline_bias_us = atoi(buf);
+    }
+    {
+        char mode[16] = "";
+        read_ini_string(ini_path, "gpu_sync", mode, sizeof(mode), "auto");
+        g_gpu_sync_config.mode = !_stricmp(mode, "off") || !strcmp(mode, "0") ? GPU_SYNC_OFF
+                               : !_stricmp(mode, "on")  || !strcmp(mode, "1") ? GPU_SYNC_ON
+                               : GPU_SYNC_AUTO;
     }
     g_frame_limiter_config.late_input = read_ini_bool(
         ini_path, "input_late_sampling", g_frame_limiter_config.late_input);

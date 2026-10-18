@@ -40,6 +40,7 @@ MUST_LOG = [
     ('fullscreen_patch: r_fullscreen default redirige', 'fullscreen_patch: disabled in config'),
     'frame_limiter: Com_EventLoop call at CoDUOMP+0x3c6a7 -> our wait',
     'rinput: GetCursorPos IAT hook installed',
+    'gpu_sync: SwapBuffers hooked (auto',
     'version_gate: client userinfo coduoplus=16',
     'settings_menu: registered cvars',
     # server half of the swing fix: uo_game patched and the flag published
