@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Frame pacing
+- **333 fps allowed.** The shipped `competitive.cfg` range is now
+  `com_maxfps 125 333` (was 125–250), and Ctrl+M → Game offers 333 next to
+  125/200/250. The frame limiter holds an exact 333 on the same continuous clock
+  (3 ms deltas); at 333 a packet leaves every third frame, 111 pps against 125 at
+  125/250. [docs/NETCODE.md](docs/NETCODE.md#client-setup)
+
 ### Display
 - **Game-only digital vibrance.** Ctrl+M → Display → Digital vibrance sets the
   NVIDIA digital vibrance (NVAPI) or AMD saturation (ADL) of the game's monitor

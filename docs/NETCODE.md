@@ -73,7 +73,7 @@ Settings remove about **60 ms** of lead at every ping. The ping itself is handle
 | --- | --- | --- |
 | snaps cap 30 → 40 | server | `SV_UserinfoChanged` clamps a client's `snaps` to 30 (`0x45bbf6`/`0x45bbfa`). Without it a 40 Hz server still sends at most 30, rounded down to 20 because snapshots only leave on server frames. |
 | cl_maxpackets cap 100 → 125 | client | `CL_ReadyToSendPacket` clamp (`0x40cc26`); an over-cap value now resets to 125, not 100 (`0x40cc2b`). |
-| exact frame cadence | client | The packet gate is `realtime − lastPacket ≥ 1000/cl_maxpackets`, checked once per frame. The frame limiter's exact 4.000 ms frames at `com_maxfps 250` (continuous clock) give exactly 125 pps; the stepped engine clock jitters 3/5 ms and drops packets. |
+| exact frame cadence | client | The packet gate is `realtime − lastPacket ≥ 1000/cl_maxpackets`, checked once per frame. The frame limiter's exact 4.000 ms frames at `com_maxfps 250` (continuous clock) give exactly 125 pps; the stepped engine clock jitters 3/5 ms and drops packets. At `com_maxfps 333` the frames are an exact 3.003 ms and a packet leaves every third one: a steady 111 pps. |
 | late mouse sampling | client | movement made during the frame wait enters this frame's command, not the next (about one frame less input delay). |
 | **competitive spec publisher** | server | `competitive.cfg` next to the server's `mss32.dll` is pushed to CoDUO+ clients through systeminfo and **applied while connected**: `snaps 40`, `cl_maxpackets 125`, `rate 90000`, … locked or clamped. Without it the raised caps do nothing, because clients keep UO's defaults (`snaps 20`, `cl_maxpackets 30`, `rate 5000`). |
 | swing fix, server mirror | server | the pose a CoD:UO+ player sees is the pose the server traces against ([PORTING.md](PORTING.md#swing-fix-only-where-the-server-mirrors-it)). |
@@ -94,7 +94,7 @@ client half, pushed automatically:
 ```text
 snaps 40
 cl_maxpackets 125
-com_maxfps 125 250
+com_maxfps 125 333
 rate 90000
 cl_nodelta 0
 cl_packetdup 1 2
@@ -167,7 +167,7 @@ Otherwise, or on any server running `sv_fps 40`:
 
 | Setting | Value | Why |
 | --- | --- | --- |
-| `com_maxfps` | **125** or **250** | frame periods dividing 8 ms → exactly 125 pps (200 fps gives 100) |
+| `com_maxfps` | **125**, **250** or **333** | 125/250: frame periods dividing 8 ms → exactly 125 pps (200 fps gives 100). 333: the classic movement physics, 111 pps |
 | `cl_maxpackets` | **125** | the CoDUO+ cap (vanilla 100) |
 | `snaps` | **= server's sv_fps** | 40 on a 40 Hz server (needs a CoDUO+ server), 20 on stock |
 | `rate` | **90000** | below it, busy-fight snapshots wait |

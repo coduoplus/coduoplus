@@ -221,7 +221,7 @@ Run on the test install after `.\deploy.ps1` and
    `gpu_sync: the GPU sets the frame rate` line on a machine that holds the fps
    cap (it should on any modern GPU at 250).
 9. **Frame rate.** `/com_maxfps 250`, `/cg_drawfps 1`: a steady 250 (not
-   240–248). `/com_maxfps 125`: 125. Input and network stay responsive (the
+   240–248). `/com_maxfps 333`: 333. `/com_maxfps 125`: 125. Input and network stay responsive (the
    limiter still runs `Com_EventLoop` every frame).
 10. **Raw input.** `/m_rinput 1`, move the mouse: aim works, `m_rinput_hz`
    reports a rate while moving.

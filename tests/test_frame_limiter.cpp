@@ -6,7 +6,8 @@
 //   - no doubled frame, even when a frame's own work overruns now and then;
 //   - the reported clock is the ENGINE's (within a tick of Sys_Milliseconds);
 //   - it is CONTINUOUS: at 250 fps the whole-ms delta Com_Frame computes is 4 on
-//     (nearly) every frame - the stepped Sys_Milliseconds would give 3s and 5s;
+//     (nearly) every frame - the stepped Sys_Milliseconds would give 3s and 5s -
+//     and at 333 it is 3 (a 4 about once a second carries the remainder);
 //   - each limited frame drains the event loop exactly once, AFTER the late mouse
 //     read (that order is what puts the late mouse into this frame's command);
 //   - com_maxfps 0 and dedicated reproduce the vanilla loop (minMsec = 1).
@@ -108,6 +109,7 @@ int main() {
         { 125, 0.0, 0,  "125 fps" },
         { 125, 8.6, 20, "125 fps, an 8.6 ms frame every 20" },
         { 333, 0.0, 0,  "333 fps (odd step)" },
+        { 333, 3.6, 20, "333 fps, a 3.6 ms frame every 20" },
     };
     const int N = 750;
     printf("%-36s %9s %9s %8s %8s %6s\n", "case", "avg ms", "max ms", "doubled", "exact", "epoch");
@@ -129,9 +131,9 @@ int main() {
         snprintf(what, sizeof(what), "%s: one event-loop drain per frame, after the late mouse (%d/%d, %d out of order)",
                  c.name, g_event_calls, g_late_calls, g_order_errors);
         check(g_event_calls == N + 5 && g_late_calls == N + 5 && g_order_errors == 0, what);
-        if (!c.every && c.maxfps == 250) {
-            snprintf(what, sizeof(what), "%s: continuous clock - %.1f%% of deltas are exactly 4 ms",
-                     c.name, 100.0 * s.exact_delta / s.frames);
+        if (!c.every && (c.maxfps == 250 || c.maxfps == 333)) {
+            snprintf(what, sizeof(what), "%s: continuous clock - %.1f%% of deltas are exactly %d ms",
+                     c.name, 100.0 * s.exact_delta / s.frames, (int)lround(1000.0 / c.maxfps));
             check(s.exact_delta >= s.frames * 95 / 100, what);
         }
     }

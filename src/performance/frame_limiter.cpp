@@ -1,5 +1,5 @@
-// QPC frame limiter: engine ms-math caps maxfps=250 at ~240-248. Keep
-// com_maxfps=250 (PB bans >250) but enforce a real 250.
+// QPC frame limiter: engine ms-math caps maxfps=250 at ~240-248. Enforce the real
+// value: exactly 250, exactly 333.
 //
 // CoD:UO port: Com_Frame's wait loop spins on Com_EventLoop (0x43abc0), so the
 // replacement waits and then still calls it - see frame_limiter.h for the loop

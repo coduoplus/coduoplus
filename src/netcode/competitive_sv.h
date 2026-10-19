@@ -15,7 +15,7 @@
 // or listen): the admin writes competitive.cfg next to mss32.dll, in upstream's format
 //     # comment
 //     snaps 40              -> "snaps=40"            locked on the client (ROM)
-//     com_maxfps 125 250    -> "com_maxfps=125:250"  clamped into the range
+//     com_maxfps 125 333    -> "com_maxfps=125:333"  clamped into the range
 // The spec is split at entry boundaries into SYSTEMINFO cvars of <= 220 chars (the
 // engine aborts the server on a cvar value over 256 at the next map change), re-read
 // every second when the file changes, and cleared when the file goes away. Vanilla

@@ -48,8 +48,8 @@ CompetitiveConfig g_competitive_config = {
     /* cl_maxpackets */ 125,
     /* rate          */ 25000,
     /* lock_cvars    */ true,    // cod2x parity: player cannot change them
-    /* maxfps_min    */ 125,     // cod2x: com_maxFps limits 125..250
-    /* maxfps_max    */ 250,
+    /* maxfps_min    */ 125,     // cod2x: com_maxFps limits 125..250; CoDUO+ allows 333
+    /* maxfps_max    */ 333,
 };
 
 namespace {
