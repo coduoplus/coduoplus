@@ -27,6 +27,7 @@
 #include "core/logger.h"
 #include "input/rinput.h"
 #include "video/gamma_fix.h"
+#include "video/vibrance.h"
 
 #include <GL/gl.h>
 #include <gdiplus.h>
@@ -390,7 +391,7 @@ LRESULT CALLBACK hk_wndproc(HWND w, UINT m, WPARAM wp, LPARAM lp) {
     // config (fullscreen=on) - so it never even runs for him. Must run before the
     // g_mode==0 early-return below: quitting from gameplay (overlay hidden) must
     // still restore gamma, not just quitting from our own menus.
-    if (m == WM_DESTROY) gamma_fix_shutdown();
+    if (m == WM_DESTROY) { gamma_fix_shutdown(); vibrance_shutdown(); }
 
     // Timestamp the fullscreen minimize/restore dance in the log. These are the
     // exact transitions where AMD machines fall apart (two windows + dead

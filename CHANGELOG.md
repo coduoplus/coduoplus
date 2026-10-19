@@ -1,5 +1,14 @@
 # CoDUO+ — Changelog
 
+## Unreleased
+
+### Display
+- **Game-only digital vibrance.** Ctrl+M → Display → Digital vibrance sets the
+  NVIDIA digital vibrance (NVAPI) or AMD saturation (ADL) of the game's monitor
+  while the game has focus, and gives the monitor its own level back on alt-tab,
+  monitor change and exit. Saved as `digital_vibrance` in `coduoplus.ini`.
+  [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
+
 ## v0.3.0 (2026-10-18) — lag compensation rewinds poses
 
 ### Netcode

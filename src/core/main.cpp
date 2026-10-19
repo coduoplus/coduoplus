@@ -42,6 +42,7 @@
 #include "features/discord_rpc.h"
 #include "features/settings_menu.h"
 #include "video/gamma_fix.h"
+#include "video/vibrance.h"
 #include "netcode/antilag.h"
 
 namespace {
@@ -130,6 +131,7 @@ DWORD WINAPI patch_watcher_thread(LPVOID) {
         patches::swing_client_tick();            // follow the server's sv_coduoplus_swing on the cgame
         patches::widescreen_update_stretch();    // drive the stretched-mode vfov ratio (live)
         patches::gamma_fix_tick();               // per-monitor gamma: focus/monitor transitions
+        patches::vibrance_tick();                // game-only digital vibrance: same transitions
         monitor_cgame();
         Sleep(5);
     }
@@ -236,6 +238,7 @@ extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
             patches::session_report_final("end");
             patches::rinput_shutdown();      // unregister the raw input device + join its thread
             patches::gamma_fix_shutdown();   // never leave the desktop gamma modified
+            patches::vibrance_shutdown();    // ... nor its vibrance
             patches::fps_cap_shutdown();
             patches::toast_shutdown();
             patches::avatar_overlay_shutdown();

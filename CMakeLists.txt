@@ -65,6 +65,7 @@ set(COD1RELOADED_SOURCES
     src/performance/fso_disable.cpp
     src/video/widescreen_fix.cpp
     src/video/gamma_fix.cpp
+    src/video/vibrance.cpp
     src/features/avatar_overlay.cpp
     src/features/engine_2d.cpp
     src/features/discord_rpc.cpp
