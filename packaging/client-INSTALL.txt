@@ -11,7 +11,7 @@ Manual install (your game must be patched to 1.51):
      will not start.
   3. Copy mss32.dll and coduoplus.ini from this zip next to CoDUOMP.exe.
      (Already have a coduoplus.ini? Keep yours, it holds your settings.)
-  4. Start CoDUOMP.exe as usual. "CoDUO+ SETTINGS" appears in the main menu
+  4. Start CoDUOMP.exe as usual. "CoDUO+ Settings" appears in the main menu
      (CoDUO+ builds uo\zz_coduoplus_ui.pk3 itself on the first start), and
      coduoplus.log next to the DLL says what was applied.
 

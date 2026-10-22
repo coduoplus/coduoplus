@@ -1,4 +1,4 @@
-"""Build zz_coduoplus_ui.pk3: UO's own main menu plus a "CoDUO+ SETTINGS" entry.
+"""Build zz_coduoplus_ui.pk3: UO's own main menu plus a "CoDUO+ Settings" entry.
 
     python -I ui_pk3/build_pk3.py [--game "D:/Call of Duty - Copy"] [--deploy]
 
@@ -13,7 +13,9 @@ redistributed from source control, and the menu cannot drift from UO's.
 
 The button sets cod1x_open_modern 1; the mod's watcher (ui/modern_menu.cpp)
 sees it and opens the Ctrl+M overlay. The cvar keeps its upstream name: the
-same C++ handles it.
+same C++ handles it. It must use `setcvar`: upstream's CoD1 item said
+`set cod1x_open_modern 1;`, and UO's UI module has no `set` script command -
+it skips unknown ones silently, so that button did nothing.
 
 WHAT IT DOES NOT CONTAIN, compared with upstream's CoD1 pk3:
   - ui_mp/menus.txt: upstream's copy is CoD1's stock list. A pk3 file replaces
@@ -41,7 +43,7 @@ STOCK_MAIN_MENU_SHA256 = '609111fdac3c16fae41ee95e684725fa93617d4d23f3ab1cd2f43b
 SETTINGS_ITEM = '''\t\titemDef
 \t\t{
 \t\t\tname coduoplus_settings_btn
-\t\t\ttext "CoDUO+ SETTINGS"
+\t\t\ttext "CoDUO+ Settings"
 \t\t\ttype ITEM_TYPE_BUTTON
 \t\t\tstyle WINDOW_STYLE_EMPTY
 \t\t\ttextstyle ITEM_TEXTSTYLE_SHADOWED
@@ -62,7 +64,7 @@ SETTINGS_ITEM = '''\t\titemDef
 \t\t\t\tclose mods_menu;
 \t\t\t\tclose options_multi;
 \t\t\t\tplay "mouse_click";
-\t\t\t\tset cod1x_open_modern 1;
+\t\t\t\tsetcvar cod1x_open_modern "1";
 \t\t\t}
 \t\t}
 

@@ -27,7 +27,7 @@ against the stock binaries and on a running dedicated server. The client side
 | 🔭 **FOV 80–95** | `cg_fov` unlocked within 80–95 ([note](docs/PORTING.md#fov-unlock-is-ported-as-is--read-this)). |
 | 🧍 **Swing fix** | Torso and legs follow your view without lag. Applied only on servers that run CoDUO+ and test the same pose, so what you see is always what the server hits ([why](docs/PORTING.md#swing-fix-only-where-the-server-mirrors-it)). |
 | 🌐 **40-tick** | snaps cap 30 → 40, cl_maxpackets 100 → 125. A CoDUO+ server pushes its `competitive.cfg` (snaps 40, 125 pps, rate 90000 …) to CoDUO+ clients. Setup and the hit-reg maths: [docs/NETCODE.md](docs/NETCODE.md). |
-| ⚙️ **Settings overlay** | Ctrl+M, or **CoDUO+ SETTINGS** in the main menu. |
+| ⚙️ **Settings overlay** | Ctrl+M, or **CoDUO+ Settings** in the main menu. |
 | 🐧 **Linux servers too** | `coduoplus_sv.so` (LD_PRELOAD) gives a `coduo_lnxded` 1.51b server every server-side feature below; a ready-made Docker image + compose file runs it. [docs/LINUX.md](docs/LINUX.md), [docs/DOCKER.md](docs/DOCKER.md) |
 | 🧰 **Server side** | Running CoDUO+ on a dedicated server: swing mirror for its players, a version gate that turns away *outdated* CoDUO+ builds (vanilla players are always welcome), uncapped snaps. |
 | 🛡️ **Safe by construction** | Every patch checks the exact original bytes first; on any other exe or DLL build it patches nothing and says so in the log. |
@@ -40,7 +40,7 @@ has the full table and the reasons.
 
 **Download [`CoDUOPlus-Setup.exe`](https://github.com/coduoplus/coduoplus/releases/latest/download/CoDUOPlus-Setup.exe)
 and run it.** It finds your game (retail or Steam), checks it's 1.51, installs
-CoDUO+ and adds an uninstaller. Then start the game as usual: **CoDUO+ SETTINGS**
+CoDUO+ and adds an uninstaller. Then start the game as usual: **CoDUO+ Settings**
 is in the main menu.
 
 **Updates: CoDUO+ has an auto-updater, and it's off by default.** Nothing is

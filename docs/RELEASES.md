@@ -131,7 +131,7 @@ unzipping the new server package over the old one.
 
 ## The main-menu entry: built by the DLL
 
-The **CoDUO+ SETTINGS** item in the main menu needs `uo\zz_coduoplus_ui.pk3`,
+The **CoDUO+ Settings** item in the main menu needs `uo\zz_coduoplus_ui.pk3`,
 which holds UO's own `ui_mp/main.menu` plus one item. That file is
 Activision's, so it can't ship in a release. It used to be made by
 `ui_pk3/build_pk3.py` on a machine with the game and uploaded by hand, as an
