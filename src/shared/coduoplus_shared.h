@@ -11,7 +11,7 @@
 /* Release, as shown in shortversion and the version gate's reject message. The
  * Windows build's single source of truth stays COD1RELOADED_VERSION (updater.h);
  * tests/site_check.cpp fails if the two disagree. */
-#define CODUOPLUS_VERSION        "0.3.0"
+#define CODUOPLUS_VERSION        "0.4.0"
 
 /* userinfo "coduoplus": the feature level ("1.6" = 16). The server's version gate
  * refuses CoDUO+ clients below it; vanilla clients carry no such key and are let in. */

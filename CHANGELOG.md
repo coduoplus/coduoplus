@@ -1,6 +1,6 @@
 # CoDUO+ — Changelog
 
-## Unreleased
+## v0.4.0 (2026-10-22) — one-click installer, server packages, opt-in auto-updater
 
 ### Downloads: one per kind of user ([docs/RELEASES.md](docs/RELEASES.md))
 - **`CoDUOPlus-Setup.exe`, a one-click installer for players.** It finds the
