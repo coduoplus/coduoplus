@@ -6,7 +6,8 @@ name: CI
 #
 #   portable  GitHub-hosted Windows: builds everything (DLLs + test programs) with the
 #             pinned WinLibs i686 toolchain and runs the tests that need nothing else
-#             (ctest -L portable).
+#             (ctest -L portable) - including the player installer, built with the
+#             pinned Inno Setup and run silently against stand-in game folders.
 #   linux     GitHub-hosted Ubuntu: builds coduoplus_sv.so in the i386 build image.
 #
 # The tests that need the real game run locally, on a machine with the install
@@ -47,6 +48,9 @@ jobs:
           New-Item -ItemType Directory -Force C:\tools | Out-Null
           Invoke-WebRequest $env:WINLIBS_URL -OutFile $env:RUNNER_TEMP\winlibs.zip
           Expand-Archive $env:RUNNER_TEMP\winlibs.zip -DestinationPath C:\tools
+
+      # the player installer is built and run by the portable `installer` test
+      - uses: ./.github/actions/setup-innosetup
 
       - name: Build
         shell: pwsh

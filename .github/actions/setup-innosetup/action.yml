@@ -1,0 +1,19 @@
+name: Set up Inno Setup
+description: >
+  Installs Inno Setup 6.7.3 (the compiler for packaging/coduoplus.iss, the player
+  installer) into C:\tools\innosetup, where CMake's find_program and the workflows look.
+  Pinned by version and SHA-256 like the WinLibs toolchain, so a release is never built
+  with a different installer compiler than the one that was tested.
+runs:
+  using: composite
+  steps:
+    - name: Install Inno Setup 6.7.3
+      shell: pwsh
+      run: |
+        if (Test-Path C:\tools\innosetup\ISCC.exe) { exit 0 }
+        $exe = "$env:RUNNER_TEMP\innosetup-6.7.3.exe"
+        Invoke-WebRequest https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe -OutFile $exe
+        $sha = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+        if ($sha -ne '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732') { throw "innosetup-6.7.3.exe sha256 $sha" }
+        $p = Start-Process $exe -Wait -PassThru -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/CURRENTUSER','/NOICONS','/DIR=C:\tools\innosetup'
+        if ($p.ExitCode -ne 0 -or -not (Test-Path C:\tools\innosetup\ISCC.exe)) { throw "Inno Setup install failed ($($p.ExitCode))" }

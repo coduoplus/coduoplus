@@ -1,25 +1,38 @@
 name: Release
 
-# Push a tag vX.Y.Z (matching COD1RELOADED_VERSION in src/features/updater.h) and this
-# builds, tests and publishes a GitHub release:
+# Builds, tests and publishes everything players and server admins download
+# (packaging/package.py, docs/RELEASES.md):
 #
-#   build     hosted Windows: mss32.dll + the no-rinput variant, portable tests
+#   CoDUOPlus-Setup.exe             players: the installer - finds the game, installs, updates
+#   coduoplus-client.zip            players who'd rather copy the files by hand
+#   coduoplus-server-windows.zip    Windows dedicated server: unzip into the game, run the .bat
+#   coduoplus-server-linux.tar.gz   Linux dedicated server: docker compose, or the launcher
+#   + mss32.dll, mss32-norinput.dll, coduoplus_sv.so, docker-compose.yml, manifest.json
+#     (the in-game updater's feed) and SHA256SUMS
+#
+# Two kinds of publication:
+#   - a tag vX.Y.Z (matching COD1RELOADED_VERSION in src/features/updater.h) -> the release
+#     vX.Y.Z, marked "latest": what the in-game updater offers and what
+#     releases/latest/download/<file> links resolve to. Image :X.Y.Z and :latest.
+#   - every push to main -> the pre-release `nightly`, replaced each time (the tag is moved
+#     to the commit). Pre-releases are never "latest", so the updater never offers it.
+#     Image :edge.
+#
+# Jobs:
+#   build     hosted Windows: mss32.dll + the no-rinput variant, portable tests (including
+#             the installer test), CoDUOPlus-Setup.exe
 #   linux     hosted Ubuntu: coduoplus_sv.so for Linux servers
 #   image     only if both passed: the server image -> ghcr.io/<owner>/coduoplus-server
-#   publish   only if both passed: player zip in the game folder layout, manifest.json
-#             for the updater, release notes = the version's whole CHANGELOG.md
-#             section + every merged PR since the previous tag + the compare link
+#   publish   only if both passed: packaging/package.py, then the GitHub release
 #
 # Hosted runners only (no self-hosted runner). The tests against the real game run
-# locally before tagging (docs/CI.md). The UI pk3
-# is generated from the player's own pakuo03.pk3 (ui_pk3/build_pk3.py), so it can't
-# be built here; attach it afterwards with `gh release upload` (see docs/CI.md).
-#
-# Also runnable by hand (Actions -> Release -> Run workflow) on an existing tag.
+# locally before tagging (docs/CI.md). Also runnable by hand (Actions -> Release -> Run
+# workflow) on an existing tag.
 
 on:
   push:
     tags: ['v*']
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:
@@ -29,29 +42,41 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  # a newer main supersedes a nightly still building; tagged releases always finish
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
+
 env:
   WINLIBS_URL: https://github.com/brechtsanders/winlibs_mingw/releases/download/16.2.0posix-14.0.0-msvcrt-r2/winlibs-i686-posix-dwarf-gcc-16.2.0-mingw-w64msvcrt-14.0.0-r2.zip
-  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  NIGHTLY: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
+  # the release's tag, and the commit it is built from
+  TAG: ${{ github.event.inputs.tag || (github.ref_type == 'tag' && github.ref_name) || 'nightly' }}
+  REF: ${{ github.event.inputs.tag || (github.ref_type == 'tag' && github.ref_name) || github.sha }}
 
 jobs:
   build:
     name: build
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ env.REF }}
 
-      - name: Tag matches the compiled version
+      - name: Version (and, for a tag, that it matches the compiled version)
+        id: version
         shell: pwsh
         run: |
           $h = Get-Content src\features\updater.h -Raw
           if ($h -notmatch 'COD1RELOADED_VERSION\s*=\s*"([0-9.]+)"') { throw "version not found" }
           $v = $Matches[1]
-          if ("v$v" -ne $env:TAG -and $v -ne $env:TAG) {
+          if ($env:NIGHTLY -ne 'true' -and "v$v" -ne $env:TAG -and $v -ne $env:TAG) {
             throw "tag $env:TAG does not match COD1RELOADED_VERSION $v - bump updater.h first"
           }
           "VERSION=$v" >> $env:GITHUB_ENV
+          "version=$v" >> $env:GITHUB_OUTPUT
 
       - name: Cache the toolchain
         id: cache-mingw
@@ -68,6 +93,8 @@ jobs:
           Invoke-WebRequest $env:WINLIBS_URL -OutFile $env:RUNNER_TEMP\winlibs.zip
           Expand-Archive $env:RUNNER_TEMP\winlibs.zip -DestinationPath C:\tools
 
+      - uses: ./.github/actions/setup-innosetup
+
       - name: Build (standard + no-rinput)
         shell: pwsh
         run: |
@@ -80,18 +107,25 @@ jobs:
           if (-not (Select-String -Path build\mss32.dll -Pattern "GetCursorPos IAT hook installed" -SimpleMatch -Quiet)) { throw "standard DLL lacks the rinput hook" }
           if (Select-String -Path build\norinput\mss32.dll -Pattern "GetCursorPos IAT hook installed" -SimpleMatch -Quiet) { throw "norinput DLL carries the rinput hook" }
 
-      - name: Portable tests
+      - name: Portable tests (including the installer)
         shell: pwsh
         run: |
           $env:PATH = "C:\tools\mingw32\bin;$env:PATH"
           ctest --test-dir build -L portable --output-on-failure
 
+      - name: Player installer
+        shell: pwsh
+        run: |
+          C:\tools\innosetup\ISCC.exe /Q "/DVersion=$env:VERSION" "/DDllDir=$PWD\build" "/O$PWD\build" packaging\coduoplus.iss
+          if (-not (Test-Path build\CoDUOPlus-Setup.exe)) { throw "CoDUOPlus-Setup.exe missing" }
+
       - uses: actions/upload-artifact@v4
         with:
-          name: dlls
+          name: windows
           path: |
             build/mss32.dll
             build/norinput/mss32.dll
+            build/CoDUOPlus-Setup.exe
 
   linux:
     name: linux
@@ -99,7 +133,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ env.REF }}
       - name: Build coduoplus_sv.so
         run: docker build -f server/linux/Dockerfile --target artifact --output type=local,dest=build/linux .
       - uses: actions/upload-artifact@v4
@@ -108,7 +142,8 @@ jobs:
           path: build/linux/coduoplus_sv.so
 
   # The server image (no game files in it - see docs/DOCKER.md) to the GitHub Container
-  # Registry, only once every test passed: ghcr.io/<owner>/coduoplus-server:<version>, :latest
+  # Registry, only once every test passed: ghcr.io/<owner>/coduoplus-server:<version> and
+  # :latest for a release, :edge for the nightly
   image:
     name: image
     needs: [build, linux]
@@ -119,23 +154,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ env.REF }}
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
       - name: Build and push
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
-          VERSION="${TAG#v}"
           IMG="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/coduoplus-server"
+          if [ "$NIGHTLY" = true ]; then TAGS=(edge); DESC="development build of main at ${GITHUB_SHA:0:12}"
+          else TAGS=("$VERSION" latest); DESC="$VERSION"; fi
+          T=(); for t in "${TAGS[@]}"; do T+=(-t "$IMG:$t"); done
           docker build -f server/linux/Dockerfile \
             --label org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY" \
             --label org.opencontainers.image.version="$VERSION" \
-            --label org.opencontainers.image.description="CoDUO+ $VERSION Linux dedicated server (game files not included)" \
-            -t "$IMG:$VERSION" -t "$IMG:latest" .
-          docker push "$IMG:$VERSION"
-          docker push "$IMG:latest"
+            --label org.opencontainers.image.revision="$(git rev-parse HEAD)" \
+            --label org.opencontainers.image.description="CoDUO+ $DESC - Linux dedicated server (game files not included)" \
+            "${T[@]}" .
+          for t in "${TAGS[@]}"; do docker push "$IMG:$t"; done
 
   publish:
     name: publish
@@ -144,69 +183,53 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ env.REF }}
 
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
 
       - name: Package
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
-          set -e
-          VERSION="${TAG#v}"
-          mkdir -p dist/stage dist/norinput-stage
-          cp artifacts/dlls/mss32.dll dist/mss32.dll
-          cp artifacts/dlls/norinput/mss32.dll dist/mss32-norinput.dll
-          cp artifacts/linux/coduoplus_sv.so dist/
-          cp coduoplus.ini competitive.cfg.example dist/
-          cp server/linux/docker-compose.yml dist/
-          printf '{\n  "version": "%s",\n  "download_url": "https://github.com/%s/releases/latest/download/mss32.dll",\n  "notes": "CoDUO+ %s - see CHANGELOG"\n}\n' \
-            "$VERSION" "$GITHUB_REPOSITORY" "$VERSION" > dist/manifest.json
-          cat > dist/README.txt <<EOF
-          CoDUO+ $VERSION - Call of Duty: United Offensive 1.51 client mod
-
-          Install (game folder = the one with CoDUOMP.exe):
-          1. Rename the game's mss32.dll to mss32_original.dll (the mod forwards all sound to it).
-          2. Copy mss32.dll and coduoplus.ini next to CoDUOMP.exe.
-          3. Optional, for a main-menu entry: copy uo\zz_coduoplus_ui.pk3 into the game's
-             uo\ folder (a separate release download). Ctrl+M opens the settings either way.
-          Server admins: competitive.cfg.example -> competitive.cfg next to the server's mss32.dll.
-          Uninstall: delete those files, rename mss32_original.dll back to mss32.dll.
-          EOF
-          for s in stage norinput-stage; do
-            cp dist/coduoplus.ini dist/competitive.cfg.example dist/README.txt dist/$s/
-          done
-          cp dist/mss32.dll dist/stage/mss32.dll
-          cp dist/mss32-norinput.dll dist/norinput-stage/mss32.dll
-          (cd dist/stage && zip -qr "../coduoplus-$VERSION.zip" .)
-          (cd dist/norinput-stage && zip -qr "../coduoplus-$VERSION-norinput.zip" .)
-          # release notes, part 1: this version's whole CHANGELOG section. Its links are
-          # relative to the repo root; on the release page they must point into the tree
-          # at this tag.
-          awk -v v="## v$VERSION" 'index($0, v) == 1 {p = 1; print; next} p && /^## v/ {exit} p && /^# / {exit} p' CHANGELOG.md \
-            | sed -E "s#\]\(([^)#:][^):]*)\)#](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/\1)#g" > dist/notes.md
-          grep -q . dist/notes.md || { echo "CHANGELOG.md has no '## v$VERSION' section"; exit 1; }
-          ls -l dist
+          python3 packaging/package.py --version "$VERSION" --tag "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --windows artifacts/windows --linux artifacts/linux --out dist \
+            $([ "$NIGHTLY" = true ] && echo --nightly) --commit "$(git rev-parse HEAD)"
 
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
-          VERSION="${TAG#v}"
-          # release notes, part 2: GitHub's list of every PR merged since the previous
-          # release (newest other published release - not any tag: a clone may carry
-          # upstream's), ending with the "Full Changelog" compare link
-          PREV=$(gh release list --exclude-drafts --limit 50 --json tagName -q '[.[].tagName | select(. != env.TAG)][0] // empty')
-          ARGS=(-f tag_name="$TAG")
-          [ -n "$PREV" ] && ARGS+=(-f previous_tag_name="$PREV")
-          { echo; echo '---'; echo; gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${ARGS[@]}" -q .body; } >> dist/notes.md
-          # created once; a re-run (Actions -> Release -> Run workflow) refreshes the notes too
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --notes-file dist/notes.md
+          set -e
+          if [ "$NIGHTLY" = true ]; then
+            # move the nightly tag to this commit (a tag push made with this token starts
+            # no workflow, and the tag trigger above only matches v*)
+            git tag -f nightly HEAD
+            git push -f origin refs/tags/nightly
+            if gh release view nightly >/dev/null 2>&1; then
+              gh release edit nightly --prerelease --title "CoDUO+ nightly (main)" --notes-file dist/notes.md
+            else
+              gh release create nightly --prerelease --title "CoDUO+ nightly (main)" --notes-file dist/notes.md --verify-tag
+            fi
           else
-            gh release create "$TAG" --title "CoDUO+ $VERSION" --notes-file dist/notes.md --verify-tag
+            # release notes, part 2: GitHub's list of every PR merged since the previous
+            # release (newest other published, non-pre-release - not any tag: a clone may
+            # carry upstream's), ending with the "Full Changelog" compare link
+            PREV=$(gh release list --exclude-drafts --exclude-pre-releases --limit 50 --json tagName \
+                   -q '[.[].tagName | select(. != env.TAG)][0] // empty')
+            ARGS=(-f tag_name="$TAG")
+            [ -n "$PREV" ] && ARGS+=(-f previous_tag_name="$PREV")
+            { echo; echo '---'; echo; gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${ARGS[@]}" -q .body; } >> dist/notes.md
+            # created once; a re-run (Actions -> Release -> Run workflow) refreshes the notes too
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release edit "$TAG" --notes-file dist/notes.md
+            else
+              gh release create "$TAG" --title "CoDUO+ $VERSION" --notes-file dist/notes.md --verify-tag --latest
+            fi
           fi
           gh release upload "$TAG" --clobber \
-            dist/mss32.dll dist/mss32-norinput.dll dist/coduoplus.ini dist/competitive.cfg.example \
-            dist/manifest.json dist/coduoplus_sv.so dist/docker-compose.yml \
-            "dist/coduoplus-$VERSION.zip" "dist/coduoplus-$VERSION-norinput.zip"
+            dist/CoDUOPlus-Setup.exe dist/coduoplus-client.zip dist/coduoplus-server-windows.zip \
+            dist/coduoplus-server-linux.tar.gz dist/mss32.dll dist/mss32-norinput.dll \
+            dist/coduoplus_sv.so dist/docker-compose.yml dist/manifest.json dist/SHA256SUMS

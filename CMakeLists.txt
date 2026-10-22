@@ -67,6 +67,9 @@ set(COD1RELOADED_SOURCES
     src/video/gamma_fix.cpp
     src/video/vibrance.cpp
     src/features/avatar_overlay.cpp
+    src/features/ui_pk3.cpp
+    # zlib's contrib/puff (v1.3.1, zlib license): a small inflater for ui_pk3.cpp
+    third_party/puff/puff.c
     src/features/engine_2d.cpp
     src/features/discord_rpc.cpp
     src/features/settings_menu.cpp
@@ -89,8 +92,8 @@ add_library(mss32 SHARED
     src/mss32_proxy.def
 )
 
-target_include_directories(cod1reloaded PRIVATE src)
-target_include_directories(mss32 PRIVATE src)
+target_include_directories(cod1reloaded PRIVATE src third_party/puff)
+target_include_directories(mss32 PRIVATE src third_party/puff)
 
 # Build a DLL that never touches the mouse at all, for bisecting input problems.
 # `raw_mouse_input = off` in the ini is NOT the same thing: it only sets the default of
@@ -244,6 +247,30 @@ target_link_options(test_ini_lock PRIVATE -static -static-libgcc -static-libstdc
 add_test(NAME ini_lock COMMAND test_ini_lock "${CMAKE_SOURCE_DIR}/coduoplus.ini" "${CMAKE_BINARY_DIR}/testtmp")
 set_tests_properties(frame_limiter PROPERTIES TIMEOUT 120)
 
+# The player installer (packaging/coduoplus.iss), built from this mss32.dll and run
+# silently against stand-in game folders - no game needed. Needs Inno Setup 6.
+find_program(CODUO_ISCC ISCC.exe PATHS "C:/tools/innosetup" "C:/Program Files (x86)/Inno Setup 6")
+if (Python3_FOUND AND CODUO_ISCC)
+    add_test(NAME installer
+             COMMAND Python3::Interpreter -I "${CMAKE_SOURCE_DIR}/tests/test_installer.py"
+                     "${CODUO_ISCC}" "${COD1RELOADED_OUTPUT_DIR}")
+    set_tests_properties(installer PROPERTIES TIMEOUT 300)
+endif()
+
+# The in-DLL UI pk3 generator (features/ui_pk3.cpp): portable checks always, and with
+# the game the generated main.menu must equal ui_pk3/build_pk3.py's byte for byte.
+add_executable(test_ui_pk3 tests/test_ui_pk3.cpp src/features/ui_pk3.cpp third_party/puff/puff.c
+               src/core/logger.cpp src/core/game.cpp)
+target_include_directories(test_ui_pk3 PRIVATE src third_party/puff)
+target_compile_options(test_ui_pk3 PRIVATE -Wall -Wextra -Wno-unused-parameter -O2)
+target_link_options(test_ui_pk3 PRIVATE -static -static-libgcc -static-libstdc++)
+add_test(NAME ui_pk3_gen COMMAND test_ui_pk3)
+if (Python3_FOUND)
+    add_test(NAME ui_pk3_gen_game
+             COMMAND test_ui_pk3 "${CODUO_GAME_DIR}" "${CMAKE_SOURCE_DIR}/dist/zz_coduoplus_ui.pk3")
+    set_tests_properties(ui_pk3_gen_game PROPERTIES DEPENDS ui_pk3)
+endif()
+
 # competitive.cfg -> sv_competitive* parsing and chunking, checked against the client's reading.
 add_executable(test_competitive_sv tests/test_competitive_sv.cpp src/shared/competitive_spec.cpp)
 target_include_directories(test_competitive_sv PRIVATE src)
@@ -262,12 +289,12 @@ add_test(NAME antilag COMMAND test_antilag)
 #   portable  - needs nothing but the build: runs on GitHub's hosted Windows runner
 #   game      - needs a CoD:UO 1.51 install (CODUO_GAME_DIR): self-hosted runner only
 #   timing    - wall-clock measurements: a quiet machine, not a shared hosted VM
-foreach(t doc_links ini_lock competitive_sv antilag)
+foreach(t doc_links ini_lock competitive_sv antilag ui_pk3_gen installer)
     if (TEST ${t})
         set_tests_properties(${t} PROPERTIES LABELS portable)
     endif()
 endforeach()
-foreach(t fetch_binaries site_check site_check_2005 ui_pk3 smoke_dedicated)
+foreach(t fetch_binaries site_check site_check_2005 ui_pk3 ui_pk3_gen_game smoke_dedicated)
     if (TEST ${t})
         set_tests_properties(${t} PROPERTIES LABELS game)
     endif()

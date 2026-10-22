@@ -206,10 +206,15 @@ void load_config(HMODULE self_module) {
         ini_path, "updater_auto_download", g_updater_config.auto_download);
     g_updater_config.show_dialog = read_ini_bool(
         ini_path, "updater_show_dialog", g_updater_config.show_dialog);
-    GetPrivateProfileStringA(
-        "coduoplus", "updater_manifest_url", "",
-        g_updater_config.manifest_url, sizeof(g_updater_config.manifest_url),
-        ini_path);
+    {
+        // An empty or missing key keeps the built-in feed (updater.cpp): an install
+        // updated over an old coduoplus.ini - which held an empty key - must not end
+        // up with a dead updater. Turn it off with updater_enable = off instead.
+        char buf[sizeof(g_updater_config.manifest_url)];
+        DWORD n = GetPrivateProfileStringA(
+            "coduoplus", "updater_manifest_url", "", buf, sizeof(buf), ini_path);
+        if (n > 0) snprintf(g_updater_config.manifest_url, sizeof(g_updater_config.manifest_url), "%s", buf);
+    }
     g_pam_install_config.enable = read_ini_bool(
         ini_path, "pam_download_enable", g_pam_install_config.enable);
     {

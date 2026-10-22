@@ -1,0 +1,22 @@
+CoDUO+ {VERSION} - client mod for Call of Duty: United Offensive 1.51 multiplayer
+https://github.com/coduoplus/coduoplus
+
+EASIEST: use CoDUOPlus-Setup.exe instead of this zip. It finds your game, does the
+steps below for you, and adds an uninstaller.
+
+Manual install (your game must be patched to 1.51):
+  1. Open your game folder - the one with CoDUOMP.exe in it.
+  2. Rename the game's mss32.dll to mss32_original.dll. Do not skip this:
+     CoDUO+'s mss32.dll passes all sound on to it, and without it the game
+     will not start.
+  3. Copy mss32.dll and coduoplus.ini from this zip next to CoDUOMP.exe.
+     (Already have a coduoplus.ini? Keep yours, it holds your settings.)
+  4. Start CoDUOMP.exe as usual. "CoDUO+ SETTINGS" appears in the main menu
+     (CoDUO+ builds uo\zz_coduoplus_ui.pk3 itself on the first start), and
+     coduoplus.log next to the DLL says what was applied.
+
+Updates: CoDUO+ checks for a new release when the game starts and offers to
+install it.
+
+Uninstall: delete mss32.dll, coduoplus.ini, coduoplus*.log and
+uo\zz_coduoplus_ui.pk3, then rename mss32_original.dll back to mss32.dll.
