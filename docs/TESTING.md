@@ -204,8 +204,8 @@ Run on the test install after `.\deploy.ps1` and
 `coduoplus.log`.
 
 1. **Starts, sound works.** Main menu shows `CoDUO+ 0.2.0` bottom right and a
-   gold **CoDUO+ SETTINGS** item between QUIT and AUTO-UPDATE.
-2. **Overlay menu.** Click CoDUO+ SETTINGS, or press Ctrl+M: the overlay opens
+   gold **CoDUO+ Settings** item between QUIT and AUTO-UPDATE.
+2. **Overlay menu.** Click CoDUO+ Settings, or press Ctrl+M: the overlay opens
    and the mouse moves its cursor. Esc closes it.
 3. **Server browser.** Join Game → Internet → refresh: the usual UO list fills
    (protocol 22, stock master).

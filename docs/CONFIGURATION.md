@@ -77,7 +77,7 @@ possible fixes) the impossible combinations before the renderer starts.
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `menu_enable` | `on` | The Ctrl+M overlay and the main-menu **CoDUO+ SETTINGS** item (`uo\zz_coduoplus_ui.pk3`, which CoDUO+ generates at start-up). |
+| `menu_enable` | `on` | The Ctrl+M overlay and the main-menu **CoDUO+ Settings** item (`uo\zz_coduoplus_ui.pk3`, which CoDUO+ generates at start-up). |
 
 ## Performance (anti-stutter)
 

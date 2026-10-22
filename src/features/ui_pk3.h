@@ -3,7 +3,7 @@
 
 #include <string>
 
-// uo/zz_coduoplus_ui.pk3: UO's own main menu plus the "CoDUO+ SETTINGS" entry,
+// uo/zz_coduoplus_ui.pk3: UO's own main menu plus the "CoDUO+ Settings" entry,
 // generated ON THE PLAYER'S MACHINE from the player's own uo/pakuo03.pk3.
 //
 // It used to be built by ui_pk3/build_pk3.py and shipped next to mss32.dll. That
@@ -34,7 +34,7 @@ constexpr unsigned STOCK_MENU_CRC32 = 0x08743fceu;
 // Pure functions, no logging, no game: used by ui_pk3_prepare() and by the test.
 // Read one member of a zip (stored or deflated) into `out`, its CRC checked.
 bool zip_read(const std::string& zip, const char* name, std::string& out, std::string& err);
-// Stock main.menu -> main.menu with the CoDUO+ SETTINGS item, or false + err.
+// Stock main.menu -> main.menu with the CoDUO+ Settings item, or false + err.
 bool patch_main_menu(const std::string& stock, std::string& out, std::string& err);
 // A one-member stored zip, deterministic (fixed timestamp): same input, same bytes.
 std::string make_pk3(const char* name, const std::string& data);

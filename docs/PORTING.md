@@ -254,7 +254,7 @@ would replace UO's menus, and CoD1's `menus.txt` does not even list UO's.
 
 `ui_pk3/build_pk3.py` takes `ui_mp/main.menu` from the install's
 `uo/pakuo03.pk3`, checks it is byte-for-byte the stock 1.51 file, and inserts
-upstream's settings item (relabelled "CoDUO+ SETTINGS") at y=400, between QUIT
+upstream's settings item (relabelled "CoDUO+ Settings") at y=400, between QUIT
 and AUTO-UPDATE. That slot is empty in UO's layout as in CoD1's. Nothing of
 Activision's is kept in the repository. `joinserver.menu`'s 1.6/1.5 list
 buttons are dropped, because they do nothing while the protocol is vanilla.

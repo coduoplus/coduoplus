@@ -167,7 +167,7 @@ extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
             // must run before FS_InitFilesystem so the first pak scan picks it up (~150ms sync on cache miss)
             patches::avatar_overlay_prepare_pk3_blocking();
 
-            // uo/zz_coduoplus_ui.pk3 (CoDUO+ SETTINGS in the main menu), generated from
+            // uo/zz_coduoplus_ui.pk3 (CoDUO+ Settings in the main menu), generated from
             // the player's own pakuo03.pk3 - also before the first pak scan
             patches::ui_pk3_prepare();
 

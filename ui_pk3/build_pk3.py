@@ -1,4 +1,4 @@
-"""Build zz_coduoplus_ui.pk3: UO's own main menu plus a "CoDUO+ SETTINGS" entry.
+"""Build zz_coduoplus_ui.pk3: UO's own main menu plus a "CoDUO+ Settings" entry.
 
     python -I ui_pk3/build_pk3.py [--game "D:/Call of Duty - Copy"] [--deploy]
 
@@ -43,7 +43,7 @@ STOCK_MAIN_MENU_SHA256 = '609111fdac3c16fae41ee95e684725fa93617d4d23f3ab1cd2f43b
 SETTINGS_ITEM = '''\t\titemDef
 \t\t{
 \t\t\tname coduoplus_settings_btn
-\t\t\ttext "CoDUO+ SETTINGS"
+\t\t\ttext "CoDUO+ Settings"
 \t\t\ttype ITEM_TYPE_BUTTON
 \t\t\tstyle WINDOW_STYLE_EMPTY
 \t\t\ttextstyle ITEM_TEXTSTYLE_SHADOWED

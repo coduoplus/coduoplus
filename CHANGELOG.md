@@ -34,12 +34,14 @@
   (`packaging/package.py`).
 
 ### Main menu
-- **The CoDUO+ SETTINGS item opens the settings again** (it never worked on UO).
+- **The CoDUO+ Settings item opens the settings again** (it never worked on UO).
   It used upstream's CoD1 script line `set cod1x_open_modern 1;`, and UO's UI
   module has no `set` command and skips unknown ones silently. It now uses
   `setcvar`, like UO's own menus. Existing installs get the corrected
   `uo\zz_coduoplus_ui.pk3` by themselves: the DLL rewrites it at the next start.
   A test now checks every command in the item against UO's UI command table.
+- The item reads **CoDUO+ Settings** (was SETTINGS), in title case like UO's own
+  items (Join a Game, Multiplayer Options, Quit).
 
 ### Frame pacing
 - **333 fps allowed.** The shipped `competitive.cfg` range is now

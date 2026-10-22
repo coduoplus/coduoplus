@@ -28,7 +28,7 @@ const char SETTINGS_ITEM[] =
     "\t\titemDef\r\n"
     "\t\t{\r\n"
     "\t\t\tname coduoplus_settings_btn\r\n"
-    "\t\t\ttext \"CoDUO+ SETTINGS\"\r\n"
+    "\t\t\ttext \"CoDUO+ Settings\"\r\n"
     "\t\t\ttype ITEM_TYPE_BUTTON\r\n"
     "\t\t\tstyle WINDOW_STYLE_EMPTY\r\n"
     "\t\t\ttextstyle ITEM_TEXTSTYLE_SHADOWED\r\n"
@@ -290,7 +290,7 @@ void ui_pk3_prepare() {
     switch (ui_pk3::generate_file(pak, dst, msg)) {
     case ui_pk3::UP_TO_DATE: logger::logf("ui_pk3: %s up to date", dst); break;
     case ui_pk3::WRITTEN:    logger::logf("ui_pk3: %s generated from %s (%s)", dst, pak, msg.c_str()); break;
-    case ui_pk3::FAILED:     logger::logf("ui_pk3: %s: %s - no CoDUO+ SETTINGS menu entry", pak, msg.c_str()); break;
+    case ui_pk3::FAILED:     logger::logf("ui_pk3: %s: %s - no CoDUO+ Settings menu entry", pak, msg.c_str()); break;
     }
 }
 

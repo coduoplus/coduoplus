@@ -74,9 +74,9 @@ int main(int argc, char** argv) {
         check(ui_pk3::zip_read(pak, "ui_mp/main.menu", stock, err), ("stock main.menu inflated " + err).c_str());
         check(ui_pk3::build(pak, pk3, err), ("generated the pk3 " + err).c_str());
         check(ui_pk3::zip_read(pk3, "ui_mp/main.menu", menu, err), "generated pk3 reads back");
-        check(count_of(menu, "CoDUO+ SETTINGS") == 1, "one CoDUO+ SETTINGS item");
+        check(count_of(menu, "CoDUO+ Settings") == 1, "one CoDUO+ Settings item");
         check(count_of(menu, "itemDef") == count_of(stock, "itemDef") + 1, "exactly one itemDef added");
-        check(menu.find("CoDUO+ SETTINGS") < menu.find("@MENU_AUTO_UPDATE"), "inserted before AUTO-UPDATE");
+        check(menu.find("CoDUO+ Settings") < menu.find("@MENU_AUTO_UPDATE"), "inserted before AUTO-UPDATE");
         check(read_file(argv[2], py_pk3), "read build_pk3.py's pk3");
         check(ui_pk3::zip_read(py_pk3, "ui_mp/main.menu", py_menu, err), "inflated build_pk3.py's main.menu");
         check(!menu.empty() && menu == py_menu, "C++ main.menu == build_pk3.py main.menu, byte for byte");
