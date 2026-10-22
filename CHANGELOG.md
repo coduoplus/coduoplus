@@ -47,13 +47,6 @@
   monitor change and exit. Saved as `digital_vibrance` in `coduoplus.ini`.
   [docs/CONFIGURATION.md](docs/CONFIGURATION.md)
 
-### Settings menu (Ctrl+M)
-- **Sensitivity shows the real value.** Ctrl+M → Mouse rounded the label to one
-  decimal, so a config's `sensitivity 0.65` read 0.7, and the slider could only
-  set multiples of 0.1. The label now shows exactly what the engine holds, and
-  new −/+ buttons step by 0.01 (the slider stays for big changes). Acceleration's
-  label is exact too. Nothing is written unless you change the value.
-
 ## v0.3.0 (2026-10-18) — lag compensation rewinds poses
 
 ### Netcode
