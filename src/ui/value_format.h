@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 // Number display and fine stepping for the Ctrl+M overlay's sliders (ui/modern_menu.cpp).
@@ -10,7 +11,8 @@
 //
 // Why: the overlay used to round sensitivity to one decimal for display - a config's
 // `seta sensitivity "0.65"` showed as 0.7 - and its slider could only set multiples of
-// 0.1. The label now shows the value the engine really holds, and -/+ step by 0.01.
+// 0.1. The value now shows what the engine really holds, -/+ step by 0.01, and the
+// player can click the value and type one.
 
 namespace patches {
 namespace ui_values {
@@ -35,6 +37,56 @@ inline double step_hundredths(double v, int dir, double lo, double hi) {
     if (r < lo) r = lo;
     if (r > hi) r = hi;
     return r;
+}
+
+// ---- typed value fields --------------------------------------------------------
+// The text being typed into a value field. It opens holding the current value,
+// "selected" (fresh): the first character typed replaces it, Backspace clears it.
+// Accepted: digits, and one decimal separator ('.' or ',' - a European keyboard's
+// decimal key - both stored as '.'). Anything else is ignored.
+struct FieldEdit {
+    char buf[12] = {0};
+    bool fresh = false;
+};
+
+inline void edit_begin(FieldEdit& e, double current) {
+    format_setting(current, e.buf, sizeof(e.buf));
+    e.fresh = true;
+}
+
+inline void edit_type(FieldEdit& e, const char* typed) {
+    for (const char* p = typed; *p; ++p) {
+        char c = *p == ',' ? '.' : *p;
+        if (!((c >= '0' && c <= '9') || c == '.')) continue;
+        if (e.fresh) { e.buf[0] = 0; e.fresh = false; }
+        size_t n = strlen(e.buf);
+        if (c == '.' && strchr(e.buf, '.')) continue;
+        if (n + 1 >= 9) continue;                 // 8 characters: 0.0001 .. 99999999
+        e.buf[n] = c;
+        e.buf[n + 1] = 0;
+    }
+}
+
+inline void edit_backspace(FieldEdit& e) {
+    if (e.fresh) { e.buf[0] = 0; e.fresh = false; return; }
+    size_t n = strlen(e.buf);
+    if (n) e.buf[n - 1] = 0;
+}
+
+// The typed text as a value: false if it holds no digit ("" or "."), else the number
+// clamped to [lo, hi].
+inline bool parse_setting(const char* text, double lo, double hi, double* out) {
+    bool digit = false;
+    for (const char* p = text; *p; ++p) {
+        if (*p >= '0' && *p <= '9') digit = true;
+        else if (*p != '.') return false;
+    }
+    if (!digit) return false;
+    double v = atof(text);
+    if (v < lo) v = lo;
+    if (v > hi) v = hi;
+    *out = v;
+    return true;
 }
 
 }  // namespace ui_values

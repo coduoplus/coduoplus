@@ -44,6 +44,44 @@ int main() {
     check(near(step_hundredths(0.01, -1, 0.01, 30), 0.01), "clamped at the minimum");
     check(near(step_hundredths(30, +1, 0.01, 30), 30), "clamped at the maximum");
 
+    printf("typing a value:\n");
+    {
+        FieldEdit e;
+        edit_begin(e, 0.65);
+        check(strcmp(e.buf, "0.65") == 0 && e.fresh, "opens with the current value, selected");
+        edit_type(e, "1.2");
+        check(strcmp(e.buf, "1.2") == 0, "first key replaces the selected value");
+        edit_type(e, "5");
+        check(strcmp(e.buf, "1.25") == 0, "then typing appends");
+        edit_backspace(e);
+        check(strcmp(e.buf, "1.2") == 0, "Backspace removes the last character");
+        edit_type(e, ".9");
+        check(strcmp(e.buf, "1.29") == 0, "a second decimal point is ignored");
+        edit_type(e, "a -x");
+        check(strcmp(e.buf, "1.29") == 0, "letters, minus and spaces are ignored");
+        edit_begin(e, 2.0);
+        edit_type(e, "0,7");
+        check(strcmp(e.buf, "0.7") == 0, "a decimal comma becomes a point");
+        edit_begin(e, 2.0);
+        edit_backspace(e);
+        check(e.buf[0] == 0 && !e.fresh, "Backspace on the selected value clears it");
+        edit_type(e, "123456789012");
+        check(strlen(e.buf) == 8, "at most 8 characters");
+        edit_begin(e, 2.0);
+        edit_type(e, ".65");
+        double v = 0;
+        check(parse_setting(e.buf, 0.01, 100, &v) && near(v, 0.65), "\".65\" commits 0.65");
+    }
+    {
+        double v = -1;
+        check(!parse_setting("", 0.01, 100, &v), "empty text: nothing committed");
+        check(!parse_setting(".", 0.01, 100, &v), "a lone point: nothing committed");
+        check(parse_setting("0", 0.01, 100, &v) && near(v, 0.01), "0 clamps to the minimum 0.01");
+        check(parse_setting("250", 0.01, 100, &v) && near(v, 100), "250 clamps to the maximum");
+        check(parse_setting("0", 0, 10, &v) && near(v, 0), "acceleration 0 is allowed");
+        check(parse_setting("2.375", 0.01, 100, &v) && near(v, 2.375), "2.375 kept exactly");
+    }
+
     printf(g_failed ? "test_ui_values: %d FAILED\n" : "test_ui_values: all passed\n", g_failed);
     return g_failed ? 1 : 0;
 }

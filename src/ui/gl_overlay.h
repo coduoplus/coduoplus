@@ -21,7 +21,10 @@ struct UiInput {
     float wheel = 0;           // scroll steps this frame
     int   vk = 0;              // during ui_key_capture: virtual key / button pressed
                                // this frame (VK_*, 0xF001 wheel up, 0xF002 wheel
-                               // down), 0 = nothing yet
+                               // down), 0 = nothing yet. During ui_text_capture:
+                               // VK_RETURN / VK_ESCAPE / VK_BACK / VK_DELETE / VK_TAB
+    char  text[16] = {0};      // during ui_text_capture: printable characters typed
+                               // this frame, in order
 };
 
 // --- lifecycle -------------------------------------------------------------
@@ -47,6 +50,14 @@ const UiInput& ui_input();
 // is routed into UiInput::vk instead of driving the UI or the overlay hotkeys -
 // so any key can be bound, including ESC (the menu treats it as cancel).
 void ui_key_capture(bool on);
+
+// Text-entry mode (a typed value field has focus): printable characters land in
+// UiInput::text and the editing keys (Enter, Esc, Backspace, Delete, Tab) in
+// UiInput::vk, instead of being swallowed - and Esc ends the edit instead of closing
+// the overlay. Ctrl+M still closes it. Turned off by itself when the overlay closes,
+// so a field can see that with ui_text_capturing() and drop its edit.
+void ui_text_capture(bool on);
+bool ui_text_capturing();
 
 // Draws a JPG/PNG/BMP file (loaded via GDI+, cached by path, invalidated on
 // vid_restart the same way text textures are) covering [x,y,w,h] - scaled up and
