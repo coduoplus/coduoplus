@@ -55,6 +55,13 @@ constexpr uintptr_t GAME_PE_TIMESTAMP        = 0x41b53340;  // IMAGE_FILE_HEADER
 // CoD1 addresses. Cached after the first call; cheap to call from every tick.
 bool game_exe_ok();
 
+// True when the command line sets `dedicated` to 1 or 2 (`+set dedicated 2`), i.e. this
+// process is a dedicated server. Read from the command line, not the cvar, so it works
+// from DllMain on, before the engine has parsed anything. Used to keep player-facing
+// things (the update dialog, the UI pk3) off servers.
+bool launched_as_dedicated();
+bool cmdline_sets_dedicated(const char* command_line);   // the parser, for the tests
+
 // Port status, one switch per feature group. A feature is enabled here only
 // once every address it touches has been re-found in the UO 1.51 binaries and
 // added to tests/site_check.cpp, so the offline test proves the bytes it

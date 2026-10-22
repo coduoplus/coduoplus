@@ -9,6 +9,7 @@
 #include "features/updater.h"
 #include "core/logger.h"
 #include "core/iat.h"
+#include "core/game.h"
 
 #include <windows.h>
 #include <wininet.h>
@@ -27,13 +28,16 @@ namespace patches {
  * your existing .ini (it holds your settings), so a key added to the shipped .ini later
  * never reaches anyone who was already installed.
  * The .ini key still overrides this, for a fork or a private mirror. */
-/* CoD:UO port: NO DEFAULT URL. Upstream's manifest publishes COD1.6X - a CoD1
- * mss32.dll. Fetching it here would overwrite the CoDUO+ proxy with a build that
- * hooks CoDMP.exe addresses inside CoDUOMP.exe. CoDUO+ has no release feed yet,
- * so the updater only runs when coduoplus.ini names one (updater_manifest_url). */
+/* CoD:UO port: CoDUO+'S OWN FEED, never upstream's. Upstream's manifest publishes
+ * COD1.6X - a CoD1 mss32.dll; fetching it here would overwrite the CoDUO+ proxy with a
+ * build that hooks CoDMP.exe addresses inside CoDUOMP.exe. This one is written by
+ * .github/workflows/release.yml on every vX.Y.Z release: "latest" never points at a
+ * pre-release (the rolling `nightly`), so players only ever get tagged releases.
+ * OFF BY DEFAULT: the game never reaches out to GitHub unless the player opted in with
+ * `updater_enable = on` (commented out in the shipped coduoplus.ini). */
 UpdaterConfig g_updater_config = {
-    /* enable        */ true,
-    /* manifest_url  */ "",
+    /* enable        */ false,
+    /* manifest_url  */ "https://github.com/coduoplus/coduoplus/releases/latest/download/manifest.json",
     /* auto_download */ true,
     /* show_dialog   */ true,
 };
@@ -297,6 +301,14 @@ void updater_gate() {
     if (version_compare(remote, COD1RELOADED_VERSION) <= 0) {
         logger::logf("updater: up to date (local=%s remote=%s)", COD1RELOADED_VERSION, remote);
         return;  // launch normally
+    }
+
+    // A dedicated server is often unattended (a service, a restart script): a dialog
+    // nobody answers would keep it down. Say so in the log and start anyway.
+    if (launched_as_dedicated()) {
+        logger::logf("updater: update %s -> %s available (%s) - dedicated server, "
+                     "starting anyway; install it by hand", COD1RELOADED_VERSION, remote, url);
+        return;
     }
 
     logger::logf("updater: update %s -> %s available, blocking launch",

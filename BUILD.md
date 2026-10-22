@@ -60,27 +60,32 @@ Outputs (always in `<repo>\build\`, whatever the build dir, see
 
 ```powershell
 .\deploy.ps1 [-Game "D:\Call of Duty - Copy"]
-python -I ui_pk3\build_pk3.py --deploy [--game "D:/Call of Duty - Copy"]
 ```
 
 `deploy.ps1` refuses to run while the game is running from that folder. On the
 first deploy it renames the game's Miles `mss32.dll` to `mss32_original.dll`
 (keeping `mss32.dll.miles-backup`), and installs `coduoplus.ini` only if none
-exists.
+exists. The DLL generates `uo\zz_coduoplus_ui.pk3` itself at the next start.
 
 ## Release
 
+Releases are built by CI, not locally: push a tag `vX.Y.Z` and
+`.github/workflows/release.yml` builds the DLLs, the installer and the Linux
+library on hosted runners, runs the portable tests, and publishes every
+download. Every push to `main` publishes the same set as the `nightly`
+pre-release. Run the game tests locally before tagging. See
+[docs/CI.md](docs/CI.md#cutting-a-release) and [docs/RELEASES.md](docs/RELEASES.md).
+
+To build the downloads locally (needs Inno Setup 6, e.g. in `C:\tools\innosetup`):
+
 ```powershell
-.\release.ps1 [-Version 0.1.1] [-Repo owner/name] [-Game "D:\Call of Duty - Copy"]
+C:\tools\innosetup\ISCC.exe /DVersion=0.3.0 /DDllDir=$PWD\build /O$PWD\build packaging\coduoplus.iss
+python -I packaging\package.py --version 0.3.0 --tag v0.3.0 --repo coduoplus/coduoplus `
+    --windows build --linux build\linux --out dist
 ```
 
-Builds in `build-release`, runs `ctest` and stops if anything fails, generates
-the UI pk3, and writes `dist\`: `mss32.dll`, `manifest.json`,
-`zz_coduoplus_ui.pk3`, and `coduoplus-<ver>.zip` laid out like the game folder.
-Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`, which builds and
-runs the portable tests on hosted runners and publishes the release. The game
-tests and the UI pk3 need the install, so they are run by hand. See
-[docs/CI.md](docs/CI.md#cutting-a-release).
+(`--windows` needs `mss32.dll`, `norinput\mss32.dll` and `CoDUOPlus-Setup.exe`;
+`--linux` needs `coduoplus_sv.so`, see [docs/LINUX.md](docs/LINUX.md).)
 
 The version lives in one place: `COD1RELOADED_VERSION` in
 `src/features/updater.h`.

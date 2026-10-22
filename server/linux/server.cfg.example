@@ -1,5 +1,6 @@
-// CoDUO+ example server.cfg for the Docker image (docs/DOCKER.md).
-// Put your own as config/server.cfg; this one is used only when there is none.
+// CoDUO+ example server.cfg. The Docker image uses it when config/ has no server.cfg
+// (docs/DOCKER.md); the Windows and Linux server packages copy it to uo/server.cfg the
+// first time. Edit your copy, not this file.
 // The netcode lines follow docs/NETCODE.md - read it before changing them.
 
 // ---- identity -----------------------------------------------------------------
@@ -18,7 +19,7 @@ set sv_maxPing "0"
 set sv_minPing "0"
 set sv_timeout "120"
 
-// ---- logging (written to the /data volume) --------------------------------------
+// ---- logging (into fs_homepath: the /data volume in Docker) ----------------------
 set g_log "games_mp.log"
 set g_logsync "1"
 set logfile "1"
@@ -34,5 +35,5 @@ set g_gametype "tdm"
 set scr_tdm_scorelimit "200"
 set scr_tdm_timelimit "20"
 
-// ---- map rotation (the image's default command ends with +map_rotate) --------------
+// ---- map rotation (the default start command ends with +map_rotate) ----------------
 set sv_mapRotation "gametype tdm map mp_arnhem map mp_berlin map mp_cassino map mp_foy map mp_italy map mp_kharkov map mp_kursk map mp_ponyri map mp_rhinevalley map mp_sicily"

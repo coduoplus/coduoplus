@@ -28,7 +28,9 @@ So a client and a server from the same tree can't disagree.
 ## Running it
 
 **Easiest: the Docker image**, see [DOCKER.md](DOCKER.md) (`docker compose up -d` with
-the example compose file). By hand:
+the example compose file). Each release's `coduoplus-server-linux.tar.gz` has both
+that and `coduoplus-server.sh /path/to/coduo`, which does what's below for you
+([RELEASES.md](RELEASES.md#the-linux-server-package)). By hand:
 
 Supported build: **CoD:UO 1.51b Linux server** (icculus, 2005-03-22:
 `coduo_lnxded` sha256 `24b0d826…61f1`, `uo/game.mp.uo.i386.so` `4d2391c1…acb7`). On

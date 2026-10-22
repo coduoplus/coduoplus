@@ -1,5 +1,6 @@
 #include "core/game.h"
 
+#include <cctype>
 #include <cstring>
 
 namespace patches {
@@ -28,6 +29,23 @@ bool game_exe_ok() {
     static volatile int s_state = -1;
     if (s_state < 0) s_state = probe() ? 1 : 0;
     return port::ENGINE && s_state == 1;
+}
+
+bool launched_as_dedicated() { return cmdline_sets_dedicated(GetCommandLineA()); }
+
+bool cmdline_sets_dedicated(const char* cl) {
+    if (!cl) return false;
+    // every whole-word "dedicated" (case-insensitive), followed by blanks and 1 or 2
+    for (const char* p = cl; *p; ++p) {
+        if (_strnicmp(p, "dedicated", 9) != 0) continue;
+        if (p != cl && !isspace((unsigned char)p[-1]) && p[-1] != '"') continue;
+        const char* v = p + 9;
+        if (!isspace((unsigned char)*v)) continue;
+        while (isspace((unsigned char)*v) || *v == '"') ++v;
+        if ((*v == '1' || *v == '2') && (v[1] == 0 || isspace((unsigned char)v[1]) || v[1] == '"'))
+            return true;
+    }
+    return false;
 }
 
 }  // namespace patches

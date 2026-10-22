@@ -38,14 +38,36 @@ has the full table and the reasons.
 
 ## Install
 
+**Download [`CoDUOPlus-Setup.exe`](https://github.com/coduoplus/coduoplus/releases/latest/download/CoDUOPlus-Setup.exe)
+and run it.** It finds your game (retail or Steam), checks it's 1.51, installs
+CoDUO+ and adds an uninstaller. Then start the game as usual: **CoDUO+ SETTINGS**
+is in the main menu.
+
+**Updates: CoDUO+ has an auto-updater, and it's off by default.** Nothing is
+checked or downloaded unless you turn it on: in `coduoplus.ini` (next to
+`CoDUOMP.exe`), remove the `;` in front of `updater_enable = on`. It then checks
+for a new release each time the game starts and asks before installing it. With
+it off, get new versions from the [releases page](https://github.com/coduoplus/coduoplus/releases/latest)
+(running a newer setup over your install keeps your settings).
+
+Windows may say the setup is from an unknown publisher (it isn't code-signed):
+*More info* → *Run anyway*.
+
+Running a server instead? [`coduoplus-server-windows.zip`](https://github.com/coduoplus/coduoplus/releases/latest/download/coduoplus-server-windows.zip)
+(unzip into the game folder, run `start-coduoplus-server.bat`) or
+[`coduoplus-server-linux.tar.gz`](https://github.com/coduoplus/coduoplus/releases/latest/download/coduoplus-server-linux.tar.gz)
+(Docker or plain Linux). Every download is explained in [docs/RELEASES.md](docs/RELEASES.md).
+
+### Manual install
+
+From [`coduoplus-client.zip`](https://github.com/coduoplus/coduoplus/releases/latest/download/coduoplus-client.zip):
+
 1. Open your game folder, the one with `CoDUOMP.exe`.
 2. **Rename `mss32.dll` to `mss32_original.dll`.** Don't skip this: CoDUO+'s
    `mss32.dll` forwards all sound to the original. Without it the game won't
    start.
 3. Copy **`mss32.dll`** and **`coduoplus.ini`** next to `CoDUOMP.exe`.
-4. Optional: copy **`zz_coduoplus_ui.pk3`** into the `uo\` folder for a main-menu
-   entry. Ctrl+M opens the settings without it.
-5. Start `CoDUOMP.exe` as usual. `coduoplus.log` appears next to the DLL.
+4. Start `CoDUOMP.exe` as usual. `coduoplus.log` appears next to the DLL.
 
 Your folder ends up with:
 
@@ -54,11 +76,12 @@ Your folder ends up with:
 | `mss32.dll` | CoDUO+ |
 | `mss32_original.dll` | the game's original Miles sound DLL |
 | `coduoplus.ini` | settings ([docs/CONFIGURATION.md](docs/CONFIGURATION.md)) |
-| `uo\zz_coduoplus_ui.pk3` | main-menu entry |
+| `uo\zz_coduoplus_ui.pk3` | main-menu entry, made by CoDUO+ on first start from your own `pakuo03.pk3` |
 
 ## Uninstall
 
-Delete `mss32.dll`, `coduoplus.ini` and `uo\zz_coduoplus_ui.pk3`, then rename
+Installed with the setup: *Settings → Apps → CoDUO+*. By hand: delete `mss32.dll`,
+`coduoplus.ini`, `coduoplus*.log` and `uo\zz_coduoplus_ui.pk3`, then rename
 `mss32_original.dll` back to `mss32.dll`. The game is vanilla again.
 
 ## Troubleshooting
@@ -76,9 +99,9 @@ Delete `mss32.dll`, `coduoplus.ini` and `uo\zz_coduoplus_ui.pk3`, then rename
 .\build.ps1            # 32-bit MinGW (WinLibs i686 in C:\tools\mingw32, or MSYS2 mingw32)
 .\build.ps1 -Test      # + the test suite against your CoD:UO install
 .\deploy.ps1           # copy into a test install (renames the Miles DLL on first run)
-.\release.ps1          # tested build + player zip in dist\
 ```
 
+Releases (installer, client and server packages) are built by CI: [docs/RELEASES.md](docs/RELEASES.md).
 Details in [BUILD.md](BUILD.md).
 
 ## Documentation
@@ -91,6 +114,7 @@ Details in [BUILD.md](BUILD.md).
 | [docs/PORTING.md](docs/PORTING.md) | How the port was done, every decision and why, feature status, what's left |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the DLL loads, the startup sequence, the watcher thread, safe patching, client↔server agreement |
 | [docs/ADDRESSES.md](docs/ADDRESSES.md) | Every address, CoD1 → UO, with the evidence |
+| [docs/RELEASES.md](docs/RELEASES.md) | Every download (installer, client zip, Windows and Linux server packages), the updater feed, the nightly |
 | [docs/CI.md](docs/CI.md) | GitHub workflows, branch protection, cutting a release |
 | [docs/TESTING.md](docs/TESTING.md) | The test layers, how to run them, the manual client checklist |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every `coduoplus.ini` key |

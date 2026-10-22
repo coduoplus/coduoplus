@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+### Downloads: one per kind of user ([docs/RELEASES.md](docs/RELEASES.md))
+- **`CoDUOPlus-Setup.exe`, a one-click installer for players.** It finds the
+  game (retail registry, Steam libraries), checks it's 1.51, renames the Miles
+  `mss32.dll` to `mss32_original.dll` (the step people missed), keeps an
+  existing `coduoplus.ini`, and registers an uninstaller that puts the game back
+  exactly as it was. It refuses a folder that isn't the game, or a game whose
+  original sound DLL is already gone.
+- **Server packages:** `coduoplus-server-windows.zip` (unzip into the game folder,
+  run `start-coduoplus-server.bat`; unzipping a newer one over it is the update)
+  and `coduoplus-server-linux.tar.gz` (`docker compose`, pinned to the release's
+  image, or `coduoplus-server.sh` without Docker).
+- Asset names no longer carry the version, so
+  `releases/latest/download/<file>` links never change. `coduoplus-client.zip`
+  replaces `coduoplus-X.Y.Z.zip`; `SHA256SUMS` is new.
+- **Every push to `main` publishes the `nightly` pre-release** (and the server
+  image `:edge`). The in-game updater never offers it.
+- **The auto-updater is off by default, and works when turned on.** Nothing is
+  checked or downloaded unless the player uncomments `updater_enable = on` in
+  `coduoplus.ini`. Once on, it needs nothing else: its built-in feed is
+  CoDUO+'s latest release (it used to be empty, so it never ran). An empty
+  `updater_manifest_url` keeps the built-in feed. Dedicated servers log the
+  update instead of showing a dialog. **An old 0.2.0/0.3.0 `coduoplus.ini`
+  has `updater_enable = on`**, which now really turns it on: comment it out
+  if you don't want it.
+- **The main-menu entry needs no extra file.** The DLL generates
+  `uo\zz_coduoplus_ui.pk3` at start-up from the player's own `pakuo03.pk3`,
+  byte for byte what `ui_pk3/build_pk3.py` makes (tested), so the release no
+  longer needs a hand-uploaded pk3. Bundles zlib's `contrib/puff` inflater.
+- `release.ps1` and the repo-root `manifest.json` are gone: CI builds releases
+  (`packaging/package.py`).
+
 ### Frame pacing
 - **333 fps allowed.** The shipped `competitive.cfg` range is now
   `com_maxfps 125 333` (was 125–250), and Ctrl+M → Game offers 333 next to
