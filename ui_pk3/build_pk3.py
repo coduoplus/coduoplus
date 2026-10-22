@@ -13,7 +13,9 @@ redistributed from source control, and the menu cannot drift from UO's.
 
 The button sets cod1x_open_modern 1; the mod's watcher (ui/modern_menu.cpp)
 sees it and opens the Ctrl+M overlay. The cvar keeps its upstream name: the
-same C++ handles it.
+same C++ handles it. It must use `setcvar`: upstream's CoD1 item said
+`set cod1x_open_modern 1;`, and UO's UI module has no `set` script command -
+it skips unknown ones silently, so that button did nothing.
 
 WHAT IT DOES NOT CONTAIN, compared with upstream's CoD1 pk3:
   - ui_mp/menus.txt: upstream's copy is CoD1's stock list. A pk3 file replaces
@@ -62,7 +64,7 @@ SETTINGS_ITEM = '''\t\titemDef
 \t\t\t\tclose mods_menu;
 \t\t\t\tclose options_multi;
 \t\t\t\tplay "mouse_click";
-\t\t\t\tset cod1x_open_modern 1;
+\t\t\t\tsetcvar cod1x_open_modern "1";
 \t\t\t}
 \t\t}
 

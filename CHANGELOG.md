@@ -33,6 +33,14 @@
 - `release.ps1` and the repo-root `manifest.json` are gone: CI builds releases
   (`packaging/package.py`).
 
+### Main menu
+- **The CoDUO+ SETTINGS item opens the settings again** (it never worked on UO).
+  It used upstream's CoD1 script line `set cod1x_open_modern 1;`, and UO's UI
+  module has no `set` command and skips unknown ones silently. It now uses
+  `setcvar`, like UO's own menus. Existing installs get the corrected
+  `uo\zz_coduoplus_ui.pk3` by themselves: the DLL rewrites it at the next start.
+  A test now checks every command in the item against UO's UI command table.
+
 ### Frame pacing
 - **333 fps allowed.** The shipped `competitive.cfg` range is now
   `com_maxfps 125 333` (was 125–250), and Ctrl+M → Game offers 333 next to

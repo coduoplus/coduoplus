@@ -93,6 +93,36 @@ int main(int argc, char** argv) {
         remove(dst.c_str());
         std::string again;
         check(!ui_pk3::patch_main_menu(menu, again, err), "an already patched menu is refused");
+
+        // Every script command in our item's action { } must be one UO's UI module
+        // knows: it skips an unknown one SILENTLY (upstream's `set cvar 1;` made the
+        // button do nothing). The command names are NUL-terminated strings in
+        // uo_ui_mp_x86.dll's command table (pakuo07.pk3).
+        std::string pak7, uidll;
+        check(read_file(std::string(argv[1]) + "/uo/pakuo07.pk3", pak7) &&
+              ui_pk3::zip_read(pak7, "uo_ui_mp_x86.dll", uidll, err), "read uo_ui_mp_x86.dll");
+        const size_t item = menu.find("name coduoplus_settings_btn");
+        const size_t act = menu.find("action", item);
+        const size_t open = menu.find('{', act), close = menu.find('}', open);
+        int commands = 0;
+        bool all_known = item != std::string::npos && open != std::string::npos && close != std::string::npos;
+        for (size_t p = open + 1; all_known && p < close;) {
+            const size_t semi = menu.find(';', p);
+            if (semi == std::string::npos || semi > close) break;
+            std::string stmt = menu.substr(p, semi - p);
+            const size_t b = stmt.find_first_not_of(" \t\r\n");
+            if (b != std::string::npos) {
+                const std::string cmd = stmt.substr(b, stmt.find_first_of(" \t", b) - b);
+                const bool known = uidll.find(std::string(1, '\0') + cmd + std::string(1, '\0')) != std::string::npos;
+                if (!known) printf("    unknown UI script command: \"%s\"\n", cmd.c_str());
+                all_known = all_known && known;
+                ++commands;
+            }
+            p = semi + 1;
+        }
+        check(all_known && commands == 4, "every command in the item is in UO's UI command table");
+        check(menu.find("setcvar cod1x_open_modern \"1\";") != std::string::npos,
+              "the item sets cod1x_open_modern with setcvar");
         printf("  generated pk3: %u bytes, main.menu %u -> %u bytes\n",
                (unsigned)pk3.size(), (unsigned)stock.size(), (unsigned)menu.size());
     }

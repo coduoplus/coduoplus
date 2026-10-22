@@ -21,6 +21,9 @@ namespace {
 
 // Same item as build_pk3.py's SETTINGS_ITEM (upstream's "1.6X SETTINGS", relabelled),
 // tabs and CRLF like UO's file. test_ui_pk3 compares the two generators' output.
+// Only commands UO's UI module knows (test_ui_pk3 checks each against
+// uo_ui_mp_x86.dll): upstream's `set cvar 1;` is not one - UO skips it silently -
+// so the cvar is set with `setcvar`, as UO's own menus do.
 const char SETTINGS_ITEM[] =
     "\t\titemDef\r\n"
     "\t\t{\r\n"
@@ -46,7 +49,7 @@ const char SETTINGS_ITEM[] =
     "\t\t\t\tclose mods_menu;\r\n"
     "\t\t\t\tclose options_multi;\r\n"
     "\t\t\t\tplay \"mouse_click\";\r\n"
-    "\t\t\t\tset cod1x_open_modern 1;\r\n"
+    "\t\t\t\tsetcvar cod1x_open_modern \"1\";\r\n"
     "\t\t\t}\r\n"
     "\t\t}\r\n"
     "\r\n";
