@@ -271,6 +271,14 @@ if (Python3_FOUND)
     set_tests_properties(ui_pk3_gen_game PROPERTIES DEPENDS ui_pk3)
 endif()
 
+# The Ctrl+M overlay's value labels and 0.01 steps (ui/value_format.h): a config's
+# sensitivity 0.65 must read 0.65, not 0.7.
+add_executable(test_ui_values tests/test_ui_values.cpp)
+target_include_directories(test_ui_values PRIVATE src)
+target_compile_options(test_ui_values PRIVATE -Wall -Wextra -O2)
+target_link_options(test_ui_values PRIVATE -static -static-libgcc -static-libstdc++)
+add_test(NAME ui_values COMMAND test_ui_values)
+
 # competitive.cfg -> sv_competitive* parsing and chunking, checked against the client's reading.
 add_executable(test_competitive_sv tests/test_competitive_sv.cpp src/shared/competitive_spec.cpp)
 target_include_directories(test_competitive_sv PRIVATE src)
@@ -289,7 +297,7 @@ add_test(NAME antilag COMMAND test_antilag)
 #   portable  - needs nothing but the build: runs on GitHub's hosted Windows runner
 #   game      - needs a CoD:UO 1.51 install (CODUO_GAME_DIR): self-hosted runner only
 #   timing    - wall-clock measurements: a quiet machine, not a shared hosted VM
-foreach(t doc_links ini_lock competitive_sv antilag ui_pk3_gen installer)
+foreach(t doc_links ini_lock competitive_sv antilag ui_pk3_gen installer ui_values)
     if (TEST ${t})
         set_tests_properties(${t} PROPERTIES LABELS portable)
     endif()
