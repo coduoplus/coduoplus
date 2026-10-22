@@ -154,7 +154,7 @@ checks compare against relocated values.
 | Viewheight lerp speed (`viewheight_fix`) | ❌ not ported | [Why](#viewheight-fix). |
 | Lag compensation (`antilag`, `shared/antilag_core`) | ✅ **new**, client-free, Windows + Linux servers | Upstream's was a CoD1-only experiment shipped disabled; rewritten for UO. Origin + angles, not pose: [NETCODE.md](NETCODE.md#lag-compensation). |
 | CG_Draw2D hook: Discord in-match heartbeat, avatar overlay (`engine_2d`, `avatar_overlay`) | ❌ not ported | Discord does nothing without an application id; the avatar overlay is an off-by-default proof of concept. |
-| Auto-updater (`updater`) | ✅ ported, **no feed** | [Decision](#updater-and-pam-installer-point-nowhere-by-default). |
+| Auto-updater (`updater`) | ✅ ported, CoDUO+'s own feed | [Decision](#updater-feed-coduos-own-never-upstreams). |
 | PAM installer (`pam_install`) | ✅ ported, **off** | Same. |
 | Discord Rich Presence (`discord_rpc`) | ✅ ported (idle) | Needs `discord_rpc_client_id`. |
 | Demo upload (`demo_upload`) | ✅ ported (off) | Off by default upstream; looks in `uo\demos`. |
@@ -259,12 +259,24 @@ and AUTO-UPDATE. That slot is empty in UO's layout as in CoD1's. Nothing of
 Activision's is kept in the repository. `joinserver.menu`'s 1.6/1.5 list
 buttons are dropped, because they do nothing while the protocol is vanilla.
 
-### Updater and PAM installer point nowhere by default
+The DLL now builds this pk3 itself, on the player's machine, the same way
+(`features/ui_pk3.cpp`), so players don't copy it and releases don't carry it.
+`build_pk3.py` is kept as the reference the C++ output is tested against
+([RELEASES.md](RELEASES.md#the-main-menu-entry-built-by-the-dll)).
+
+### Updater feed: CoDUO+'s own, never upstream's
 
 Upstream's manifest URL publishes the CoD1 `mss32.dll`. Fetching it on UO would
-replace CoDUO+ with a build that hooks CoD1 addresses. The PAM installer fetches
-CoD1's rPAM. Both default to empty / off. Set `updater_manifest_url` /
-`pam_manifest_url` to CoDUO+-specific feeds to use them.
+replace CoDUO+ with a build that hooks CoD1 addresses. So the updater's built-in
+feed is CoDUO+'s own release feed,
+`https://github.com/coduoplus/coduoplus/releases/latest/download/manifest.json`,
+written by the release workflow ([RELEASES.md](RELEASES.md#updates)). Up to 0.3.0
+the default was empty, which meant an updater that never ran. An empty
+`updater_manifest_url` in the ini keeps the built-in feed; a set one overrides
+it. On a dedicated server the update dialog is skipped and only logged.
+
+The PAM installer fetches CoD1's rPAM, so it stays off with an empty
+`pam_manifest_url` until there is a UO feed.
 
 ### FOV unlock is ported as is — read this
 

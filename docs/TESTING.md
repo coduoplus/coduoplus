@@ -30,8 +30,11 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-or `.\build.ps1 -Test`. `release.ps1` runs the suite and refuses to package a
-failing build.
+or `.\build.ps1 -Test`. The release workflow runs the portable suite, the
+installer test included, and publishes nothing if it fails ([CI.md](CI.md)).
+
+The download pipeline's own tests (`installer`, `ui_pk3_gen`, `ui_pk3_gen_game`)
+are described in [RELEASES.md](RELEASES.md#how-its-built-and-tested).
 
 The smoke test **launches the game**, so it's off unless `-DCODUO_SMOKE=ON`, and
 it needs the build deployed first (`.\deploy.ps1`). It runs as a dedicated
