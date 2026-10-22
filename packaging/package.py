@@ -186,7 +186,7 @@ def main():
         '| You are | Download | |',
         '| --- | --- | --- |',
         '| **a player** | [`CoDUOPlus-Setup.exe`](%sCoDUOPlus-Setup.exe) | run it, click Next until Finish. '
-        'Updates come by themselves. (Manual install: [`coduoplus-client.zip`](%scoduoplus-client.zip).) |' % (base, base),
+        'The auto-updater is off by default ([how to turn it on](https://github.com/%s/blob/main/docs/RELEASES.md#updates)). (Manual install: [`coduoplus-client.zip`](%scoduoplus-client.zip).) |' % (base, a.repo, base),
         '| running a **Windows server** | [`coduoplus-server-windows.zip`](%scoduoplus-server-windows.zip) | '
         'unzip into the game folder, run `start-coduoplus-server.bat` |' % base,
         '| running a **Linux server** | [`coduoplus-server-linux.tar.gz`](%scoduoplus-server-linux.tar.gz) | '

@@ -270,8 +270,10 @@ Upstream's manifest URL publishes the CoD1 `mss32.dll`. Fetching it on UO would
 replace CoDUO+ with a build that hooks CoD1 addresses. So the updater's built-in
 feed is CoDUO+'s own release feed,
 `https://github.com/coduoplus/coduoplus/releases/latest/download/manifest.json`,
-written by the release workflow ([RELEASES.md](RELEASES.md#updates)). Up to 0.3.0
-the default was empty, which meant an updater that never ran. An empty
+written by the release workflow ([RELEASES.md](RELEASES.md#updates)). Unlike
+upstream, it is **off by default** (`updater_enable`, commented out in the
+shipped ini): the player opts in. Up to 0.3.0 the default URL was empty, which
+meant an updater that never ran even when enabled. An empty
 `updater_manifest_url` in the ini keeps the built-in feed; a set one overrides
 it. On a dedicated server the update dialog is skipped and only logged.
 

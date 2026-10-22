@@ -89,8 +89,16 @@ needs a paid certificate. `SHA256SUMS` lets anyone check the download.
 
 ## Updates
 
-After the first install, players don't need to do anything. On every start the
-DLL fetches the latest release's `manifest.json`:
+**The auto-updater is off by default.** A fresh install checks nothing and
+downloads nothing: the game never contacts GitHub unless the player opts in.
+To turn it on,
+remove the `;` in front of `updater_enable = on` in `coduoplus.ini`. The ini,
+the client zip's `INSTALL.txt`, the README and every release's notes all say
+so. With it off, players update by running the newer setup (it keeps their
+ini) or by replacing `mss32.dll`.
+
+Once turned on, on every start the DLL fetches the latest release's
+`manifest.json`:
 
 ```
 https://github.com/coduoplus/coduoplus/releases/latest/download/manifest.json
@@ -102,15 +110,19 @@ release's `mss32.dll` and installs it at the next start
 (`features/updater.cpp`). The download URL names the tag, not `latest`, so a
 release published mid-download can't hand out a mismatched file.
 
-This feed is built into the DLL. Before, the default was empty and every player
-had to set `updater_manifest_url` in `coduoplus.ini`, which nobody does, so in
-practice the updater never ran. Now:
+The feed is built into the DLL, so turning the updater on is the only step.
+Before, the default URL was empty and a player would also have had to set
+`updater_manifest_url`. Now:
 
-- an **empty or missing** `updater_manifest_url` uses the built-in feed. The
-  shipped ini has the key empty, so an update over an old ini still gets the
-  feed;
-- a **set** URL overrides it (forks, mirrors);
-- `updater_enable = off` turns it off.
+- `updater_enable`: **off by default** (code default `false`, the line commented
+  out in the shipped ini); `on` opts in;
+- an **empty or missing** `updater_manifest_url` uses the built-in feed;
+- a **set** URL overrides it (forks, mirrors).
+
+**Upgrading from 0.2.0 or 0.3.0 with your old `coduoplus.ini`:** those releases
+shipped `updater_enable = on`, but with no feed, so the updater never ran. With
+this release, that old line now switches it on. Comment it out or set it to
+`off` if you don't want it.
 
 **On a dedicated server** the dialog is skipped: a server is often started by a
 service or a script, and a dialog nobody answers would keep it down. The log

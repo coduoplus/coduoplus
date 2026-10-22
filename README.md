@@ -41,7 +41,14 @@ has the full table and the reasons.
 **Download [`CoDUOPlus-Setup.exe`](https://github.com/coduoplus/coduoplus/releases/latest/download/CoDUOPlus-Setup.exe)
 and run it.** It finds your game (retail or Steam), checks it's 1.51, installs
 CoDUO+ and adds an uninstaller. Then start the game as usual: **CoDUO+ SETTINGS**
-is in the main menu, and new versions install themselves when you start the game.
+is in the main menu.
+
+**Updates: CoDUO+ has an auto-updater, and it's off by default.** Nothing is
+checked or downloaded unless you turn it on: in `coduoplus.ini` (next to
+`CoDUOMP.exe`), remove the `;` in front of `updater_enable = on`. It then checks
+for a new release each time the game starts and asks before installing it. With
+it off, get new versions from the [releases page](https://github.com/coduoplus/coduoplus/releases/latest)
+(running a newer setup over your install keeps your settings).
 
 Windows may say the setup is from an unknown publisher (it isn't code-signed):
 *More info* → *Run anyway*.

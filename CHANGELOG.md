@@ -18,10 +18,14 @@
   replaces `coduoplus-X.Y.Z.zip`; `SHA256SUMS` is new.
 - **Every push to `main` publishes the `nightly` pre-release** (and the server
   image `:edge`). The in-game updater never offers it.
-- **The updater works out of the box.** Its built-in feed is CoDUO+'s latest
-  release; it used to be empty, so it never ran unless the ini named a feed.
-  An empty `updater_manifest_url` keeps the built-in feed. Dedicated servers
-  log the update instead of showing a dialog.
+- **The auto-updater is off by default, and works when turned on.** Nothing is
+  checked or downloaded unless the player uncomments `updater_enable = on` in
+  `coduoplus.ini`. Once on, it needs nothing else: its built-in feed is
+  CoDUO+'s latest release (it used to be empty, so it never ran). An empty
+  `updater_manifest_url` keeps the built-in feed. Dedicated servers log the
+  update instead of showing a dialog. **An old 0.2.0/0.3.0 `coduoplus.ini`
+  has `updater_enable = on`**, which now really turns it on: comment it out
+  if you don't want it.
 - **The main-menu entry needs no extra file.** The DLL generates
   `uo\zz_coduoplus_ui.pk3` at start-up from the player's own `pakuo03.pk3`,
   byte for byte what `ui_pk3/build_pk3.py` makes (tested), so the release no

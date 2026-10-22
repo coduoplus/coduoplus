@@ -209,7 +209,8 @@ void load_config(HMODULE self_module) {
     {
         // An empty or missing key keeps the built-in feed (updater.cpp): an install
         // updated over an old coduoplus.ini - which held an empty key - must not end
-        // up with a dead updater. Turn it off with updater_enable = off instead.
+        // up with a dead updater once the player turns it on (updater_enable = on;
+        // off by default).
         char buf[sizeof(g_updater_config.manifest_url)];
         DWORD n = GetPrivateProfileStringA(
             "coduoplus", "updater_manifest_url", "", buf, sizeof(buf), ini_path);

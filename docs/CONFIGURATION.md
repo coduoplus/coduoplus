@@ -99,7 +99,8 @@ possible fixes) the impossible combinations before the renderer starts.
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `updater_enable`, `updater_auto_download`, `updater_show_dialog` | `on` | The auto-updater: checks CoDUO+'s latest release at start-up and offers it ([RELEASES.md](RELEASES.md#updates)). No dialog on a dedicated server, only a log line. `off` = never check. |
+| `updater_enable` | **`off`** (commented out in the shipped ini) | The auto-updater. `on`: checks CoDUO+'s latest release at every start and asks before installing it ([RELEASES.md](RELEASES.md#updates)); no dialog on a dedicated server, only a log line. `off` or absent: nothing is checked or downloaded. |
+| `updater_auto_download`, `updater_show_dialog` | `on` | How the updater behaves once `updater_enable` is on. |
 | `updater_manifest_url` | *(empty)* | Empty = CoDUO+'s release feed, `github.com/coduoplus/coduoplus` (tagged releases only, never the nightly). Set a manifest URL (`{"version","download_url","notes"}`) only for a fork or a mirror. **Never** point it at `cod1plus/client`: that feed ships the CoD1 DLL. |
 | `pam_download_enable`, `pam_manifest_url` | `off`, *(empty)* | The INSTALL / UPDATE PAM button. Upstream's manifest is CoD1's rPAM, so it's off; point it at a UO mod manifest in the same format to use it. |
 | `discord_rpc_enable`, `discord_rpc_client_id`, … | `on`, *(empty)* | Discord Rich Presence. Does nothing without an application id. |

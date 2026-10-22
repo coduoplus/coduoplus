@@ -32,9 +32,11 @@ namespace patches {
  * COD1.6X - a CoD1 mss32.dll; fetching it here would overwrite the CoDUO+ proxy with a
  * build that hooks CoDMP.exe addresses inside CoDUOMP.exe. This one is written by
  * .github/workflows/release.yml on every vX.Y.Z release: "latest" never points at a
- * pre-release (the rolling `nightly`), so players only ever get tagged releases. */
+ * pre-release (the rolling `nightly`), so players only ever get tagged releases.
+ * OFF BY DEFAULT: the game never reaches out to GitHub unless the player opted in with
+ * `updater_enable = on` (commented out in the shipped coduoplus.ini). */
 UpdaterConfig g_updater_config = {
-    /* enable        */ true,
+    /* enable        */ false,
     /* manifest_url  */ "https://github.com/coduoplus/coduoplus/releases/latest/download/manifest.json",
     /* auto_download */ true,
     /* show_dialog   */ true,
