@@ -28,7 +28,6 @@
 #include "features/pam_install.h"
 #include "features/updater.h"        // COD1RELOADED_VERSION
 #include "netcode/protocol_patch.h"  // PROTOCOL_VANILLA_UO (demo extension)
-#include "ui/value_format.h"          // exact value labels, 0.01 steps (sensitivity)
 #include "video/display_probe.h"
 #include "video/vibrance.h"
 
@@ -1003,47 +1002,24 @@ void modern_menu_draw(float sw, float sh) {
         ui_text(cx, cy, 14, 400, UI_MUTED, hz);
         cy += 40;
 
-        // The label shows the value the engine holds, exactly (a config's 0.65 used to
-        // read 0.7: the old code rounded to tenths for display). The slider is the
-        // coarse control (0.1 steps over 0.1..30); -/+ step by 0.01. Nothing is written
-        // unless the player moves one of them.
         section(cx, cy, colw, "SENSITIVITY"); cy += 24;
-        {
-            const double sens = atof(cv_str("sensitivity", "5"));
-            int s10 = (int)(sens * 10 + 0.5);
-            if (s10 < 1) s10 = 1;
-            if (s10 > 300) s10 = 300;
-            int ns = slider(cx, cy, colw - 180, 1, 300, s10);
-            double shown = sens;
-            if (ns != s10) {
-                shown = ns / 10.0;
-                cmdf("seta sensitivity %.1f\n", shown);
-            } else if (button(cx + colw - 166, cy + 2, 36, 36, "-", false)) {
-                shown = ui_values::step_hundredths(sens, -1, 0.01, 30.0);
-                cmdf("seta sensitivity %.2f\n", shown);
-            } else if (button(cx + colw - 36, cy + 2, 36, 36, "+", false)) {
-                shown = ui_values::step_hundredths(sens, +1, 0.01, 30.0);
-                cmdf("seta sensitivity %.2f\n", shown);
-            }
-            char sv[24];
-            ui_values::format_setting(shown, sv, sizeof(sv));
-            ui_text(cx + colw - 83 - ui_text_width(17, 600, sv) / 2, cy + 8, 17, 600, UI_TEXT, sv);
-        }
+        int s10 = (int)(atof(cv_str("sensitivity", "5")) * 10 + 0.5f);
+        if (s10 < 1) s10 = 1;
+        if (s10 > 300) s10 = 300;
+        int ns = slider(cx, cy, colw - 70, 1, 300, s10);
+        char sv[16]; snprintf(sv, sizeof(sv), "%.1f", ns / 10.0);
+        ui_text(cx + colw - 50, cy + 8, 17, 600, UI_TEXT, sv);
+        if (ns != s10) cmdf("seta sensitivity %.1f\n", ns / 10.0);
         cy += 50;
 
         section(cx, cy, colw, "ACCELERATION"); cy += 24;
-        {
-            const double accel = atof(cv_str("cl_mouseAccel", "0"));
-            int a10 = (int)(accel * 10 + 0.5);
-            if (a10 < 0) a10 = 0;
-            if (a10 > 10) a10 = 10;
-            int na = slider(cx, cy, colw - 70, 0, 10, a10);
-            const double shown = (na != a10) ? na / 10.0 : accel;   // exact, like sensitivity
-            char av[24];
-            ui_values::format_setting(shown, av, sizeof(av));
-            ui_text(cx + colw - 50, cy + 8, 17, 600, UI_TEXT, av);
-            if (na != a10) cmdf("seta cl_mouseAccel %.1f\n", shown);
-        }
+        int a10 = (int)(atof(cv_str("cl_mouseAccel", "0")) * 10 + 0.5f);
+        if (a10 < 0) a10 = 0;
+        if (a10 > 10) a10 = 10;
+        int na = slider(cx, cy, colw - 70, 0, 10, a10);
+        char av[16]; snprintf(av, sizeof(av), "%.1f", na / 10.0);
+        ui_text(cx + colw - 50, cy + 8, 17, 600, UI_TEXT, av);
+        if (na != a10) cmdf("seta cl_mouseAccel %.1f\n", na / 10.0);
         cy += 40;
         hint(cx, cy, "0 = linear, the competitive default. Speed changes distance otherwise.");
         cy += 32;
