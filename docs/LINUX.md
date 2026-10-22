@@ -53,7 +53,7 @@ The console shows what was applied:
 [coduoplus] swing_fix [server]: ON in 0xee7ae000 (legs_tol=0.00 pitch_spd=1.00 ...)
 [coduoplus] game: .../game.mp.uo.i386.so loaded at 0xee7ae000 - ClientConnect gate installed, G_RunFrame hook installed (min coduoplus=16)
 [coduoplus] swing_fix: server publishes sv_coduoplus_swing 1 (engine holds "1")
-[coduoplus] competitive_sv: competitive.cfg - publishing "snaps=40 cl_maxpackets=125 com_maxfps=125:250 rate=90000"
+[coduoplus] competitive_sv: competitive.cfg - publishing "snaps=40 cl_maxpackets=125 com_maxfps=125:333 rate=90000"
 ```
 
 Requirements: 32-bit glibc **2.17 or newer**, which covers any distro of the last

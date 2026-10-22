@@ -18,7 +18,7 @@ against the stock binaries and on a running dedicated server. The client side
 
 | | |
 | --- | --- |
-| 🎯 **Exact FPS cap** | `com_maxfps 250` gives 250, not 240–248 (QPC-timed wait + 1 ms timer), on a continuous engine clock. |
+| 🎯 **Exact FPS cap** | `com_maxfps 250` gives 250, not 240–248, and `333` gives 333 (QPC-timed wait + 1 ms timer), on a continuous engine clock. |
 | ⚡ **Less input latency** | Mouse movement made during the frame wait reaches this frame, not the next; `glFinish` after each frame keeps one frame in flight (auto-off when the GPU is the limit). |
 | 📋 **Session line** | Once a minute the log says how the game ran: fps, late and long frames, GPU wait, display mode. |
 | 🖱️ **Raw mouse input** | `m_rinput 1`: the device's own counts, no Windows acceleration or speed slider. `m_rinput_hz` shows the real polling rate. |

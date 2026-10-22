@@ -52,7 +52,7 @@ MUST_LOG = [
     'version_gate: reject client ',
     # server half of the competitive netconfig: competitive.cfg published, engine holds it
     'competitive_sv: ',
-    'engine holds sv_competitive "snaps=40 cl_maxpackets=125 com_maxfps=125:250 rate=90000"',
+    'engine holds sv_competitive "snaps=40 cl_maxpackets=125 com_maxfps=125:333 rate=90000"',
     'SYSTEMINFO yes)',
     # lag compensation: both hook kinds redirected in uo_game, cvars live
     'antilag: installed in ',

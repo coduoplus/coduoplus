@@ -1149,11 +1149,12 @@ void modern_menu_draw(float sw, float sh) {
     } else if (g_tab == 3) {
         float cy2 = cy;                       // right column runs in parallel
         section(cx, cy, colw, "FRAMERATE CAP"); cy += 24;
-        static const char* caps[] = { "125 fps", "200 fps", "250 fps" };
+        static const char* caps[] = { "125 fps", "200 fps", "250 fps", "333 fps" };
+        static const int   cap_fps[] = { 125, 200, 250, 333 };
         int fpsv = cv_int("com_maxfps", 250);
-        int fsel = fpsv <= 125 ? 0 : (fpsv <= 200 ? 1 : 2);
-        int nfs = segmented(cx, cy, colw, caps, 3, fsel);
-        if (nfs != fsel) cmdf("seta com_maxfps %d\n", nfs == 0 ? 125 : nfs == 1 ? 200 : 250);
+        int fsel = fpsv <= 125 ? 0 : (fpsv <= 200 ? 1 : (fpsv <= 250 ? 2 : 3));
+        int nfs = segmented(cx, cy, colw, caps, 4, fsel);
+        if (nfs != fsel) cmdf("seta com_maxfps %d\n", cap_fps[nfs]);
         cy += 46;
         hint(cx, cy, "idTech3 physics quantise at the cap - these are the known-good values.");
         cy += 30;

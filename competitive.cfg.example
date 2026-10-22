@@ -33,8 +33,9 @@ snaps 40
 # have passed: exactly 125 pps at com_maxfps 125 or 250 (with CoDUO+'s frame limiter).
 cl_maxpackets 125
 # 125 / 250 are the frame rates whose period divides 8 ms; other values in between
-# (e.g. 200) still work but send fewer packets (200 fps -> 100 pps).
-com_maxfps 125 250
+# (e.g. 200) still work but send fewer packets (200 fps -> 100 pps). 333 is allowed for
+# its movement physics: exact 3 ms frames, a packet every third one (111 pps).
+com_maxfps 125 333
 
 # ---- bandwidth ------------------------------------------------------------------
 # The next snapshot waits (size + 48) * 1000 / rate ms (SV_RateMsec, sizes counted up

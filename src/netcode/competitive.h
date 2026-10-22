@@ -48,7 +48,8 @@ constexpr uintptr_t CODMP_MAXPACKETS_RESET_STR_VA  = 0x592410; // "100" (shared,
 // The packet gate itself (CL_ReadyToSendPacket, after the clamp):
 //   if (cls.realtime - cl.outPackets[(cl.outPacketNum-1)&31].p_realtime < 1000/cl_maxpackets) wait
 // one packet per client frame at most, so 125 pps needs a frame period dividing 8 ms:
-// com_maxfps 125 or 250 (exact with the frame limiter's continuous clock).
+// com_maxfps 125 or 250 (exact with the frame limiter's continuous clock); 333 sends
+// on every third 3 ms frame, 111 pps.
 
 // cvar_t* __cdecl Cvar_Set(const char* name, const char* value): a force=1 thunk,
 //   43df58  6a 01  push 1 / push value / push name / call Cvar_Set2 (0x43dc50)
@@ -105,7 +106,7 @@ struct CompetitiveConfig {
     int  rate;           // force rate=           (<=0 = don't force)
     // cod2x parity: lock the cvars so the player cannot change them at all.
     bool lock_cvars;     // ROM-lock the forced cvars (competitive_lock_cvars)
-    int  maxfps_min;     // com_maxfps allowed range, cod2x = 125..250 (0 = don't touch)
+    int  maxfps_min;     // com_maxfps allowed range, CoDUO+ 125..333 (cod2x 125..250; 0 = don't touch)
     int  maxfps_max;
 };
 

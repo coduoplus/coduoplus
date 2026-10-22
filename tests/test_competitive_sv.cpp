@@ -41,7 +41,7 @@ int main() {
         "snaps 40\r\n"
         "cl_maxpackets 125\r\n"
         "rate 90000\r\n"
-        "com_maxfps 125 250\r\n"
+        "com_maxfps 125 333\r\n"
         "\r\n"
         "   cl_timenudge  -20   0\r\n"
         "; another comment style\r\n"
@@ -51,7 +51,7 @@ int main() {
     std::vector<std::string> rej;
     const std::string spec = competitive_build_spec(example, &rej);
     printf("spec: %s\n", spec.c_str());
-    check(spec == "snaps=40 cl_maxpackets=125 rate=90000 com_maxfps=125:250 cl_timenudge=-20:0 "
+    check(spec == "snaps=40 cl_maxpackets=125 rate=90000 com_maxfps=125:333 cl_timenudge=-20:0 "
                   "m_yaw=0.022 cl_packetdup=1:5", "exact values -> name=v, ranges -> name=lo:hi, comments skipped");
     check(rej.empty(), "nothing refused in a clean file");
 
