@@ -28,6 +28,7 @@
 #include "features/pam_install.h"
 #include "features/updater.h"        // COD1RELOADED_VERSION
 #include "netcode/protocol_patch.h"  // PROTOCOL_VANILLA_UO (demo extension)
+#include "ui/value_format.h"          // exact value labels, 0.01 steps (sensitivity)
 #include "video/display_probe.h"
 #include "video/vibrance.h"
 
@@ -499,6 +500,74 @@ int slider(float x, float y, float w, int lo, int hi, int v) {
         v = lo + (int)(nt * (hi - lo) + 0.5f);
     }
     return v;
+}
+
+// A number the player can click and type (sensitivity, acceleration). Shows `shown`;
+// a click opens it for typing with the value selected (ui_values::FieldEdit). Enter,
+// Tab or a click anywhere else writes `seta <cvar> <value>` (clamped to lo..hi) if it
+// changed; Esc, or the overlay closing, drops the edit. One field edits at a time:
+// opening another first commits the open one. Returns true if it wrote the cvar.
+struct ValueEdit {
+    int id = 0;                         // 0 = no field open
+    const char* cvar = nullptr;
+    double start = 0, lo = 0, hi = 0;
+    ui_values::FieldEdit e;
+};
+ValueEdit g_vedit;
+
+bool value_edit_commit() {
+    bool wrote = false;
+    double v;
+    if (g_vedit.id && ui_values::parse_setting(g_vedit.e.buf, g_vedit.lo, g_vedit.hi, &v) &&
+        std::fabs(v - g_vedit.start) > 1e-9) {
+        char s[24];
+        ui_values::format_setting(v, s, sizeof(s));
+        cmdf("seta %s %s\n", g_vedit.cvar, s);
+        wrote = true;
+    }
+    g_vedit.id = 0;
+    ui_text_capture(false);
+    return wrote;
+}
+
+bool value_field(int id, float x, float y, float w, const char* cvar, double shown, double lo, double hi) {
+    const float h = 36;
+    if (g_vedit.id == id && !ui_text_capturing()) g_vedit.id = 0;   // overlay closed
+    const UiInput& in = ui_input();
+    const bool over = hit(x, y, w, h);
+    bool wrote = false;
+
+    if (g_vedit.id == id) {
+        ui_values::edit_type(g_vedit.e, in.text);
+        if (in.vk == VK_BACK) ui_values::edit_backspace(g_vedit.e);
+        else if (in.vk == VK_DELETE) { g_vedit.e.buf[0] = 0; g_vedit.e.fresh = false; }
+        if (in.vk == VK_ESCAPE) { g_vedit.id = 0; ui_text_capture(false); }
+        else if (in.vk == VK_RETURN || in.vk == VK_TAB || (in.clicked && !over)) wrote = value_edit_commit();
+    } else if (over && in.clicked) {
+        if (g_vedit.id) value_edit_commit();                         // another field was open
+        g_vedit.id = id;
+        g_vedit.cvar = cvar;
+        g_vedit.start = shown;
+        g_vedit.lo = lo;
+        g_vedit.hi = hi;
+        ui_values::edit_begin(g_vedit.e, shown);
+        ui_text_capture(true);
+    }
+
+    const bool editing = g_vedit.id == id;
+    ui_rect_rounded(x, y, w, h, 8, editing || over ? UI_ROW_HOT : UI_ROW);
+    if (editing) ui_rect_border(x, y, w, h, 8, 1.5f, UI_ACCENT);
+    char label[24];
+    if (editing) snprintf(label, sizeof(label), "%s", g_vedit.e.buf);
+    else ui_values::format_setting(shown, label, sizeof(label));
+    const float tw = ui_text_width(17, 600, label);
+    const float tx = x + (w - tw) / 2;
+    if (editing && g_vedit.e.fresh && label[0])                      // selected: replaced by typing
+        ui_rect_rounded(tx - 4, y + 7, tw + 8, h - 14, 4, 0xFF3A3A3A);
+    ui_text(tx, y + 7, 17, 600, UI_TEXT, label);
+    if (editing && !g_vedit.e.fresh && (GetTickCount() / 500) % 2 == 0)   // caret
+        ui_rect(tx + tw + 2, y + 9, 2, h - 18, UI_TEXT);
+    return wrote;
 }
 
 bool toggle(float x, float y, const char* label, bool on) {
@@ -1002,24 +1071,43 @@ void modern_menu_draw(float sw, float sh) {
         ui_text(cx, cy, 14, 400, UI_MUTED, hz);
         cy += 40;
 
+        // The value shows what the engine holds, exactly (a config's 0.65 used to read
+        // 0.7: the old code rounded to tenths for display), and is a field: click it and
+        // type a value (value_field). The slider is the coarse control (0.1 steps over
+        // 0.1..30); -/+ step by 0.01. Nothing is written unless the player changes it.
         section(cx, cy, colw, "SENSITIVITY"); cy += 24;
-        int s10 = (int)(atof(cv_str("sensitivity", "5")) * 10 + 0.5f);
-        if (s10 < 1) s10 = 1;
-        if (s10 > 300) s10 = 300;
-        int ns = slider(cx, cy, colw - 70, 1, 300, s10);
-        char sv[16]; snprintf(sv, sizeof(sv), "%.1f", ns / 10.0);
-        ui_text(cx + colw - 50, cy + 8, 17, 600, UI_TEXT, sv);
-        if (ns != s10) cmdf("seta sensitivity %.1f\n", ns / 10.0);
+        {
+            const double sens = atof(cv_str("sensitivity", "5"));
+            int s10 = (int)(sens * 10 + 0.5);
+            if (s10 < 1) s10 = 1;
+            if (s10 > 300) s10 = 300;
+            int ns = slider(cx, cy, colw - 180, 1, 300, s10);
+            double shown = sens;
+            if (ns != s10) {
+                shown = ns / 10.0;
+                cmdf("seta sensitivity %.1f\n", shown);
+            } else if (button(cx + colw - 166, cy + 2, 36, 36, "-", false)) {
+                shown = ui_values::step_hundredths(sens, -1, 0.01, 30.0);
+                cmdf("seta sensitivity %.2f\n", shown);
+            } else if (button(cx + colw - 36, cy + 2, 36, 36, "+", false)) {
+                shown = ui_values::step_hundredths(sens, +1, 0.01, 30.0);
+                cmdf("seta sensitivity %.2f\n", shown);
+            }
+            value_field(1, cx + colw - 124, cy + 2, 82, "sensitivity", shown, 0.01, 100.0);
+        }
         cy += 50;
 
         section(cx, cy, colw, "ACCELERATION"); cy += 24;
-        int a10 = (int)(atof(cv_str("cl_mouseAccel", "0")) * 10 + 0.5f);
-        if (a10 < 0) a10 = 0;
-        if (a10 > 10) a10 = 10;
-        int na = slider(cx, cy, colw - 70, 0, 10, a10);
-        char av[16]; snprintf(av, sizeof(av), "%.1f", na / 10.0);
-        ui_text(cx + colw - 50, cy + 8, 17, 600, UI_TEXT, av);
-        if (na != a10) cmdf("seta cl_mouseAccel %.1f\n", na / 10.0);
+        {
+            const double accel = atof(cv_str("cl_mouseAccel", "0"));
+            int a10 = (int)(accel * 10 + 0.5);
+            if (a10 < 0) a10 = 0;
+            if (a10 > 10) a10 = 10;
+            int na = slider(cx, cy, colw - 110, 0, 10, a10);
+            const double shown = (na != a10) ? na / 10.0 : accel;   // exact, like sensitivity
+            if (na != a10) cmdf("seta cl_mouseAccel %.1f\n", shown);
+            value_field(2, cx + colw - 96, cy + 2, 96, "cl_mouseAccel", shown, 0.0, 10.0);
+        }
         cy += 40;
         hint(cx, cy, "0 = linear, the competitive default. Speed changes distance otherwise.");
         cy += 32;

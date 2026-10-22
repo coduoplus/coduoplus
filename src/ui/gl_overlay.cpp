@@ -67,6 +67,7 @@ bool    g_came_from_home = false;
 bool    g_home_suppress = false;
 UiInput g_in;
 bool    g_keycap = false;           // Keys tab is waiting for the next input
+bool    g_textcap = false;          // a typed value field has focus (ui_text_capture)
 bool    g_prev_down = false;
 bool    g_saw_raw = false;   // raw tap delivered: ignore the WM_MOUSEMOVE fallback
 POINT   g_last_move = { -1, -1 };
@@ -342,6 +343,8 @@ void ui_anim_set(long key, float v) { g_anim[key] = v; }
 void ui_alpha(float mul) { g_alpha_mul = mul < 0 ? 0 : (mul > 1 ? 1 : mul); }
 float ui_alpha_get() { return g_alpha_mul; }
 void ui_key_capture(bool on) { g_keycap = on; if (!on) g_in.vk = 0; }
+void ui_text_capture(bool on) { g_textcap = on; if (!on) { g_in.vk = 0; g_in.text[0] = 0; } }
+bool ui_text_capturing() { return g_textcap; }
 bool overlay_visible() { return g_mode != 0; }
 HWND overlay_game_window() { return g_hooked_wnd; }
 
@@ -370,6 +373,7 @@ void set_mode(int m, bool from_home) {
     if (g_mode != 0 && m == 0) rinput_ui_capture(false);
     g_mode = m;
     g_came_from_home = from_home;
+    if (m == 0) ui_text_capture(false);    // a field being typed in loses its edit
 }
 
 // ------------------------------------------------------------------- wndproc
@@ -426,6 +430,25 @@ LRESULT CALLBACK hk_wndproc(HWND w, UINT m, WPARAM wp, LPARAM lp) {
             return 0;
         case WM_KEYUP: case WM_SYSKEYUP: case WM_CHAR:
         case WM_LBUTTONUP: case WM_RBUTTONUP: case WM_MBUTTONUP: case WM_XBUTTONUP:
+            return 0;
+        }
+    }
+
+    // text entry (a typed value field has focus): characters and the editing keys go to
+    // the field. Esc is the field's cancel here, not "close the overlay". Ctrl+M falls
+    // through to the hotkey below; its WM_CHAR (0x0D) is not printable, so not typed.
+    if (g_mode != 0 && g_textcap) {
+        switch (m) {
+        case WM_KEYDOWN:
+            if (wp == 'M' && (GetKeyState(VK_CONTROL) & 0x8000)) break;
+            if (wp == VK_RETURN || wp == VK_ESCAPE || wp == VK_BACK || wp == VK_DELETE || wp == VK_TAB)
+                g_in.vk = (int)wp;
+            return 0;
+        case WM_CHAR:
+            if (wp >= 0x20 && wp < 0x7f) {
+                const size_t n = strlen(g_in.text);
+                if (n + 1 < sizeof(g_in.text)) { g_in.text[n] = (char)wp; g_in.text[n + 1] = 0; }
+            }
             return 0;
         }
     }
@@ -607,6 +630,7 @@ BOOL WINAPI hk_swapbuffers(HDC dc) {
             g_prev_down = g_in.down;
             g_in.wheel = 0;
             g_in.vk = 0;                        // capture events are one-frame
+            g_in.text[0] = 0;
 
             glMatrixMode(GL_MODELVIEW); glPopMatrix();
             glMatrixMode(GL_PROJECTION); glPopMatrix();
