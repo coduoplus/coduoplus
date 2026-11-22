@@ -131,6 +131,27 @@ bool apply_protocol_patch() {
     return true;
 }
 
+// See CODMP_AUTOUPDATE_CALL_VA. Runs at attach, long before CL_Init reaches the call.
+bool skip_engine_autoupdate() {
+    if (!game_exe_ok()) return false;
+    uint8_t* p = (uint8_t*)CODMP_AUTOUPDATE_CALL_VA;
+    static const uint8_t kNop5[5] = {0x0f, 0x1f, 0x44, 0x00, 0x00};   // nop dword [eax+eax]
+    if (memcmp(p, kNop5, 5) == 0) return true;                        // already done
+    const int32_t rel = (int32_t)(CODMP_REQUEST_AUTOUPDATE_VA - (CODMP_AUTOUPDATE_CALL_VA + 5));
+    if (p[0] != 0xe8 || *(const int32_t*)(p + 1) != rel) {
+        logger::logf("  autoupdate: call @0x%08x unexpected (%02x %02x %02x %02x %02x) -> skip",
+                     (unsigned)CODMP_AUTOUPDATE_CALL_VA, p[0], p[1], p[2], p[3], p[4]);
+        return false;
+    }
+    DWORD old = 0;
+    if (!VirtualProtect(p, 5, PAGE_EXECUTE_READWRITE, &old)) return false;
+    memcpy(p, kNop5, 5);
+    VirtualProtect(p, 5, old, &old);
+    FlushInstructionCache(GetCurrentProcess(), p, 5);
+    logger::logf("  autoupdate: Activision auto-update lookup (au2cod1-5) skipped");
+    return true;
+}
+
 // Follows cod1x_masterlist (0 = 1.6, 1 = legacy 1.5). Deliberately NOT archived: a
 // competitive client must come back on the 1.6 list every launch, or a player who
 // browsed 1.5 once would find the match servers gone and not know why.

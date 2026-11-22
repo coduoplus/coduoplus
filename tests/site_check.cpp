@@ -266,6 +266,31 @@ void check_engine_protocol() {
     CHECK(g_exe.f32(CODMP_BROWSER_PROTO_FLT_VA) == 22.0f);
     CHECK(g_exe.bytes_eq(0x415647, {0xd9, 0x05}) && g_exe.u32(0x415649) == CODMP_BROWSER_PROTO_FLT_VA);
     CHECK(g_exe.xrefs(CODMP_BROWSER_PROTO_FLT_VA).size() == 1);
+
+    // CL_Init's call to CL_RequestAutoUpdate, skipped by skip_engine_autoupdate():
+    //   414efe 6a 40 / push "0" / push "cl_noautoupdate" / call Cvar_Get   (ROM)
+    //   414f1b push "cl_noautoupdate" / call Cvar_FindVar ... value == 0.0f ?
+    //   414f40 call CL_RequestAutoUpdate
+    CHECK(is_call_to(g_exe, CODMP_AUTOUPDATE_CALL_VA, CODMP_REQUEST_AUTOUPDATE_VA));
+    CHECK(g_exe.bytes_eq(0x414efe, {0x6a, CVAR_ROM}) && push_str(g_exe, 0x414f00, "0") &&
+          push_str(g_exe, 0x414f05, "cl_noautoupdate") && is_call_to(g_exe, 0x414f16, CODMP_CVAR_GET_VA));
+    CHECK(push_str(g_exe, 0x414f1b, "cl_noautoupdate") && is_call_to(g_exe, 0x414f20, 0x43d8f0));
+    CHECK(g_exe.bytes_eq(0x414f3e, {0x7a, 0x05}));   // jp over the call (value != 0 -> skip)
+    // CL_RequestAutoUpdate walks the five au2cod hostnames CL_Init copied to 0x4dc41e4
+    // (stride 0x40) and logs its banner before the pick
+    CHECK(push_str(g_exe, 0x414cc9, "au2cod1.activision.com"));
+    CHECK(push_str(g_exe, 0x414d24, "au2cod5.activision.com"));
+    CHECK(g_exe.u8(0x413ced) == 0xbf && g_exe.u32(0x413cee) == 0x4dc41e4);   // mov edi,host[0]
+    CHECK(push_str(g_exe, 0x413d31, "Resolving AutoUpdate Server... "));
+    // ...and CL_Init is its only caller
+    int au_calls = 0;
+    for (const Image::Section& s : g_exe.sections) {
+        if (!s.code) continue;
+        const uint32_t va = g_exe.base + s.rva;
+        for (uint32_t a = va; a + 5 <= va + s.vsize; ++a)
+            if (g_exe.u8(a) == 0xe8 && g_exe.call_target(a) == CODMP_REQUEST_AUTOUPDATE_VA) ++au_calls;
+    }
+    CHECK(au_calls == 1);
 }
 
 void check_engine_competitive() {

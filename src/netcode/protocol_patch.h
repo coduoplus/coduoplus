@@ -33,6 +33,21 @@ constexpr uintptr_t CODMP_GETSERVERS_FMT_VA    = 0x59308c;
 constexpr size_t    CODMP_GETSERVERS_FMT_LEN   = 14;     // "getservers %s\0"
 constexpr uintptr_t CODMP_BROWSER_PROTO_FLT_VA = 0x5b9f24;
 
+// Activision's dead auto-updater. CL_Init ends with
+//   414f1b  push "cl_noautoupdate" / call Cvar_FindVar / ... value == 0.0f ?
+//   414f40  e8 7b ed ff ff   call CL_RequestAutoUpdate (0x413cc0)
+// and CL_RequestAutoUpdate resolves au2cod1..5.activision.com one after the other on
+// the main thread (NET_StringToAdr -> gethostbyname, 0x413cf2..0x413d11), BEFORE the
+// window exists. Only au2cod1 still exists; on a resolver that answers a missing name
+// slowly (VPN DNS: Mullvad, measured 2026-11-21) each of the other four blocks ~11 s,
+// so the game sat 44 s on a black screen at every launch. cl_noautoupdate is the
+// engine's own opt-out, but it is ROM (flags 0x40) so a player cannot set it. We NOP
+// the call instead: the engine then takes exactly the cl_noautoupdate path (its
+// "started" flag 0x4e19964 stays 0, so CL_UpdateInfoPacket ignores any reply).
+// CoDUO+ has its own updater; nothing is lost.
+constexpr uintptr_t CODMP_AUTOUPDATE_CALL_VA   = 0x414f40;  // CL_Init: call CL_RequestAutoUpdate
+constexpr uintptr_t CODMP_REQUEST_AUTOUPDATE_VA = 0x413cc0; // CL_RequestAutoUpdate (only caller above)
+
 extern int  g_protocol_version;                 // hardcoded: 22 = vanilla UO (see protocol_patch.cpp)
 extern char g_master_host[CODMP_MASTER_HOST_MAX + 1]; // hardcoded: "" = keep the engine's master
 extern int  g_net_version;                      // 16 = "1.6" feature level; client cvar + server min
@@ -65,6 +80,7 @@ constexpr int       CVAR_USERINFO       = 0x02;
 constexpr int       CVAR_ROM            = 0x40;
 
 bool apply_protocol_patch();        // protocol bump + master repoint in CoDMP.exe
+bool skip_engine_autoupdate();      // NOP CL_Init's call to the dead auto-updater (44 s DNS stall)
 void register_client_version_cvar(); // register USERINFO "coduoplus" cvar (once, after Com_Init)
 void netmode_tick();                // watcher: follow cod1x_masterlist, re-poke on change
 int  netmode_current();             // 0 = 1.6, 1 = legacy 1.5
