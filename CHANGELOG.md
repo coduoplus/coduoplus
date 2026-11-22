@@ -1,5 +1,15 @@
 # CoDUO+ — Changelog
 
+## Unreleased
+
+### Startup
+- **No more black screen for up to a minute at launch.** Before it opens its window, stock
+  UO 1.51 asks Activision's long-dead auto-update servers `au2cod1`–`au2cod5.activision.com`
+  for a patch, one DNS lookup after another. Only `au2cod1` still exists, and on some
+  networks (VPN DNS, for example) each missing name takes about 11 s to fail, which adds
+  up to around 45 s every launch. CoDUO+ now skips that check the way the engine's own
+  `cl_noautoupdate` would. CoDUO+ updates itself, so nothing is lost.
+
 ## v0.4.0 (2026-10-22) — one-click installer, server packages, opt-in auto-updater
 
 ### Downloads: one per kind of user ([docs/RELEASES.md](docs/RELEASES.md))
