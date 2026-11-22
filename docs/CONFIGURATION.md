@@ -73,6 +73,13 @@ possible fixes) the impossible combinations before the renderer starts.
 | --- | --- | --- |
 | `raw_mouse_input` | `off` | Default for the archived cvar `m_rinput`: read the mouse from the device (`WM_INPUT`) instead of the Windows cursor. No pointer acceleration, no desktop speed slider, no pixel rounding. Your sensitivity is unchanged. Once you set `m_rinput` in the console, your config wins. `m_rinput_hz` / `m_rinput_hz_max` report the measured polling rate while the mouse moves. |
 
+Not in `coduoplus.ini`. These are archived cvars, set in the console or in Ctrl+M → Mouse:
+
+| Cvar | Default | What it does |
+| --- | --- | --- |
+| `m_fovscale` | `0` | `1`: the same mouse feel at every FOV. The mouse scales with `tan(FOV/2) / tan(m_fovscale_ref/2)`, so the crosshair moves across the screen at one speed at any `cg_fov`, in ADS and through scopes. `0`: stock UO. Hip-fire turns the same number of degrees at every `cg_fov`, and ADS uses a linear FOV ratio. With Hor+ on, stock hip-fire is also about 20% faster at 16:9; `1` removes that. Changes apply immediately. |
+| `m_fovscale_ref` | `80` | The FOV your sensitivity is tuned at (10–160): at this `cg_fov` the mouse scale is exactly 1. Turning `m_fovscale` on in Ctrl+M sets this to your current `cg_fov`. |
+
 ## In-game menu
 
 | Key | Default | What it does |

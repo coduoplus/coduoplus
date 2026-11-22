@@ -15,6 +15,18 @@
   starts, as if you'd clicked No. The check that refuses to start the game twice is
   unchanged.
 
+### Mouse
+- **Same mouse feel at every FOV (`m_fovscale`, off by default).** UO keeps hip-fire
+  turning speed fixed whatever `cg_fov` is, so a wider FOV feels slower on screen, and
+  scales ADS by a straight FOV ratio. With `m_fovscale 1` the mouse scales with
+  tan(FOV/2) instead (the "0% monitor distance" match): the crosshair moves across the
+  screen at the same speed at any `cg_fov`, in ADS and through scopes. `m_fovscale_ref`
+  is the FOV your sensitivity is tuned at (default 80). Switching it on in
+  Ctrl+M → Mouse takes your current `cg_fov`, so hip-fire stays as it is right now.
+  Hor+, stretched and classic all scale the same way. Note: stock Hor+ makes
+  hip-fire about 20% faster at 16:9, because UO divides the widened FOV by `cg_fov`.
+  `m_fovscale` removes that extra 20%. [docs/CONFIGURATION.md](docs/CONFIGURATION.md#mouse)
+
 ## v0.4.0 (2026-10-22) — one-click installer, server packages, opt-in auto-updater
 
 ### Downloads: one per kind of user ([docs/RELEASES.md](docs/RELEASES.md))

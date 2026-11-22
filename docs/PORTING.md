@@ -147,6 +147,7 @@ checks compare against relocated values.
 | Main-menu "SETTINGS" button (`ui_pk3`) | ✅ ported, **generated** | [Decision](#the-ui-pk3-is-generated-from-the-players-own-files). |
 | cg_fov unlock 80–95 (`settings_menu`) | ✅ ported | [Note](#fov-unlock-is-ported-as-is--read-this). |
 | Hor+ / stretched FOV (`widescreen_fix`) | ✅ ported | Off by default (`view_mode = classic`). |
+| Same mouse feel at every FOV `m_fovscale` (`fov_sens`) | ✅ **new**, off | Not in upstream. Hooks the zoom-sensitivity `fdiv` at the end of `CG_CalcFov`. |
 | Swing fix: torso/legs follow the view (`swing_fix`) | ✅ ported, **client + server** | [Decision](#swing-fix-only-where-the-server-mirrors-it). |
 | Stance blend hold (`stance_fix`) | ✅ ported (off) | Upstream ships it disabled since 1.6.1; same here. |
 | Server version gate (`version_gate`) | ✅ ported, **fixed** | Both uo_game builds. Survives map changes (upstream's didn't). Vanilla players allowed. |

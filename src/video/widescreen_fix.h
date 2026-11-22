@@ -79,6 +79,12 @@ constexpr uintptr_t CGAME_VIDHEIGHT_RVA      = 0x00447a8c; // glConfig.vidHeight
 float widescreen_get_aspect_ratio();
 float widescreen_horplus_hfov(float cg_fov_43, float actual_aspect);
 
+// For m_fovscale (input/fov_sens.cpp): is the Hor+ hook live in THIS cgame instance (a
+// reloaded module has vanilla bytes), and the FOV it turns a 4:3 one into right now -
+// exactly what the hook returns, so unchanged when Hor+ is off or the frame is <= 4:3.
+bool  widescreen_horplus_hooked(uintptr_t cgame_base);
+float widescreen_horplus_fov(float fov_43);
+
 // Aspect ratio as a human string: "auto" / "4:3" / "16:9" / "16:10" / "21:9",
 // or a plain number like "1.6" (= a custom ratio). Shared by the .ini loader and the
 // in-game menu so both speak the same values.

@@ -39,6 +39,7 @@ set(COD1RELOADED_SOURCES
     src/core/logger.cpp
     src/core/iat.cpp
     src/input/rinput.cpp
+    src/input/fov_sens.cpp
     src/netcode/version_patch.cpp
     src/netcode/protocol_patch.cpp
     src/netcode/competitive.cpp
@@ -278,6 +279,14 @@ target_include_directories(test_ui_values PRIVATE src)
 target_compile_options(test_ui_values PRIVATE -Wall -Wextra -O2)
 target_link_options(test_ui_values PRIVATE -static -static-libgcc -static-libstdc++)
 add_test(NAME ui_values COMMAND test_ui_values)
+
+# m_fovscale's formula (input/fov_sens_math.h): 1 at the reference FOV, tan-ratio
+# elsewhere, and the same in Hor+ as in 4:3 terms.
+add_executable(test_fov_sens tests/test_fov_sens.cpp)
+target_include_directories(test_fov_sens PRIVATE src)
+target_compile_options(test_fov_sens PRIVATE -Wall -Wextra -O2)
+target_link_options(test_fov_sens PRIVATE -static -static-libgcc -static-libstdc++)
+add_test(NAME fov_sens COMMAND test_fov_sens)
 
 # competitive.cfg -> sv_competitive* parsing and chunking, checked against the client's reading.
 add_executable(test_competitive_sv tests/test_competitive_sv.cpp src/shared/competitive_spec.cpp)

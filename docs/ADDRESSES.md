@@ -104,6 +104,7 @@ five, because UO also registers a `protocol` cvar. Each VA below is the imm8 byt
 | `CG_GetEffectiveFov` | `0x344c0` | `0x3ffc0` | no args, hfov in ST(0), prologue `83 ec 08`; exactly two callers |
 | …caller 1 (`CG_CalcViewValues`) | `0x345e1` | `0x402b1` | `push esi ; call` then the vfov trig |
 | …caller 2 (`CG_DrawSkyBoxPortal`) | `0x350a5` | `0x42085` | `call ; fst [refdef.fov_x] ; fild [height] …` |
+| `CG_CalcFov` zoom sensitivity `fdiv [cg_fov.value]` (`m_fovscale`) | — | `0x40352` | `fstp [refdef.fov_y]` before, `fstp [cg.zoomSensitivity]` (`0x30489af0`) and `ret` after. `CG_DrawActiveFrame` (`0x426be`) passes it to syscall `0x55`, which stores it as the engine's `cl.cgameSensitivity` (`0x04963778`), read by `CL_MouseMove` (`0x40c330`) |
 | vfov `fild [refdef.height]` operand | `0x345e8` | `0x402b8` → `0x30487a84` | then `fild [width]`, `fld st(2)`, `fmul`, `fptan`, `fstp`, `fdivp`, `fpatan` |
 | vfov `fild [refdef.width]` operand | `0x345ee` | `0x402be` → `0x30487a80` | refdef: width `+8`, height `+0xc` |
 | `glConfig.vidWidth` / `vidHeight` | `0x1d5a28` / `0x1d5a2c` | `0x447a88` / `0x447a8c` | `CG_Init`: `fild [vidWidth] ; fmul [1/640]`, `fild [vidHeight] ; fmul [1/480]` |
