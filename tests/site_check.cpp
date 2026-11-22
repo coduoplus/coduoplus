@@ -23,6 +23,7 @@
 #include "image.h"
 
 #include "core/game.h"
+#include "core/single_instance.h"
 #include "features/updater.h"
 #include "shared/coduoplus_shared.h"
 #include "features/settings_menu.h"
@@ -351,7 +352,28 @@ void check_engine_mouse() {
     CHECK(g_exe.iat_slot("gdi32.dll", "SwapBuffers") != 0);
 }
 
+void check_engine_improper_quit() {
+    using namespace patches;
+    // Sys_CheckCrashOrRerun: push MB_YESNOCANCEL|MB_ICONWARNING, title, body, MessageBoxA
+    CHECK(g_exe.bytes_eq(CODMP_IMPROPER_QUIT_PROMPT_VA, {0x6a, 0x33}));
+    CHECK(push_str(g_exe, CODMP_IMPROPER_QUIT_PROMPT_VA + 2, "WIN_IMPROPER_QUIT_TITLE"));
+    CHECK(push_str(g_exe, 0x46c513, "WIN_IMPROPER_QUIT_BODY"));
+    CHECK(g_exe.bytes_eq(0x46c523, {0xff, 0x15}) &&
+          g_exe.u32(0x46c525) == g_exe.iat_slot("user32.dll", "MessageBoxA"));
+    // Yes (6) -> safe mode flag; No (7) -> je to the PID rewrite we jump to
+    CHECK(g_exe.bytes_eq(0x46c529, {0x83, 0xf8, 0x06}));
+    CHECK(g_exe.bytes_eq(0x46c52e, {0xc7, 0x05}) && g_exe.u32(0x46c530) == 0x389fd2c);
+    CHECK(g_exe.bytes_eq(0x46c53a, {0x83, 0xf8, 0x07, 0x74}) &&
+          0x46c53f + g_exe.u8(0x46c53e) == CODMP_IMPROPER_QUIT_NO_VA);
+    // ...which is CreateFileA(path, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, ...): pushes 0,2,2,0,0
+    CHECK(g_exe.bytes_eq(CODMP_IMPROPER_QUIT_NO_VA, {0x6a, 0x00, 0x6a, 0x02, 0x6a, 0x02}));
+    CHECK(g_exe.bytes_eq(CODMP_IMPROPER_QUIT_NO_VA + 10, {0x68, 0x00, 0x00, 0x00, 0x40}));
+    // the short jmp we write reaches it
+    CHECK(CODMP_IMPROPER_QUIT_NO_VA - (CODMP_IMPROPER_QUIT_PROMPT_VA + 2) < 0x80);
+}
+
 void check_engine() {
+    check_engine_improper_quit();
     check_engine_cvar_api();
     check_engine_version_fullscreen_refresh();
     check_engine_frame_limiter();

@@ -92,6 +92,7 @@ five, because UO also registers a `protocol` cvar. Each VA below is the imm8 byt
 | master port | — | `20610` (`0x5082`) | `push 0x5082` → `htons`. Probed: ~111 servers answer `getservers 22`. |
 | `getservers %s` format (14 bytes + 2 pad) | `0x5a5558` | `0x59308c` | pushed at `0x41653c`; argv(2) comes from the UI's `globalservers %d %d full empty` (22) |
 | browser protocol filter (float) | `0x5a88b4` | `0x5b9f24` (22.0f) | `fld [0x5b9f24]` at `0x415647` in `CL_ServerInfoPacket`, its only reader |
+| `Sys_CheckCrashOrRerun` improper-quit prompt (→ `jmp` to the "No" branch) | — | `0x46c503` → `0x46c550` | `6a 33 ; push "WIN_IMPROPER_QUIT_TITLE"` … `call [MessageBoxA]` in `0x46c490` (callers `0x43c76b` `Com_Init`, `0x46c602`). PID file `__<exe name>` next to the exe; Yes sets safe mode `0x389fd2c`. `0x46c550` = `CreateFileA(…, GENERIC_WRITE, …, CREATE_ALWAYS)` rewriting the PID |
 | `CL_Init` → `CL_RequestAutoUpdate` call (NOPed) | — | `0x414f40` → `0x413cc0` | `e8 7b ed ff ff`, its only caller; skipped by the engine when the ROM cvar `cl_noautoupdate` ≠ 0. The callee resolves `au2cod1`..`5.activision.com` (copied to `0x4dc41e4`, stride `0x40`) on the main thread before the window; only `au2cod1` still exists, so each other lookup can block ~11 s |
 
 ## uo_cgame_mp_x86.dll (RVAs, base `0x30000000`)

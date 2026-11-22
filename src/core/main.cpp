@@ -205,6 +205,8 @@ extern "C" BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID) {
             // never let CL_Init resolve the dead au2cod*.activision.com updaters
             // (up to 44 s of black screen before the window on a slow resolver)
             patches::skip_engine_autoupdate();
+            // no unreadable WIN_IMPROPER_QUIT_* Yes/No/Cancel box after a crash
+            patches::skip_improper_quit_prompt();
 
             // competitive: lift snaps (server-side) + cl_maxpackets (client-side) caps for real 40-tick
             patches::apply_competitive_caps();

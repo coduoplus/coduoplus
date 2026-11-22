@@ -115,4 +115,24 @@ void single_instance_guard() {
     ExitProcess(0);
 }
 
+bool skip_improper_quit_prompt() {
+    if (!game_exe_ok()) return false;
+    uint8_t* p = (uint8_t*)CODMP_IMPROPER_QUIT_PROMPT_VA;
+    const uint8_t jmp[2] = {0xeb, (uint8_t)(CODMP_IMPROPER_QUIT_NO_VA - (CODMP_IMPROPER_QUIT_PROMPT_VA + 2))};
+    if (p[0] == jmp[0] && p[1] == jmp[1]) return true;   // already done
+    if (p[0] != 0x6a || p[1] != 0x33) {
+        logger::logf("single_instance: improper-quit prompt @0x%08x unexpected (%02x %02x) -> skip",
+                     (unsigned)CODMP_IMPROPER_QUIT_PROMPT_VA, p[0], p[1]);
+        return false;
+    }
+    DWORD old = 0;
+    if (!VirtualProtect(p, 2, PAGE_EXECUTE_READWRITE, &old)) return false;
+    p[0] = jmp[0];
+    p[1] = jmp[1];
+    VirtualProtect(p, 2, old, &old);
+    FlushInstructionCache(GetCurrentProcess(), p, 2);
+    logger::logf("single_instance: \"did not quit properly\" prompt disabled");
+    return true;
+}
+
 }  // namespace patches

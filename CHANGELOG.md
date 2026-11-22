@@ -9,6 +9,11 @@
   networks (VPN DNS, for example) each missing name takes about 11 s to fail, which adds
   up to around 45 s every launch. CoDUO+ now skips that check the way the engine's own
   `cl_noautoupdate` would. CoDUO+ updates itself, so nothing is lost.
+- **No more `WIN_IMPROPER_QUIT_TITLE` box after a crash.** When the last session didn't
+  exit cleanly, UO showed a Yes/No/Cancel prompt (Yes = safe mode) before its text was
+  loaded, so all you saw were the raw `WIN_IMPROPER_QUIT_*` keys. The game now just
+  starts, as if you'd clicked No. The check that refuses to start the game twice is
+  unchanged.
 
 ## v0.4.0 (2026-10-22) — one-click installer, server packages, opt-in auto-updater
 
