@@ -134,8 +134,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.REF }}
+      # --network=host: see ci.yml (RUN steps cannot resolve DNS on ubuntu-latest otherwise)
       - name: Build coduoplus_sv.so
-        run: docker build -f server/linux/Dockerfile --target artifact --output type=local,dest=build/linux .
+        run: docker build --network=host -f server/linux/Dockerfile --target artifact --output type=local,dest=build/linux .
       - uses: actions/upload-artifact@v4
         with:
           name: linux
@@ -168,7 +169,7 @@ jobs:
           if [ "$NIGHTLY" = true ]; then TAGS=(edge); DESC="development build of main at ${GITHUB_SHA:0:12}"
           else TAGS=("$VERSION" latest); DESC="$VERSION"; fi
           T=(); for t in "${TAGS[@]}"; do T+=(-t "$IMG:$t"); done
-          docker build -f server/linux/Dockerfile \
+          docker build --network=host -f server/linux/Dockerfile \
             --label org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY" \
             --label org.opencontainers.image.version="$VERSION" \
             --label org.opencontainers.image.revision="$(git rev-parse HEAD)" \

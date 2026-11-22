@@ -80,10 +80,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Lint the Dockerfile
         run: docker build --check -f server/linux/Dockerfile .
+      # --network=host: since late Oct 2026 the RUN steps' own network on ubuntu-latest
+      # cannot resolve anything (apt: "Temporary failure resolving 'snapshot.debian.org'");
+      # the host's resolver works.
       - name: Build coduoplus_sv.so (artifact stage of server/linux/Dockerfile)
-        run: docker build -f server/linux/Dockerfile --target artifact --output type=local,dest=build/linux .
+        run: docker build --network=host -f server/linux/Dockerfile --target artifact --output type=local,dest=build/linux .
       - name: Build the server image (default stage; not pushed)
-        run: docker build -f server/linux/Dockerfile -t coduoplus-server:ci .
+        run: docker build --network=host -f server/linux/Dockerfile -t coduoplus-server:ci .
       - name: The image's entrypoint refuses to start without game files
         run: |
           out=$(docker run --rm coduoplus-server:ci 2>&1 || true)
