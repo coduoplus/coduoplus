@@ -1148,6 +1148,23 @@ void modern_menu_draw(float sw, float sh) {
         if (nmf != mf) cmdf("seta m_filter %d\n", nmf ? 1 : 0);
         cy += 36;
         hint(cx, cy, "Smoothing averages two frames of movement: soft feel, real latency.");
+        cy += 32;
+
+        // m_fovscale (input/fov_sens.h). Switching it on takes the current cg_fov as the
+        // reference, so hip-fire keeps the speed it has right now at this FOV.
+        bool fs = cv_int("m_fovscale", 0) != 0;
+        bool nfs = toggle(cx, cy, "Same feel at every FOV (m_fovscale)", fs);
+        if (nfs != fs) {
+            if (nfs) cmdf("seta m_fovscale_ref %s\nseta m_fovscale 1\n", cv_str("cg_fov", "80"));
+            else     cmdf("seta m_fovscale 0\n");
+        }
+        if (nfs) {
+            ui_text(cx + colw - 210, cy + 4, 14, 400, UI_MUTED, "tuned at FOV");
+            value_field(3, cx + colw - 96, cy - 4, 96, "m_fovscale_ref",
+                        atof(cv_str("m_fovscale_ref", "80")), 10.0, 160.0);
+        }
+        cy += 36;
+        hint(cx, cy, "Hip-fire and ADS scale with tan(FOV/2): the crosshair moves at one speed.");
 
         if (two_col) {
             static const char* L[] = {

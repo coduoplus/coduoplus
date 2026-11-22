@@ -71,6 +71,7 @@ bool cmdline_sets_dedicated(const char* command_line);   // the parser, for the 
 namespace port {
 constexpr bool ENGINE           = true;   // CoDUOMP.exe: cvar API, version, protocol, caps, mouse, frame limiter
 constexpr bool CGAME_FOV        = true;   // uo_cgame: cg_fov cheat flag + min clamp
+constexpr bool CGAME_FOVSENS    = true;   // uo_cgame: CG_CalcFov zoom-sensitivity fdiv (m_fovscale)
 constexpr bool CGAME_WIDESCREEN = true;   // uo_cgame: CG_CalcFov Hor+/stretch hooks
 constexpr bool CGAME_SWING      = true;   // uo_cgame: torso/legs swing constants
 constexpr bool CGAME_STANCE     = true;   // uo_cgame: stance blend hold time

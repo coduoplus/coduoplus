@@ -24,6 +24,7 @@
 #include "video/display_probe.h"
 #include "video/mode_guard.h"
 #include "input/rinput.h"
+#include "input/fov_sens.h"
 #include "performance/fps_cap.h"
 #include "performance/frame_limiter.h"
 #include "performance/gpu_sync.h"
@@ -121,6 +122,7 @@ DWORD WINAPI patch_watcher_thread(LPVOID) {
             patches::competitive_force_cvars();  // force/lock snaps+cl_maxpackets+rate for 40-tick
             patches::settings_menu_tick();       // register/poll cod1x_* cvars + cg_fov unlock + hotkey
             patches::rinput_tick();              // follow m_rinput, publish m_rinput_hz
+            patches::fov_sens_tick();            // follow m_fovscale, (re)hook CG_CalcFov
             patches::session_report_tick();      // one 'session' line a minute in the log
             patches::ini_lock_tick();            // r_fullscreen read-only, r_displayRefresh at max
             patches::netmode_tick();             // follow cod1x_masterlist (1.6 <-> legacy 1.5)

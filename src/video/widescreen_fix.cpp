@@ -354,6 +354,15 @@ bool install_horplus_hook(HMODULE cgame_module) {
 
 }  // namespace
 
+bool widescreen_horplus_hooked(uintptr_t cgame_base) {
+    const uintptr_t cs = cgame_base + CGAME_CALCFOV_CALL1_RVA;
+    if (*(const uint8_t*)cs != 0xE8) return false;
+    const int32_t rel = *(const int32_t*)(cs + 1);
+    return cs + 5 + (uintptr_t)(intptr_t)rel == (uintptr_t)&calcfov_horplus_wrapper;
+}
+
+float widescreen_horplus_fov(float fov_43) { return apply_horplus_fov(fov_43); }
+
 float widescreen_get_aspect_ratio() {
     return aspect_for_mode(g_widescreen_config.aspect_mode,
                            g_widescreen_config.custom_ratio);

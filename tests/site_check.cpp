@@ -28,6 +28,7 @@
 #include "shared/coduoplus_shared.h"
 #include "features/settings_menu.h"
 #include "input/rinput.h"
+#include "input/fov_sens.h"
 #include "netcode/competitive.h"
 #include "netcode/protocol_patch.h"
 #include "netcode/version_patch.h"
@@ -405,6 +406,34 @@ void check_cgame_fov() {
     CHECK(g_cgame.bytes_eq(jp + 0x10, {0xd8, 0x1d}) && g_cgame.f32(g_cgame.u32(jp + 0x12)) == 160.0f);
 }
 
+// m_fovscale (input/fov_sens.h): the end of CG_CalcFov,
+//   fld st(1) ; fstp [refdef.fov_x] ; mov eax,esi ; pop esi ; fstp [refdef.fov_y] ;
+//   fdiv [cg_fov.value] ; fstp [cg.zoomSensitivity] ; ret
+// and the zoom sensitivity is what CG_DrawActiveFrame hands to syscall 0x55.
+void check_cgame_fovsens() {
+    using namespace patches;
+    const uint32_t site = CG + CGAME_FOVSENS_SITE_RVA;
+    const uint32_t vmcvar = g_cgame.u32(CG + CGAME_FOV_CVAR_FLAGS_RVA - 12);   // cg_fov's vmCvar_t
+    CHECK(CG + CGAME_CG_FOV_VALUE_RVA == vmcvar + 8);                          // .value
+    CHECK(g_cgame.bytes_eq(site, {0xd8, 0x35}) && g_cgame.u32(site + 2) == CG + CGAME_CG_FOV_VALUE_RVA);
+    CHECK(g_cgame.bytes_eq(site + 6, {0xd9, 0x1d}) && g_cgame.u32(site + 8) == CG + CGAME_ZOOMSENS_RVA);
+    CHECK(g_cgame.bytes_eq(site + 12, {0xc3}));
+    // the two stores just before: refdef.fov_y (+0xc after fov_x) and refdef.fov_x
+    CHECK(g_cgame.bytes_eq(site - 6, {0xd9, 0x1d}) && g_cgame.u32(site - 4) == CG + CGAME_REFDEF_WIDTH_RVA + 0x0c);
+    CHECK(g_cgame.bytes_eq(site - 0x0f, {0xd9, 0x1d}) && g_cgame.u32(site - 0x0d) == CG + CGAME_REFDEF_WIDTH_RVA + 0x08);
+    // this is the tail of the function the Hor+ hook's call1 site calls into
+    CHECK(site > CG + CGAME_CALCFOV_CALL1_RVA && site - (CG + CGAME_CALCFOV_CALL1_RVA) < 0xb0);
+    // the installer swaps the 6 bytes with one aligned 8-byte compare-exchange
+    CHECK((site & 7) + 6 <= 8);
+    // CG_DrawActiveFrame: mov eax,[cg.zoomSensitivity] ... push 0x55 (trap_SetUserCmdValue)
+    const uint32_t rd = CG + CGAME_ZOOMSENS_READ_RVA;
+    CHECK(g_cgame.bytes_eq(rd, {0xa1}) && g_cgame.u32(rd + 1) == CG + CGAME_ZOOMSENS_RVA);
+    bool push55 = false;
+    for (uint32_t va = rd; va < rd + 0x100; ++va)
+        push55 |= g_cgame.bytes_eq(va, {0x6a, 0x55});
+    CHECK_MSG(push55, "push 0x55 (trap_SetUserCmdValue) follows the zoomSensitivity read");
+}
+
 void check_cgame_widescreen() {
     using namespace patches;
     const uint32_t calcfov = CG + CGAME_CALCFOV_RVA;
@@ -679,6 +708,7 @@ int main(int argc, char** argv) {
         {"proxy", true, check_proxy},
         {"engine", port::ENGINE, check_engine},
         {"cgame_fov", port::CGAME_FOV, check_cgame_fov},
+        {"cgame_fovsens", port::CGAME_FOVSENS, check_cgame_fovsens},
         {"cgame_widescreen", port::CGAME_WIDESCREEN, check_cgame_widescreen},
         {"cgame_swing", port::CGAME_SWING, check_cgame_swing},
         {"cgame_stance", port::CGAME_STANCE, check_cgame_stance},
