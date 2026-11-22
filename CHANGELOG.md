@@ -1,6 +1,6 @@
 # CoDUO+ — Changelog
 
-## Unreleased
+## v0.5.0 (2026-11-21) — same mouse feel at every FOV, fast startup
 
 ### Startup
 - **No more black screen for up to a minute at launch.** Before it opens its window, stock
